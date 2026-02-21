@@ -13,6 +13,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id            String    @id
   name          String
@@ -23,11 +28,17 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  role          Role @default(USER)
+
+  userProblems  UserProblem[] 
+  
+  notes      String?
+  confidence ConfidenceLevel @default(not_attempted)
+  solvedAt   DateTime?  // 👈 ADD THIS
 
   @@unique([email])
   @@map("user")
 }
-
 model Session {
   id        String   @id
   expiresAt DateTime
@@ -85,6 +96,14 @@ enum Difficulty {
   hard
 }
 
+enum ConfidenceLevel {
+  not_attempted
+  confident
+  needs_revision
+  failed
+  skipped
+}
+
 model Problem {
   id          String   @id @default(cuid())
   title       String
@@ -100,8 +119,10 @@ model Problem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  
   // relation
   sectionProblems SectionProblem[]
+  userProblems    UserProblem[]
 }
 
 /* ================= SHEET ================= */
@@ -152,4 +173,22 @@ model SectionProblem {
 
   @@unique([sectionId, problemId])
   @@index([sectionId, order])
+}
+
+
+model UserProblem {
+  id          String   @id @default(cuid())
+  userId      String
+  problemId   String
+
+  solved      Boolean  @default(false)
+  confidence  ConfidenceLevel?
+  attempts    Int      @default(0)
+  solvedAt    DateTime?
+  notes       String?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
 }

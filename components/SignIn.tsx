@@ -53,28 +53,21 @@ export default function SignInForm() {
     try {
       setIsLoading(true);
 
-      const session = await signIn(
-        values.email as string,
-        values.password as string,
-      );
+      const result = await signIn(values.email, values.password);
 
-      if (!session) {
-        setIsLoading(false);
-        alert("Unable to login at the moment");
+      if (!result.success) {
+        // 👇 This is where wrong email/password lands
+        alert(result.error || "Invalid email or password");
         return;
       }
 
-      alert("Logged In Successfully");
-      setIsLoading(false);
+      // success case
       router.push("/dashboard");
-
-      console.log("Form submitted:", values);
     } catch (error) {
+      console.error("SignIn error:", error);
+      alert("Something went wrong. Try again.");
+    } finally {
       setIsLoading(false);
-      console.log("SignIn error", error);
-      alert("Unable to signin");
-
-      return;
     }
   }
 
@@ -86,6 +79,10 @@ export default function SignInForm() {
         "shadow-2xl shadow-indigo-950/40",
         "rounded-xl overflow-hidden",
         "transition-all duration-300",
+
+        // ─── Add these to control width ───
+        "w-full max-w-md", // ← most common & recommended for login forms
+        "mx-auto", // centers it horizontally
       )}
     >
       <CardHeader className="space-y-1.5 pb-6 pt-8 text-center">
@@ -170,7 +167,7 @@ export default function SignInForm() {
                 "hover:shadow-lg hover:shadow-indigo-900/60",
                 "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
                 // ──── Disabled / loading styles ────
-                "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:shadow-none disabled:hover:-translate-y-0 disabled:active:scale-100",
+                "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:shadow-none disabled:hover:translate-y-0 disabled:active:scale-100",
                 isLoading && "opacity-70 cursor-not-allowed",
               )}
             >
