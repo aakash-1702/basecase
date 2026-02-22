@@ -165,7 +165,7 @@ model SectionProblem {
   sectionId  String
   problemId  String
 
-  order      Int
+  order      Int 
   note       String?
 
   section    SheetSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)

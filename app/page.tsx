@@ -91,7 +91,7 @@ export default function Home() {
               className="h-14 px-10 text-lg bg-linear-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-lg shadow-amber-900/30 transition-all duration-300 hover:scale-[1.03] active:scale-95"
               asChild
             >
-              <Link href="/auth/sign-up">
+              <Link href="/sheets">
                 Start Practicing Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
@@ -149,10 +149,10 @@ export default function Home() {
                 </li>
                 <li>
                   <Link
-                    href="/contests"
+                    href="/interview"
                     className="hover:text-amber-400 transition-colors"
                   >
-                    Contests
+                    Interview
                   </Link>
                 </li>
                 <li>

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { label: "Problems", href: "/problems" },
   { label: "Sheets", href: "/sheets" }, // ← fixed typo: /sheet → /sheets ?
-  { label: "Contests", href: "/contests" }, // ← fixed plural consistency
+  { label: "Interview", href: "/interview" }, // ← fixed plural consistency
 ];
 
 interface UserNavbarProps {
