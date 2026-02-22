@@ -62,7 +62,7 @@ export default function Hero() {
                 className="h-12 bg-linear-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-base font-semibold shadow-md shadow-amber-900/30 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 asChild
               >
-                <Link href="/auth/sign-up">
+                <Link href="/sheets">
                   Start Practicing
                   <Code2 className="ml-2 h-4 w-4" />
                 </Link>
