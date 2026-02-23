@@ -1,22 +1,34 @@
 // components/UserNavbar.tsx
 "use client";
+
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Session } from "better-auth";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { LogOut } from "lucide-react";
+import { signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { label: "Problems", href: "/problems" },
-  { label: "Sheets", href: "/sheets" }, // ← fixed typo: /sheet → /sheets ?
-  { label: "Interview", href: "/interview" }, // ← fixed plural consistency
+  { label: "Sheets", href: "/sheets" },
+  { label: "Interview", href: "/interview" },
 ];
 
-interface UserNavbarProps {
-  session: Session | null;
-}
+export default function UserNavbar({ session }: any) {
+  const router = useRouter();
 
-export default function UserNavbar({ session }: UserNavbarProps) {
+  const handleLogout = async () => {
+    await signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/");
+          router.refresh();
+        },
+      },
+    });
+  };
+
   return (
     <nav
       className={cn(
@@ -31,12 +43,12 @@ export default function UserNavbar({ session }: UserNavbarProps) {
           href="/"
           className={cn(
             "group flex items-center gap-1.5 text-xl font-bold tracking-tight",
-            "text-white transition-all duration-300",
+            "text-white transition-all duration-300 ease-out",
             "hover:scale-105 hover:text-amber-400/90 active:scale-100",
           )}
         >
           Base
-          <span className="text-amber-500/90 transition-colors group-hover:text-amber-400">
+          <span className="text-amber-500/90 transition-colors duration-300 ease-out group-hover:text-amber-400">
             Case
           </span>
         </Link>
@@ -66,34 +78,33 @@ export default function UserNavbar({ session }: UserNavbarProps) {
           ))}
         </div>
 
-        {/* Auth section */}
-        <div className="flex items-center gap-3">
-          {session ? (
+        {/* Auth / User section */}
+        <div className="flex items-center gap-3 pr-2 sm:pr-4 lg:pr-6">
+          {session?.user ? (
             <Button
+              onClick={handleLogout}
               variant="ghost"
               className={cn(
-                "relative gap-2 px-4 text-neutral-200",
-                "transition-all duration-300",
-                "hover:bg-amber-950/40 hover:text-amber-200 hover:shadow-sm",
-                "hover:-translate-y-0.5 active:translate-y-0 active:scale-98",
+                "gap-2 px-5 sm:px-6 py-2 text-sm font-medium text-neutral-300",
+                "transition-all duration-300 ease-out",
+                "hover:bg-rose-950/30 hover:text-rose-300 hover:border-rose-800/40 hover:shadow-sm",
+                "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+                "border border-transparent",
+                "min-w-25",
               )}
-              asChild
             >
-              <Link href="/profile">
-                <span className="hidden sm:inline">Profile</span>
-                {/* Replace with real avatar when available */}
-                <div className="h-7 w-7 rounded-full bg-neutral-700" />
-              </Link>
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           ) : (
             <>
               <Button
                 variant="ghost"
                 className={cn(
-                  "px-4 text-neutral-300",
-                  "transition-all duration-300",
+                  "px-5 text-neutral-300 text-sm font-medium",
+                  "transition-all duration-300 ease-out",
                   "hover:bg-amber-950/30 hover:text-amber-200 hover:-translate-y-0.5",
-                  "active:translate-y-0 active:scale-98",
+                  "active:translate-y-0 active:scale-[0.98]",
                 )}
                 asChild
               >
@@ -104,8 +115,8 @@ export default function UserNavbar({ session }: UserNavbarProps) {
                 className={cn(
                   "bg-linear-to-r from-amber-600 to-orange-600",
                   "hover:from-amber-500 hover:to-orange-500",
-                  "px-5 shadow-sm shadow-amber-900/30",
-                  "transition-all duration-300",
+                  "px-6 py-1.5 text-sm font-semibold shadow-sm shadow-amber-900/30",
+                  "transition-all duration-300 ease-out",
                   "hover:shadow-md hover:shadow-amber-800/40",
                   "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
                 )}

@@ -14,11 +14,11 @@ export const metadata: Metadata = {
   description: "Level up your coding skills with curated problems, study sheets, and live contests.",
 };
 
-export default async function RootLayout({
+export default async  function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const sessionData = await auth.api.getSession({
-    headers: await headers(),
+  const session = await auth.api.getSession({
+    headers : await headers(),
   });
 
   return (
@@ -31,7 +31,7 @@ export default async function RootLayout({
           "min-h-screen bg-neutral-950 text-neutral-100",
         )}
       >
-        <UserNavbar session={sessionData?.session ?? null} />
+        <UserNavbar session = {session as any} />
 
         <main
           className={cn(
