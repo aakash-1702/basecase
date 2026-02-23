@@ -40,6 +40,7 @@ const SignupForm = () => {
       }
 
       console.log("User created:", result.data.user);
+      router.refresh();
       router.push("/dashboard");
     } catch (err: any) {
       setError(err?.message || "An unexpected error occurred");
@@ -62,13 +63,13 @@ const SignupForm = () => {
           "bg-neutral-900/65 backdrop-blur-xl border border-neutral-800/60 rounded-2xl",
           "shadow-2xl shadow-black/50",
           "p-8 sm:p-10",
-          "animate-fade-in-up"
+          "animate-fade-in-up",
         )}
       >
         <h2
           className={cn(
             "text-2xl sm:text-3xl font-bold text-center mb-8",
-            "bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent"
+            "bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent",
           )}
         >
           Join BaseCase
@@ -79,7 +80,7 @@ const SignupForm = () => {
             className={cn(
               "mb-6 p-4 bg-red-950/30 border border-red-800/50 rounded-xl",
               "text-red-300 text-sm text-center",
-              "animate-fade-in-up"
+              "animate-fade-in-up",
             )}
           >
             {error}
@@ -110,7 +111,7 @@ const SignupForm = () => {
                 "placeholder:text-neutral-500",
                 "focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 focus:ring-offset-neutral-950",
                 "outline-none transition-all duration-300",
-                "disabled:opacity-60 disabled:cursor-not-allowed"
+                "disabled:opacity-60 disabled:cursor-not-allowed",
               )}
             />
           </div>
@@ -138,7 +139,7 @@ const SignupForm = () => {
                 "placeholder:text-neutral-500",
                 "focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 focus:ring-offset-neutral-950",
                 "outline-none transition-all duration-300",
-                "disabled:opacity-60 disabled:cursor-not-allowed"
+                "disabled:opacity-60 disabled:cursor-not-allowed",
               )}
             />
           </div>
@@ -166,7 +167,7 @@ const SignupForm = () => {
                 "placeholder:text-neutral-500",
                 "focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 focus:ring-offset-neutral-950",
                 "outline-none transition-all duration-300",
-                "disabled:opacity-60 disabled:cursor-not-allowed"
+                "disabled:opacity-60 disabled:cursor-not-allowed",
               )}
             />
           </div>
@@ -184,7 +185,7 @@ const SignupForm = () => {
               "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
               "disabled:opacity-60 disabled:hover:opacity-60",
               "disabled:cursor-not-allowed disabled:shadow-none",
-              "disabled:hover:shadow-none disabled:hover:translate-y-0"
+              "disabled:hover:shadow-none disabled:hover:translate-y-0",
             )}
           >
             {loading ? (
@@ -223,7 +224,7 @@ const SignupForm = () => {
             href="/auth/sign-in"
             className={cn(
               "text-amber-400 hover:text-amber-300 font-medium",
-              "transition-colors duration-200 hover:underline"
+              "transition-colors duration-200 hover:underline",
             )}
           >
             Sign in

@@ -59,6 +59,7 @@ export default function SignInForm() {
         return;
       }
 
+      router.refresh();
       router.push("/dashboard");
     } catch (error) {
       console.error("SignIn error:", error);
@@ -83,7 +84,7 @@ export default function SignInForm() {
           "shadow-2xl shadow-black/50",
           "rounded-2xl overflow-hidden",
           "w-full max-w-md mx-auto",
-          "transition-all duration-300"
+          "transition-all duration-300",
         )}
       >
         <CardHeader className="space-y-1.5 pb-6 pt-8 text-center">
@@ -118,7 +119,7 @@ export default function SignInForm() {
                           "h-11 bg-neutral-900/60 border-neutral-700 text-white",
                           "placeholder:text-neutral-500",
                           "focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 focus:ring-offset-neutral-950",
-                          "outline-none transition-all duration-300 shadow-sm"
+                          "outline-none transition-all duration-300 shadow-sm",
                         )}
                         {...field}
                       />
@@ -146,7 +147,7 @@ export default function SignInForm() {
                           "h-11 bg-neutral-900/60 border-neutral-700 text-white",
                           "placeholder:text-neutral-500",
                           "focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 focus:ring-offset-neutral-950",
-                          "outline-none transition-all duration-300 shadow-sm"
+                          "outline-none transition-all duration-300 shadow-sm",
                         )}
                         {...field}
                       />
@@ -167,7 +168,7 @@ export default function SignInForm() {
                   "transition-all duration-300",
                   "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
                   "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:shadow-none disabled:hover:translate-y-0 disabled:active:scale-100",
-                  isLoading && "opacity-70 cursor-not-allowed"
+                  isLoading && "opacity-70 cursor-not-allowed",
                 )}
               >
                 {isLoading ? (

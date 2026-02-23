@@ -1,5 +1,7 @@
 // app/page.tsx
 
+'use client';
+
 import Hero from "@/components/Hero"; // ← the Hero we just made (or inline it here)
 
 import { Button } from "@/components/ui/button";
