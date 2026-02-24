@@ -19,7 +19,7 @@ const stages = [
   {
     rank: "IDENTIFIED",
     badge: "01",
-    msg: "Entity recognized. Commencing uplink.",
+    msg: "Identity pattern detected. Establishing link.",
     color: "#60a5fa",
     glow: "rgba(96,165,250,0.15)",
     bar: "from-blue-600 to-blue-400",
@@ -27,7 +27,7 @@ const stages = [
   {
     rank: "VERIFIED",
     badge: "02",
-    msg: "Channel secured. Finalizing encryption.",
+    msg: "Identity confirmed. Securing channel.",
     color: "#34d399",
     glow: "rgba(52,211,153,0.15)",
     bar: "from-emerald-600 to-emerald-400",
@@ -35,7 +35,7 @@ const stages = [
   {
     rank: "ACTIVATED",
     badge: "03",
-    msg: "Core ready. Execute initialization.",
+    msg: "Full access granted. Ready for initialization.",
     color: "#f97316",
     glow: "rgba(249,115,22,0.2)",
     bar: "from-orange-600 to-amber-400",
@@ -65,14 +65,14 @@ export default function GamifiedSignup() {
     e.preventDefault();
     if (loading || stage < 3) return;
     setLoading(true);
-    const toastId = toast.loading("Establishing connection...");
+    const toastId = toast.loading("Establishing secure connection...");
     try {
       const result = await signUp(form.name.trim(), form.email, form.password);
       if (!result?.success) {
-        toast.error(result?.error || "Connection refused.", { id: toastId });
+        toast.error(result?.error || "Access denied.", { id: toastId });
         return;
       }
-      toast.success("Identity verified. Welcome to the 1%.", { id: toastId });
+      toast.success("Uplink complete. Welcome aboard.", { id: toastId });
       confetti({
         particleCount: 160,
         spread: 72,
@@ -81,7 +81,7 @@ export default function GamifiedSignup() {
       });
       setTimeout(() => router.push("/dashboard"), 1500);
     } catch {
-      toast.error("Protocol error. Try again.", { id: toastId });
+      toast.error("System error. Retry sequence.", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function GamifiedSignup() {
       />
 
       <div className="w-full max-w-[420px] relative z-10 py-10">
-        {/* HERO HEADER */}
+        {/* HERO HEADER - unchanged */}
         <div className="mb-10 px-1">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-5 h-5 rounded-sm flex items-center justify-center bg-[#f97316]">
@@ -141,7 +141,7 @@ export default function GamifiedSignup() {
           </p>
         </div>
 
-        {/* PROGRESS HUD */}
+        {/* PROGRESS HUD - unchanged */}
         <div className="mb-6 px-1">
           <div className="flex justify-between items-end mb-3">
             <div className="flex flex-col">
@@ -194,26 +194,26 @@ export default function GamifiedSignup() {
                 </span>
               </div>
 
-              {/* FORM */}
+              {/* FORM – improved clarity here */}
               <form onSubmit={handleSubmit} className="space-y-5">
                 {[
                   {
                     name: "name",
                     type: "text",
-                    placeholder: "Operator ID",
-                    label: "UID",
+                    placeholder: "Your full name or alias (min 3 chars)",
+                    label: "OPERATOR",
                   },
                   {
                     name: "email",
                     type: "email",
-                    placeholder: "Contact Uplink",
-                    label: "MAIL",
+                    placeholder: "your.email@domain.com",
+                    label: "UPLINK",
                   },
                   {
                     name: "password",
                     type: "password",
-                    placeholder: "Min. 8 Chars",
-                    label: "KEY",
+                    placeholder: "At least 8 characters • strong key",
+                    label: "ACCESS",
                   },
                 ].map((field) => (
                   <div key={field.name} className="relative">
@@ -233,7 +233,7 @@ export default function GamifiedSignup() {
                       onChange={handleChange}
                       onFocus={() => setFocused(field.name)}
                       onBlur={() => setFocused(null)}
-                      className="bg-white/[0.03] border-zinc-800 rounded-lg h-[52px] px-4 text-[13px] font-medium placeholder:text-zinc-800 focus-visible:ring-0 transition-all duration-300"
+                      className="bg-white/[0.03] border-zinc-800 rounded-lg h-[52px] px-4 text-[13px] font-medium placeholder:text-zinc-600 focus-visible:ring-0 transition-all duration-300"
                       style={{
                         borderColor:
                           focused === field.name
@@ -263,7 +263,7 @@ export default function GamifiedSignup() {
                 </button>
               </form>
 
-              {/* OAUTH SECTION */}
+              {/* OAUTH SECTION - unchanged */}
               <div className="relative flex items-center justify-center my-10">
                 <div className="absolute w-full h-[1px] bg-zinc-900" />
                 <span className="relative px-3 text-[8px] font-black tracking-[0.3em] text-zinc-600 bg-[#0b0b0f] uppercase">
@@ -272,7 +272,6 @@ export default function GamifiedSignup() {
               </div>
 
               <div className="space-y-4">
-                {/* CLEAR COMING SOON LABEL */}
                 <div className="flex justify-center mb-[-8px]">
                   <span className="text-[9px] font-black tracking-[0.4em] text-[#f97316] uppercase animate-pulse">
                     — Coming Soon —

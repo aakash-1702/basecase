@@ -13,6 +13,7 @@ const navItems = [
   { label: "Problems", href: "/problems" },
   { label: "Sheets", href: "/sheets" },
   { label: "Interview", href: "/interview" },
+  { label: "Dashboard", href: "/dashboard" }
 ];
 
 export default function UserNavbar({ session }: any) {

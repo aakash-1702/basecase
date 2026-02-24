@@ -30,7 +30,7 @@ const stages = [
   {
     rank: "LOCATED",
     badge: "01",
-    msg: "Uplink address confirmed. Key required.",
+    msg: "Uplink identity located. Authentication key required.",
     color: "#60a5fa",
     glow: "rgba(96,165,250,0.15)",
     bar: "from-blue-600 to-blue-400",
@@ -39,7 +39,7 @@ const stages = [
   {
     rank: "UNLOCKED",
     badge: "02",
-    msg: "Credentials loaded. Ready to authenticate.",
+    msg: "Full credentials verified. Ready for system access.",
     color: "#f97316",
     glow: "rgba(249,115,22,0.2)",
     bar: "from-orange-600 to-amber-400",
@@ -61,7 +61,6 @@ export default function SignInForm() {
 
   const isLoading = form.formState.isSubmitting;
 
-  // Compute stage from field values
   useEffect(() => {
     let s = 0;
     if (watchEmail.includes("@") && watchEmail.length > 5) s = 1;
@@ -92,7 +91,7 @@ export default function SignInForm() {
       className="min-h-screen bg-[#06060a] text-white flex items-center justify-center p-4 overflow-y-auto"
       style={{ fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
     >
-      {/* Background Ambience */}
+      {/* Background Ambience – unchanged */}
       <div
         className="fixed inset-0 pointer-events-none transition-all duration-1000"
         style={{
@@ -109,7 +108,7 @@ export default function SignInForm() {
       />
 
       <div className="w-full max-w-[420px] relative z-10 py-10">
-        {/* HERO HEADER */}
+        {/* HERO HEADER – unchanged except headline for flavor consistency */}
         <div className="mb-10 px-1">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-5 h-5 rounded-sm flex items-center justify-center bg-[#f97316]">
@@ -138,7 +137,7 @@ export default function SignInForm() {
           </p>
         </div>
 
-        {/* PROGRESS HUD */}
+        {/* PROGRESS HUD – unchanged */}
         <div className="mb-6 px-1">
           <div className="flex justify-between items-end mb-3">
             <div className="flex flex-col">
@@ -195,77 +194,63 @@ export default function SignInForm() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-5"
               >
-                {/* Email Field */}
-                <div className="relative">
-                  <label
-                    className="absolute left-4 -top-2 px-1 bg-[#0b0b0f] text-[8px] font-black tracking-[0.2em] transition-colors duration-300 z-10"
-                    style={{
-                      color: focused === "email" ? "#f97316" : "#3f3f46",
-                    }}
-                  >
-                    MAIL_ID
-                  </label>
-                  <Input
-                    {...form.register("email")}
-                    type="email"
-                    placeholder="operator@basecase.os"
-                    onFocus={() => setFocused("email")}
-                    onBlur={() => setFocused(null)}
-                    onChange={(e) => {
-                      form.register("email").onChange(e);
-                      setWatchEmail(e.target.value);
-                    }}
-                    disabled={isLoading}
-                    className="bg-white/[0.03] border-zinc-800 rounded-lg h-[52px] px-4 text-[13px] font-medium placeholder:text-zinc-800 focus-visible:ring-0 transition-all duration-300"
-                    style={{
-                      borderColor:
-                        focused === "email"
-                          ? "rgba(249,115,22,0.5)"
-                          : "rgba(255,255,255,0.05)",
-                    }}
-                  />
-                  {form.formState.errors.email && (
-                    <p className="text-[9px] text-orange-500/80 mt-1 font-bold tracking-tight">
-                      {form.formState.errors.email.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Password Field */}
-                <div className="relative">
-                  <label
-                    className="absolute left-4 -top-2 px-1 bg-[#0b0b0f] text-[8px] font-black tracking-[0.2em] transition-colors duration-300 z-10"
-                    style={{
-                      color: focused === "password" ? "#f97316" : "#3f3f46",
-                    }}
-                  >
-                    ACCESS_KEY
-                  </label>
-                  <Input
-                    {...form.register("password")}
-                    type="password"
-                    placeholder="••••••••"
-                    onFocus={() => setFocused("password")}
-                    onBlur={() => setFocused(null)}
-                    onChange={(e) => {
-                      form.register("password").onChange(e);
-                      setWatchPassword(e.target.value);
-                    }}
-                    disabled={isLoading}
-                    className="bg-white/[0.03] border-zinc-800 rounded-lg h-[52px] px-4 text-[13px] font-medium placeholder:text-zinc-800 focus-visible:ring-0 transition-all duration-300"
-                    style={{
-                      borderColor:
-                        focused === "password"
-                          ? "rgba(249,115,22,0.5)"
-                          : "rgba(255,255,255,0.05)",
-                    }}
-                  />
-                  {form.formState.errors.password && (
-                    <p className="text-[9px] text-orange-500/80 mt-1 font-bold tracking-tight">
-                      {form.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
+                {[
+                  {
+                    name: "email",
+                    type: "email",
+                    placeholder: "your.email@domain.com",
+                    label: "UPLINK",
+                  },
+                  {
+                    name: "password",
+                    type: "password",
+                    placeholder: "Your access key",
+                    label: "ACCESS",
+                  },
+                ].map((field) => (
+                  <div key={field.name} className="relative">
+                    <label
+                      className="absolute left-4 -top-2 px-1 bg-[#0b0b0f] text-[8px] font-black tracking-[0.2em] transition-colors duration-300 z-10"
+                      style={{
+                        color: focused === field.name ? "#f97316" : "#3f3f46",
+                      }}
+                    >
+                      {field.label}
+                    </label>
+                    <Input
+                      {...form.register(field.name as keyof FormValues)}
+                      type={field.type}
+                      placeholder={field.placeholder}
+                      onFocus={() => setFocused(field.name)}
+                      onBlur={() => setFocused(null)}
+                      onChange={(e) => {
+                        form
+                          .register(field.name as keyof FormValues)
+                          .onChange(e);
+                        if (field.name === "email")
+                          setWatchEmail(e.target.value);
+                        if (field.name === "password")
+                          setWatchPassword(e.target.value);
+                      }}
+                      disabled={isLoading}
+                      className="bg-white/[0.03] border-zinc-800 rounded-lg h-[52px] px-4 text-[13px] font-medium placeholder:text-zinc-600 focus-visible:ring-0 transition-all duration-300"
+                      style={{
+                        borderColor:
+                          focused === field.name
+                            ? "rgba(249,115,22,0.5)"
+                            : "rgba(255,255,255,0.05)",
+                      }}
+                    />
+                    {form.formState.errors[field.name as keyof FormValues] && (
+                      <p className="text-[9px] text-orange-500/80 mt-1 font-bold tracking-tight">
+                        {
+                          form.formState.errors[field.name as keyof FormValues]
+                            ?.message
+                        }
+                      </p>
+                    )}
+                  </div>
+                ))}
 
                 <button
                   type="submit"

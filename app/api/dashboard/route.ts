@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { toast } from "sonner";
+import { ConfidenceLevel } from "@/generated/prisma/enums";
 
 function getRelativeTime(date: Date | string) {
   const diff = Date.now() - new Date(date).getTime();
@@ -27,20 +28,20 @@ export async function GET(req: NextRequest) {
   }
 
   /*
-     we need to fetch number of total no of easy problems and then no of medium problems and then no of hard problems and then count of problems solved by the users
+      we need to fetch number of total no of easy problems and then no of medium problems and then no of hard problems and then count of problems solved by the users
 
-     randomly assign the potd to the user , and it should persist for 24 hours and then change to another random problem
+      randomly assign the potd to the user , and it should persist for 24 hours and then change to another random problem
 
-     we need to fetch the recent submission of the user and show it on the board  
+      we need to fetch the recent submission of the user and show it on the board  
 
-     need to fetch three-four sheets for the user and show it's progress , 
+      need to fetch three-four sheets for the user and show it's progress , 
 
-     free user can generate one to-do list using ai for the day and premium user can generate three to-do list using ai for the day
-
-
+      free user can generate one to-do list using ai for the day and premium user can generate three to-do list using ai for the day
 
 
-    */
+
+
+      */
 
   try {
     const totalEasyProblems = await prisma.problem.count({
@@ -93,16 +94,19 @@ export async function GET(req: NextRequest) {
 
     const totalSolved = totalEasySolved + totalMediumSolved + totalHardSolved;
     const totalProblems =
-      (totalEasyProblems + totalMediumProblems + totalHardProblems);
+      totalEasyProblems + totalMediumProblems + totalHardProblems;
 
-    const easyProgress =
-      Math.round((totalEasyProblems === 0 ? 0 : (totalEasySolved / totalEasyProblems) * 100));
+    const easyProgress = Math.round(
+      totalEasyProblems === 0 ? 0 : (totalEasySolved / totalEasyProblems) * 100,
+    );
     const mediumProgress =
       totalMediumProblems === 0
         ? 0
         : Math.round((totalMediumSolved / totalMediumProblems) * 100);
     const hardProgress =
-      totalHardProblems === 0 ? 0 : Math.round((totalHardSolved / totalHardProblems) * 100);
+      totalHardProblems === 0
+        ? 0
+        : Math.round((totalHardSolved / totalHardProblems) * 100);
 
     const completion =
       totalProblems === 0 ? 0 : Math.round((totalSolved / totalProblems) * 100);
@@ -185,6 +189,30 @@ export async function GET(req: NextRequest) {
       sheet: "", // you'd need to join this from sectionProblems if needed
     }));
 
+    const threeDaysAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+    const recommended = await prisma.userProblem.findMany({
+      where: {
+        userId: session.user.id,
+        OR: [
+          {
+            confidence: {
+              in: ["needs_revision", "failed"],
+            },
+          },
+          {
+            solved: true,
+            solvedAt: {
+              lte: threeDaysAgo,
+            },
+          },
+        ],
+      },
+      include: {
+        problem: true, // 🔥 this gives you full problem data
+      },
+      take: 5,
+    });
     return NextResponse.json(
       {
         success: true,
@@ -202,6 +230,7 @@ export async function GET(req: NextRequest) {
           sheetProgress,
           recentSubmissions: normalizedSubmissions,
           name: session.user.name ?? "User", // ← also add this, Dashboard uses d.name
+          recommended,
         },
       },
       { status: 200 },
