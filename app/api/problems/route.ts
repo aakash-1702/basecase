@@ -50,7 +50,11 @@ export async function POST(req: NextRequest) {
         data: problem,
         message: "Problem created successfully",
       },
-      { status: 201 },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
     );
   } catch (error) {
     console.error("Error creating problem:", error);

@@ -1,7 +1,6 @@
-// app/problems/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,62 +12,78 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Code2 } from "lucide-react";
+import { toast } from "sonner";
 import ProblemsTable from "@/components/problems/ProblemsTable";
 import PaginationControls from "@/components/PageChange";
 import { ConfidenceLevel } from "@/components/problems/UpdateProgressDialog";
-import { ConfigExtension } from "tailwind-merge";
 
 export default function ProblemsPage() {
   const [problems, setProblems] = useState<any[]>([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    totalPages: 1,
-  });
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [search, setSearch] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    const fetchProblems = async () => {
-      setLoading(true);
-      setError(null);
+  const fetchProblems = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        const res = await fetch(
-          `/api/problems?page=${pagination.page}&limit=5&difficulty=${difficultyFilter}&status=${statusFilter}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          },
-        );
+    try {
+      const params = new URLSearchParams({
+        page: String(pagination.page),
+        limit: "5",
+        difficulty: difficultyFilter,
+        status: statusFilter,
+        ...(search ? { search } : {}),
+      });
 
-        if (!res.ok) {
-          const err = await res.json();
-          alert(err.message);
-          return;
-        }
+      const res = await fetch(`/api/problems?${params}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store", // ← prevent stale data
+      });
 
-        const json = await res.json();
-
-        setProblems(json.data?.problems || []);
-        setPagination({
-          page: json.data?.pagination?.page || 1,
-          totalPages: json.data?.pagination?.totalPages || 1,
-        });
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || "Unable to fetch problems");
-      } finally {
-        setLoading(false);
+      if (res.status === 401) {
+        toast.error("Session expired. Please log in again.");
+        return;
       }
-    };
 
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.message || "Failed to fetch problems");
+        setError(err.message || "Failed to fetch problems");
+        return;
+      }
+
+      const json = await res.json();
+      setProblems(json.data?.problems || []);
+      setPagination({
+        page: json.data?.pagination?.page || 1,
+        totalPages: json.data?.pagination?.totalPages || 1,
+      });
+    } catch (err: any) {
+      console.error(err);
+      const msg = err.message || "Unable to fetch problems";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.page, difficultyFilter, statusFilter, search]);
+
+  useEffect(() => {
     fetchProblems();
-  }, [pagination.page, difficultyFilter, statusFilter]);
+  }, [fetchProblems]);
+
+  // Debounce search so it doesn't fire on every keystroke
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setPagination((prev) => ({ ...prev, page: 1 })); // reset to page 1 on search
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -76,78 +91,42 @@ export default function ProblemsPage() {
     }
   };
 
-  // ✅ Fixed: all three callbacks now wired up — call your API here to persist
-  // const handleConfidenceChange = async (problemId: string, confidence: ConfidenceLevel) => {
-  //   try {
-  //     await fetch(`/api/problems/${problemId}/progress`, {
-  //       method: "PATCH",
-  //       headers: { "Content-Type": "application/json" },
-  //       credentials: "include",
-  //       body: JSON.stringify({ confidence }),
-  //     });
-  //   } catch (err) {
-  //     console.error("Failed to save confidence:", err);
-  //   }
-  // };
+  const handleSave = async (
+    problemId: string,
+    confidence: ConfidenceLevel,
+    notes: string,
+    solved: boolean,
+  ) => {
+    const toastId = toast.loading("Saving changes...");
 
-  // const handleSolvedToggle = async (problemId: string, solved: boolean) => {
-  //   try {
-  //     await fetch(`/api/problems/${problemId}/progress`, {
-  //       method: "PATCH",
-  //       headers: { "Content-Type": "application/json" },
-  //       credentials: "include",
-  //       body: JSON.stringify({ solved }),
-  //     });
-  //   } catch (err) {
-  //     console.error("Failed to save solved state:", err);
-  //   }
-  // };
-
-  // const handleSaveNotes = async (problemId: string, notes: string) => {
-  //   try {
-  //     await fetch(`/api/problems/${problemId}/progress`, {
-  //       method: "PATCH",
-  //       headers: { "Content-Type": "application/json" },
-  //       credentials: "include",
-  //       body: JSON.stringify({ notes }),
-  //     });
-  //   } catch (err) {
-  //     console.error("Failed to save notes:", err);
-  //   }
-  // };
-
-  /* 
-    i would be adding one single call to update the progress of the problem for the user
-  */
- const handleSave = async(problemId : string, confidence : ConfidenceLevel , notes : string , solved : boolean) => {
     try {
-      const res = await fetch(`/api/problems/${problemId}/progress`,{
-        method : "PATCH",
-        headers : {
-          "Content-type" : "application/json",
-        },
-        credentials : "include",
-        body : JSON.stringify({confidence , notes , solved})
-      }) ;
-      
-      if(!res.ok){
-        const err = await res.json();
-        console.log("Error saving changes",err);
-        alert(err.message);
+      const res = await fetch(`/api/problems/${problemId}/progress`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ confidence, notes, solved }),
+      });
+
+      if (res.status === 401) {
+        toast.error("Session expired. Please log in again.", { id: toastId });
         return;
       }
 
-      const json = await res.json();
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.message || "Failed to save changes", { id: toastId });
+        return;
+      }
 
-      alert("Changes saved successfully");
-      return;
-      
+      toast.success("Progress saved!", { id: toastId });
+
+      // ← refetch so the table reflects the new solved/unsolved state immediately
+      await fetchProblems();
     } catch (error) {
-      console.log("Error saving changes ",error);
-      alert("Unable to mark the problem as solved");
-      return;
+      console.error("Error saving changes:", error);
+      toast.error("Unable to save progress", { id: toastId });
     }
- }
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -208,7 +187,10 @@ export default function ProblemsPage() {
             <div className="flex flex-wrap gap-3">
               <Select
                 value={difficultyFilter}
-                onValueChange={setDifficultyFilter}
+                onValueChange={(v) => {
+                  setDifficultyFilter(v);
+                  setPagination((p) => ({ ...p, page: 1 }));
+                }}
               >
                 <SelectTrigger className="w-36 bg-neutral-900 border-neutral-700">
                   <SelectValue placeholder="Difficulty" />
@@ -221,7 +203,13 @@ export default function ProblemsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => {
+                  setStatusFilter(v);
+                  setPagination((p) => ({ ...p, page: 1 }));
+                }}
+              >
                 <SelectTrigger className="w-40 bg-neutral-900 border-neutral-700">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -255,12 +243,7 @@ export default function ProblemsPage() {
             <div className="py-20 text-center text-rose-400">{error}</div>
           ) : (
             <>
-              {/* ✅ Fixed: all three callbacks now passed in */}
-              <ProblemsTable
-                problems={problems}
-                onSaveChanges = {handleSave}
-              />
-
+              <ProblemsTable problems={problems} onSaveChanges={handleSave} />
               {pagination.totalPages > 1 && (
                 <PaginationControls
                   currentPage={pagination.page}

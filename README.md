@@ -34,3 +34,34 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+{/* Name */}
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-neutral-300 mb-1.5"
+            >
+              Full Name
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              value={formData.name}
+              onChange={handleChange}
+              disabled={loading}
+              required
+              placeholder="Alex Coder"
+              className={cn(
+                "w-full px-4 py-3 rounded-xl",
+                "bg-neutral-900/60 border border-neutral-700 text-neutral-100",
+                "placeholder:text-neutral-500",
+                "focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 focus:ring-offset-neutral-950",
+                "outline-none transition-all duration-300",
+                "disabled:opacity-60 disabled:cursor-not-allowed",
+              )}
+            />
+          </div>
+
+ 

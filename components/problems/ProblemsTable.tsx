@@ -1,7 +1,7 @@
 // components/problems/ProblemsTable.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle2, Circle, Pencil } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -17,9 +17,11 @@ type Problem = {
   title: string;
   slug: string;
   difficulty: "easy" | "medium" | "hard";
-  solved: boolean;
-  userConfidence?: ConfidenceLevel;
   link: string;
+  userProgress?: {
+    solved: boolean;
+    confidence: ConfidenceLevel;
+  } | null;
 };
 
 const difficultyColors = {
@@ -45,7 +47,12 @@ interface ProblemsTableProps {
   // onSolvedToggle?: (problemId: string, newSolved: boolean) => void;
   // onSaveNotes?: (problemId: string, notes: string) => void;
 
-  onSaveChanges ?: (problemId : string , confidence : ConfidenceLevel, notes : string , solved : boolean) => void
+  onSaveChanges?: (
+    problemId: string,
+    confidence: ConfidenceLevel,
+    notes: string,
+    solved: boolean,
+  ) => void;
 }
 
 export default function ProblemsTable({
@@ -53,13 +60,32 @@ export default function ProblemsTable({
   // onConfidenceChange,
   // onSolvedToggle,
   // onSaveNotes,
-  onSaveChanges
+  onSaveChanges,
 }: ProblemsTableProps) {
+  useEffect(() => {
+    setLocalSolved(() => {
+      const next: Record<string, boolean> = {};
+      problems.forEach((p) => (next[p.id] = p.userProgress?.solved ?? false));
+      return next;
+    });
+
+    setLocalConfidence(() => {
+      const next: Record<string, ConfidenceLevel> = {};
+      problems.forEach((p) => {
+        next[p.id] = p.userProgress?.confidence ?? "not_attempted";
+      });
+      return next;
+    });
+
+    setNotesMap({});
+  }, [problems]);
   // Local state for optimistic UI updates
   const [localSolved, setLocalSolved] = useState<Record<string, boolean>>(
     () => {
       const initial: Record<string, boolean> = {};
-      problems.forEach((p) => (initial[p.id] = p.solved));
+      problems.forEach(
+        (p) => (initial[p.id] = p.userProgress?.solved ?? false),
+      );
       return initial;
     },
   );
@@ -69,7 +95,7 @@ export default function ProblemsTable({
   >(() => {
     const initial: Record<string, ConfidenceLevel> = {};
     problems.forEach((p) => {
-      if (p.userConfidence) initial[p.id] = p.userConfidence;
+      initial[p.id] = p.userProgress?.confidence ?? "not_attempted";
     });
     return initial;
   });
@@ -138,7 +164,8 @@ export default function ProblemsTable({
 
         <tbody>
           {problems.map((problem) => {
-            const isSolved = localSolved[problem.id] ?? problem.solved;
+            const isSolved =
+              localSolved[problem.id] ?? problem.userProgress?.solved ?? false;
             const confidence = localConfidence[problem.id] ?? "not_attempted";
             const hasNotes = !!notesMap[problem.id];
 
