@@ -1,483 +1,334 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { signUp } from "@/lib/auth-actions";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
+import { Input } from "@/components/ui/input";
+import { signUp } from "@/lib/auth-actions";
 
-const SignupForm = () => {
+const stages = [
+  {
+    rank: "DORMANT",
+    badge: "00",
+    msg: "System standby. Awaiting operator input.",
+    color: "#71717a",
+    glow: "rgba(82,82,91,0.12)",
+    bar: "from-zinc-700 to-zinc-600",
+  },
+  {
+    rank: "IDENTIFIED",
+    badge: "01",
+    msg: "Identity pattern detected. Establishing link.",
+    color: "#60a5fa",
+    glow: "rgba(96,165,250,0.15)",
+    bar: "from-blue-600 to-blue-400",
+  },
+  {
+    rank: "VERIFIED",
+    badge: "02",
+    msg: "Identity confirmed. Securing channel.",
+    color: "#34d399",
+    glow: "rgba(52,211,153,0.15)",
+    bar: "from-emerald-600 to-emerald-400",
+  },
+  {
+    rank: "ACTIVATED",
+    badge: "03",
+    msg: "Full access granted. Ready for initialization.",
+    color: "#f97316",
+    glow: "rgba(249,115,22,0.2)",
+    bar: "from-orange-600 to-amber-400",
+  },
+];
+
+export default function GamifiedSignup() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [stage, setStage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    let s = 0;
+    if (form.name.trim().length > 2) s = 1;
+    if (form.email.includes("@") && form.email.length > 5) s = 2;
+    if (form.password.length >= 8) s = 3;
+    setStage(s);
+  }, [form]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || stage < 3) return;
     setLoading(true);
-    const toastId = toast.loading("Creating your account...");
+    const toastId = toast.loading("Establishing secure connection...");
     try {
-      const result = await signUp(
-        formData.name.trim(),
-        formData.email,
-        formData.password,
-      );
-      if (!result.success || !result.data?.user) {
-        toast.error(result.error || "Failed to create account", {
-          id: toastId,
-        });
+      const result = await signUp(form.name.trim(), form.email, form.password);
+      if (!result?.success) {
+        toast.error(result?.error || "Access denied.", { id: toastId });
         return;
       }
-      toast.success("Welcome to BaseCase! 🎉", { id: toastId });
-      router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err?.message || "Something went wrong.", { id: toastId });
+      toast.success("Uplink complete. Welcome aboard.", { id: toastId });
+      confetti({
+        particleCount: 160,
+        spread: 72,
+        origin: { y: 0.6 },
+        colors: ["#f97316", "#fb923c", "#fbbf24", "#fff"],
+      });
+      setTimeout(() => router.push("/dashboard"), 1500);
+    } catch {
+      toast.error("System error. Retry sequence.", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  const fields = [
-    { id: "name", label: "Full name", type: "text", placeholder: "Alex Chen" },
-    {
-      id: "email",
-      label: "Email address",
-      type: "email",
-      placeholder: "alex@basecase.dev",
-    },
-    {
-      id: "password",
-      label: "Password",
-      type: "password",
-      placeholder: "min. 8 characters",
-    },
-  ];
+  const current = stages[stage];
+  const pct = Math.round((stage / 3) * 100);
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+    <div
+      className="min-h-screen bg-[#06060a] text-white flex items-center justify-center p-4 overflow-y-auto"
+      style={{ fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
+    >
+      {/* Background Ambience */}
+      <div
+        className="fixed inset-0 pointer-events-none transition-all duration-1000"
+        style={{
+          background: `radial-gradient(ellipse 70% 50% at 50% 0%, ${current.glow}, transparent 70%)`,
+        }}
+      />
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.025]"
+        style={{
+          backgroundImage:
+            "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
 
-        .signup-root {
-          font-family: 'Instrument Sans', sans-serif;
-        }
+      <div className="w-full max-w-[420px] relative z-10 py-10">
+        {/* HERO HEADER - unchanged */}
+        <div className="mb-10 px-1">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-5 h-5 rounded-sm flex items-center justify-center bg-[#f97316]">
+              <span className="text-[8px] font-black text-black">BC</span>
+            </div>
+            <span className="text-[10px] font-bold tracking-[0.4em] text-zinc-500 uppercase">
+              Basecase Terminal
+            </span>
+          </div>
 
-        .signup-heading {
-          font-family: 'Bricolage Grotesque', sans-serif;
-        }
+          <h1 className="text-[40px] font-black leading-[0.95] tracking-tighter mb-4">
+            LEVEL UP.
+            <br />
+            <span
+              className="text-transparent"
+              style={{ WebkitTextStroke: "1.5px #f97316" }}
+            >
+              OWN THE OUTCOME.
+            </span>
+          </h1>
 
-        @keyframes grain {
-          0%, 100% { transform: translate(0, 0); }
-          10% { transform: translate(-2%, -3%); }
-          20% { transform: translate(3%, 2%); }
-          30% { transform: translate(-1%, 4%); }
-          40% { transform: translate(4%, -1%); }
-          50% { transform: translate(-3%, 3%); }
-          60% { transform: translate(2%, -4%); }
-          70% { transform: translate(-4%, 1%); }
-          80% { transform: translate(1%, -2%); }
-          90% { transform: translate(-2%, 4%); }
-        }
+          <p className="text-[12px] font-medium text-zinc-400 leading-relaxed max-w-[340px]">
+            The top 1% don't leave success to chance. They build
+            <span className="text-white"> systems</span>. Initialize your
+            uplink.
+          </p>
+        </div>
 
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
+        {/* PROGRESS HUD - unchanged */}
+        <div className="mb-6 px-1">
+          <div className="flex justify-between items-end mb-3">
+            <div className="flex flex-col">
+              <span className="text-[8px] font-bold text-zinc-600 tracking-widest uppercase mb-1">
+                Authorization
+              </span>
+              <span
+                className="text-[11px] font-black tracking-[0.2em] uppercase transition-colors duration-500"
+                style={{ color: current.color }}
+              >
+                {current.rank}{" "}
+                <span className="opacity-40">[{current.badge}]</span>
+              </span>
+            </div>
+            <span
+              className="text-[14px] font-black tabular-nums transition-colors duration-500"
+              style={{ color: current.color }}
+            >
+              {pct}%
+            </span>
+          </div>
 
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
+          <div className="w-full h-[2px] bg-white/10 rounded-full overflow-hidden">
+            <div
+              className={`h-full bg-gradient-to-r ${current.bar} transition-all duration-700 ease-out`}
+              style={{ width: `${pct === 0 ? 2 : pct}%` }}
+            />
+          </div>
+        </div>
 
-        @keyframes shimmer {
-          0%   { background-position: -200% center; }
-          100% { background-position:  200% center; }
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          33% { transform: translateY(-12px) rotate(1deg); }
-          66% { transform: translateY(6px) rotate(-0.5deg); }
-        }
-
-        @keyframes orb-drift {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(20px, -30px) scale(1.05); }
-          50% { transform: translate(-15px, 20px) scale(0.97); }
-          75% { transform: translate(25px, 10px) scale(1.02); }
-        }
-
-        @keyframes border-dance {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 1; }
-        }
-
-        .card-animate {
-          animation: slideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .field-animate-1 { animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both; }
-        .field-animate-2 { animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both; }
-        .field-animate-3 { animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.29s both; }
-        .btn-animate    { animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.36s both; }
-        .footer-animate { animation: fadeIn 0.5s ease 0.5s both; }
-
-        .noise-overlay::after {
-          content: '';
-          position: absolute;
-          inset: -50%;
-          width: 200%;
-          height: 200%;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-          animation: grain 8s steps(10) infinite;
-          pointer-events: none;
-          z-index: 0;
-          border-radius: inherit;
-          opacity: 0.5;
-        }
-
-        .shimmer-btn {
-          background-size: 200% auto;
-          animation: shimmer 3s linear infinite;
-        }
-
-        .orb-1 { animation: orb-drift 12s ease-in-out infinite; }
-        .orb-2 { animation: orb-drift 18s ease-in-out infinite reverse; }
-        .orb-3 { animation: float 8s ease-in-out infinite; }
-
-        .input-field {
-          transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        }
-
-        .input-field:focus {
-          background: rgba(10, 10, 10, 0.9);
-          box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 0 20px rgba(245, 158, 11, 0.08);
-        }
-
-        .label-float {
-          transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .submit-btn {
-          transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .submit-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 40px rgba(245, 158, 11, 0.35), 0 4px 12px rgba(234, 88, 12, 0.2);
-        }
-
-        .submit-btn:active:not(:disabled) {
-          transform: translateY(0px) scale(0.99);
-        }
-
-        .divider-line {
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-        }
-
-        .brand-mark {
-          background: linear-gradient(135deg, #f59e0b, #ea580c);
-          border-radius: 10px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          font-size: 18px;
-          box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
-        }
-
-        .grid-pattern {
-          background-image: 
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-          background-size: 40px 40px;
-        }
-      `}</style>
-
-      <div className="signup-root -mx-5 sm:-mx-6 lg:-mx-8 -mt-8 md:-mt-12 -mb-16 relative min-h-[calc(100vh-3.5rem)] bg-[#060606] flex items-center justify-center px-4 overflow-hidden">
-        {/* Grid pattern background */}
-        <div className="grid-pattern absolute inset-0 opacity-60" />
-
-        {/* Ambient orbs */}
-        <div
-          className="orb-1 absolute top-[15%] left-[10%] w-[500px] h-[500px] rounded-full pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 65%)",
-          }}
-        />
-        <div
-          className="orb-2 absolute bottom-[10%] right-[5%] w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(234,88,12,0.05) 0%, transparent 65%)",
-          }}
-        />
-        <div
-          className="orb-3 absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse, rgba(245,158,11,0.03) 0%, transparent 70%)",
-          }}
-        />
-
-        {/* Vignette */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)",
-          }}
-        />
-
-        {/* Card */}
-        <div
-          className={cn(
-            "card-animate noise-overlay relative w-full max-w-[420px] my-16",
-            "rounded-[28px] overflow-hidden",
-            "border border-white/[0.07]",
-          )}
-          style={{
-            background:
-              "linear-gradient(145deg, rgba(18,18,18,0.95) 0%, rgba(12,12,12,0.98) 100%)",
-            boxShadow:
-              "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)",
-          }}
-        >
-          {/* Top accent line */}
+        {/* CARD */}
+        <div className="relative">
           <div
-            className="absolute top-0 left-[20%] right-[20%] h-[1px]"
+            className="absolute -inset-[1px] rounded-[24px] transition-all duration-700"
             style={{
-              background:
-                "linear-gradient(90deg, transparent, rgba(245,158,11,0.6), transparent)",
+              background: "linear-gradient(140deg, #f97316, #fbbf24, #ea580c)",
+              opacity: stage === 3 ? 0.8 : 0.3,
             }}
           />
 
-          <div className="relative z-10 p-8 sm:p-10">
-            {/* Brand */}
-            <div className="flex items-center gap-3 mb-10">
-              <div className="brand-mark">⌘</div>
-              <div>
-                <div className="signup-heading text-white font-bold text-lg tracking-tight leading-none">
-                  BaseCase
-                </div>
-                <div className="text-[11px] text-neutral-500 mt-0.5 tracking-wide uppercase font-medium">
-                  DSA Practice Platform
-                </div>
-              </div>
-            </div>
-
-            {/* Heading */}
-            <div className="mb-8">
-              <h1 className="signup-heading text-[32px] font-bold text-white leading-[1.1] tracking-tight">
-                Start your
-                <br />
-                <span
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #fbbf24, #f59e0b, #ea580c)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                  }}
-                >
-                  coding journey.
+          <div className="relative bg-[#0b0b0f] rounded-[23px] overflow-hidden">
+            <div className="p-8 md:p-10">
+              {/* Terminal Status Message */}
+              <div className="mb-8 flex items-start gap-2 h-8">
+                <span className="text-[#f97316] font-bold text-[10px] mt-[1px]">
+                  ▸
                 </span>
-              </h1>
-              <p className="mt-3 text-[14px] text-neutral-500 leading-relaxed">
-                Join thousands preparing for top tech interviews.
-              </p>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {fields.map((field, i) => {
-                const val = formData[field.id as keyof typeof formData];
-                const isFocused = focused === field.id;
-                const hasValue = val.length > 0;
-
-                return (
-                  <div
-                    key={field.id}
-                    className={`field-animate-${i + 1} relative`}
-                  >
-                    <div className="relative">
-                      <input
-                        id={field.id}
-                        name={field.id}
-                        type={field.type}
-                        value={val}
-                        onChange={handleChange}
-                        onFocus={() => setFocused(field.id)}
-                        onBlur={() => setFocused(null)}
-                        disabled={loading}
-                        required
-                        autoComplete={
-                          field.id === "password" ? "new-password" : field.id
-                        }
-                        placeholder={isFocused ? field.placeholder : ""}
-                        className={cn(
-                          "input-field w-full px-4 pt-6 pb-2.5 rounded-2xl",
-                          "bg-white/[0.03] border text-white text-[14.5px]",
-                          "placeholder:text-neutral-600 outline-none",
-                          "disabled:opacity-50 disabled:cursor-not-allowed",
-                          isFocused
-                            ? "border-amber-500/50"
-                            : hasValue
-                              ? "border-white/10"
-                              : "border-white/[0.06]",
-                        )}
-                        style={{ fontFamily: "'Instrument Sans', sans-serif" }}
-                      />
-                      <label
-                        htmlFor={field.id}
-                        className={cn(
-                          "label-float absolute left-4 pointer-events-none font-medium",
-                          isFocused || hasValue
-                            ? "top-2 text-[11px] tracking-wide uppercase"
-                            : "top-4 text-[14px]",
-                          isFocused
-                            ? "text-amber-400"
-                            : hasValue
-                              ? "text-neutral-500"
-                              : "text-neutral-500",
-                        )}
-                      >
-                        {field.label}
-                      </label>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Submit */}
-              <div className="btn-animate pt-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={cn(
-                    "submit-btn shimmer-btn w-full py-3.5 px-6 rounded-2xl",
-                    "font-semibold text-[15px] text-white relative overflow-hidden",
-                    "disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none",
-                  )}
-                  style={{
-                    background: loading
-                      ? "linear-gradient(135deg, #92400e, #9a3412)"
-                      : "linear-gradient(135deg, #d97706 0%, #f59e0b 40%, #ea580c 80%, #d97706 100%)",
-                    backgroundSize: "200% auto",
-                    boxShadow: loading
-                      ? "none"
-                      : "0 4px 20px rgba(245,158,11,0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
-                  }}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2.5">
-                      <svg
-                        className="animate-spin h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                        />
-                      </svg>
-                      Creating account...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      Create Account
-                      <svg
-                        className="w-4 h-4 transition-transform group-hover:translate-x-0.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 7l5 5m0 0l-5 5m5-5H6"
-                        />
-                      </svg>
-                    </span>
-                  )}
-                </button>
+                <span className="text-[11px] font-bold leading-tight tracking-wide transition-all duration-500 text-zinc-300">
+                  {current.msg}
+                </span>
               </div>
-            </form>
 
-            {/* Divider */}
-            <div className="footer-animate flex items-center gap-4 my-7">
-              <div className="divider-line flex-1 h-px" />
-              <span className="text-[11px] text-neutral-600 tracking-widest uppercase">
-                or
-              </span>
-              <div className="divider-line flex-1 h-px" />
-            </div>
-
-            {/* Social proof */}
-            <div className="footer-animate flex items-center justify-between text-[12px]">
-              <div className="flex -space-x-2">
-                {["#f59e0b", "#ea580c", "#10b981", "#6366f1"].map(
-                  (color, i) => (
-                    <div
-                      key={i}
-                      className="w-7 h-7 rounded-full border-2 border-[#0c0c0c] flex items-center justify-center text-[10px] font-bold text-white"
+              {/* FORM – improved clarity here */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {[
+                  {
+                    name: "name",
+                    type: "text",
+                    placeholder: "Your full name or alias (min 3 chars)",
+                    label: "OPERATOR",
+                  },
+                  {
+                    name: "email",
+                    type: "email",
+                    placeholder: "your.email@domain.com",
+                    label: "UPLINK",
+                  },
+                  {
+                    name: "password",
+                    type: "password",
+                    placeholder: "At least 8 characters • strong key",
+                    label: "ACCESS",
+                  },
+                ].map((field) => (
+                  <div key={field.name} className="relative">
+                    <label
+                      className="absolute left-4 -top-2 px-1 bg-[#0b0b0f] text-[8px] font-black tracking-[0.2em] transition-colors duration-300 z-10"
                       style={{
-                        background: `linear-gradient(135deg, ${color}88, ${color})`,
-                        zIndex: 4 - i,
+                        color: focused === field.name ? "#f97316" : "#3f3f46",
                       }}
                     >
-                      {["A", "K", "R", "S"][i]}
-                    </div>
-                  ),
-                )}
-              </div>
-              <span className="text-neutral-500">
-                <span className="text-neutral-300 font-medium">2,400+</span>{" "}
-                devs already in
-              </span>
-            </div>
+                      {field.label}
+                    </label>
+                    <Input
+                      name={field.name}
+                      type={field.type}
+                      placeholder={field.placeholder}
+                      autoComplete="off"
+                      onChange={handleChange}
+                      onFocus={() => setFocused(field.name)}
+                      onBlur={() => setFocused(null)}
+                      className="bg-white/[0.03] border-zinc-800 rounded-lg h-[52px] px-4 text-[13px] font-medium placeholder:text-zinc-600 focus-visible:ring-0 transition-all duration-300"
+                      style={{
+                        borderColor:
+                          focused === field.name
+                            ? "rgba(249,115,22,0.5)"
+                            : "rgba(255,255,255,0.05)",
+                      }}
+                    />
+                  </div>
+                ))}
 
-            {/* Footer */}
-            <p className="footer-animate mt-8 text-center text-[13px] text-neutral-600">
-              Already have an account?{" "}
-              <a
-                href="/auth/sign-in"
-                className="text-amber-400 hover:text-amber-300 font-medium transition-colors duration-200 hover:underline underline-offset-2"
-              >
-                Sign in →
-              </a>
-            </p>
+                <button
+                  type="submit"
+                  disabled={stage < 3 || loading}
+                  className="w-full h-[56px] rounded-lg text-[11px] font-black tracking-[0.3em] uppercase transition-all duration-300 mt-2"
+                  style={{
+                    background: stage === 3 ? "#f97316" : "#18181b",
+                    color: stage === 3 ? "#000" : "#3f3f46",
+                    boxShadow:
+                      stage === 3 ? "0 0 20px rgba(249,115,22,0.3)" : "none",
+                  }}
+                >
+                  {loading
+                    ? "INITIALIZING..."
+                    : stage < 3
+                      ? `LOCKED: ${3 - stage} STEPS LEFT`
+                      : "START ASCENT →"}
+                </button>
+              </form>
+
+              {/* OAUTH SECTION - unchanged */}
+              <div className="relative flex items-center justify-center my-10">
+                <div className="absolute w-full h-[1px] bg-zinc-900" />
+                <span className="relative px-3 text-[8px] font-black tracking-[0.3em] text-zinc-600 bg-[#0b0b0f] uppercase">
+                  External Auth
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-center mb-[-8px]">
+                  <span className="text-[9px] font-black tracking-[0.4em] text-[#f97316] uppercase animate-pulse">
+                    — Coming Soon —
+                  </span>
+                </div>
+
+                <div
+                  className="relative w-full h-[48px] rounded-lg flex items-center justify-center gap-3 overflow-hidden select-none opacity-30 grayscale"
+                  style={{
+                    border: "1px dashed rgba(249,115,22,0.2)",
+                    background: "rgba(255,255,255,0.01)",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24">
+                    <path
+                      fill="#fff"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#fff"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#fff"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    />
+                    <path
+                      fill="#fff"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                  <span className="text-[9px] font-black tracking-[0.2em] text-zinc-600 uppercase">
+                    Sign in with Google
+                  </span>
+                </div>
+
+                <div className="text-center pt-6">
+                  <a
+                    href="/auth/sign-in"
+                    className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-[#f97316] transition-colors uppercase"
+                  >
+                    Back to{" "}
+                    <span className="text-zinc-300 underline underline-offset-4 decoration-zinc-800">
+                      Terminal Login
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </>
-  );
-};
 
-export default SignupForm;
+        <p className="mt-8 text-center text-[8px] font-bold tracking-[0.6em] text-zinc-800 uppercase">
+          Basecase OS v2.0 // Node_Active
+        </p>
+      </div>
+    </div>
+  );
+}

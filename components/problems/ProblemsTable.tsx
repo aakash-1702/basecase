@@ -130,16 +130,9 @@ export default function ProblemsTable({
     const shouldBeSolved =
       confidence === "confident" || confidence === "needs_revision";
 
-    setLocalSolved((prev) => ({ ...prev, [problemId]: shouldBeSolved }));
-
-    setLocalConfidence((prev) => ({ ...prev, [problemId]: confidence }));
-
-    setNotesMap((prev) => ({ ...prev, [problemId]: notes }));
-
+    // No optimistic update — wait for server confirmation via problems prop
     onSaveChanges?.(problemId, confidence, notes, shouldBeSolved);
 
-    // ✅ Fixed: dialog's onSave already calls onOpenChange(false), so we only
-    // need to clear currentProblem here — no double setShowDialog call needed
     setCurrentProblem(null);
   };
 

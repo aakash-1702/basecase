@@ -18,6 +18,9 @@ import PaginationControls from "@/components/PageChange";
 import { ConfidenceLevel } from "@/components/problems/UpdateProgressDialog";
 
 export default function ProblemsPage() {
+  const [localSolvedMap, setLocalSolvedMap] = useState<Record<string, boolean>>(
+    {},
+  );
   const [problems, setProblems] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -58,7 +61,16 @@ export default function ProblemsPage() {
       }
 
       const json = await res.json();
-      setProblems(json.data?.problems || []);
+      const fetchedProblems = json.data?.problems || [];
+
+      setProblems(fetchedProblems);
+
+      // ⭐ IMPORTANT — seed solved state
+      setLocalSolvedMap(() =>
+        Object.fromEntries(
+          fetchedProblems.map((p: any) => [p.id, !!p.userProblem?.solved]),
+        ),
+      );
       setPagination({
         page: json.data?.pagination?.page || 1,
         totalPages: json.data?.pagination?.totalPages || 1,
@@ -118,10 +130,16 @@ export default function ProblemsPage() {
         return;
       }
 
-      toast.success("Progress saved!", { id: toastId });
+      // Patch only the changed row — no full refetch needed
+      setProblems((prev) =>
+        prev.map((p) =>
+          p.id === problemId
+            ? { ...p, userProgress: { solved, confidence } }
+            : p,
+        ),
+      );
 
-      // ← refetch so the table reflects the new solved/unsolved state immediately
-      await fetchProblems();
+      toast.success("Progress saved!", { id: toastId });
     } catch (error) {
       console.error("Error saving changes:", error);
       toast.error("Unable to save progress", { id: toastId });

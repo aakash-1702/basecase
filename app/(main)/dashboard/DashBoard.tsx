@@ -331,42 +331,31 @@ const css = `
 .diff-bar { height: 3px; background: rgba(255,255,255,0.07); border-radius: 999px; margin-top: 12px; overflow: hidden; }
 .diff-bar-fill { height: 100%; border-radius: 999px; animation: barGrow 1.1s cubic-bezier(0.22,1,0.36,1) both; }
 
-/* ── AI MENTOR CARD ── */
+/* ── RECOMMENDED CARD ── */
 .ai-card {
   border-radius: var(--radius-xl); overflow: hidden; position: relative;
   animation: fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both 0.12s;
-  cursor: pointer;
 }
 .ai-card-inner {
   background: linear-gradient(135deg, #0c0c0e 0%, #100f0c 50%, #0d0b08 100%);
   border: 1px solid rgba(245,158,11,0.18);
   border-radius: var(--radius-xl);
-  padding: 26px 28px; position: relative; overflow: hidden;
+  padding: 22px 24px; position: relative; overflow: hidden;
   transition: border-color 0.3s, box-shadow 0.3s;
-  animation: pulseAmber 4s ease-in-out infinite;
 }
 .ai-card-inner:hover {
-  border-color: rgba(245,158,11,0.38);
-  box-shadow: 0 12px 48px rgba(245,158,11,0.12);
-  animation-play-state: paused;
+  border-color: rgba(245,158,11,0.32);
+  box-shadow: 0 12px 48px rgba(245,158,11,0.10);
 }
 .ai-orb {
   position: absolute; right: -30px; top: -30px;
   width: 160px; height: 160px;
-  background: radial-gradient(circle at center, rgba(245,158,11,0.15) 0%, rgba(234,88,12,0.07) 40%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(245,158,11,0.10) 0%, rgba(234,88,12,0.05) 40%, transparent 70%);
   border-radius: 50%; pointer-events: none;
-  animation: aiOrb 8s ease-in-out infinite;
-}
-.ai-orb-2 {
-  position: absolute; left: -20px; bottom: -20px;
-  width: 100px; height: 100px;
-  background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%);
-  border-radius: 50%; pointer-events: none;
-  animation: aiOrb 6s ease-in-out infinite reverse;
 }
 .ai-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px;
-  color: var(--amber-d); margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+  color: var(--amber-d); margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
   font-family: var(--mono);
 }
 .ai-pulse-dot {
@@ -375,28 +364,18 @@ const css = `
   animation: flamePulse 1.8s ease-in-out infinite;
   flex-shrink: 0;
 }
-.ai-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.3px; margin-bottom: 8px; }
-.ai-desc { font-size: 13.5px; color: #8a8a8a; line-height: 1.65; margin-bottom: 22px; }
-.ai-desc strong { color: #c8c8c8; font-weight: 500; }
-.ai-features { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
-.ai-feature {
-  font-size: 11.5px; font-weight: 500; padding: 5px 11px;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 999px; color: #888;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+.rec-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  animation: slideFade 0.35s ease both;
 }
-.ai-card-inner:hover .ai-feature { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.15); color: #aaa; }
-.ai-cta {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, var(--amber-d), var(--orange));
-  color: #fff; border: none; border-radius: var(--radius-sm);
-  padding: 11px 22px; font-size: 13.5px; font-weight: 700;
-  cursor: pointer; font-family: var(--font);
-  transition: filter 0.18s, transform 0.18s, box-shadow 0.18s;
-}
-.ai-cta:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(245,158,11,0.3); }
-.ai-cta-ico { font-size: 16px; transition: transform 0.2s; }
-.ai-cta:hover .ai-cta-ico { transform: rotate(-10deg) scale(1.15); }
+.rec-row + .rec-row { margin-top: 7px; }
+.rec-row:hover { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.18); transform: translateX(4px); }
+.rec-title { flex: 1; font-size: 13px; font-weight: 600; color: #d8d8d8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid; letter-spacing: 0.3px; white-space: nowrap; }
+.rec-reason { font-size: 10.5px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
 
 /* ── SHEETS ── */
 .sheet-row {
@@ -613,6 +592,19 @@ interface DashboardProps {
       }>;
       recentSubmissions: any[];
       name: string;
+      recommended: Array<{
+        id: string;
+        confidence: string;
+        solved: boolean;
+        solvedAt: string | null;
+        problem: {
+          id: string;
+          title: string;
+          difficulty: string;
+          link: string;
+          slug: string;
+        };
+      }>;
     };
   };
 }
@@ -628,19 +620,10 @@ export default function Dashboard({ data }: DashboardProps) {
 
   const sheets = d.sheetProgress;
   const submissions = d.recentSubmissions;
+  const recommended = d.recommended ?? [];
   const tip = dailyTips[0];
 
   const [activeNav, setActiveNav] = useState("dashboard");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [roadmapGenerated, setRoadmapGenerated] = useState(false);
-
-  const handleGenerateRoadmap = () => {
-    setAiLoading(true);
-    setTimeout(() => {
-      setAiLoading(false);
-      setRoadmapGenerated(true);
-    }, 2000);
-  };
 
   const diffData = [
     {
@@ -724,7 +707,7 @@ export default function Dashboard({ data }: DashboardProps) {
               </div>
             </div>
 
-            {/* AI Mentor Card */}
+            {/* Recommended Problems Card */}
             <div
               className="ai-card"
               style={{
@@ -734,68 +717,63 @@ export default function Dashboard({ data }: DashboardProps) {
             >
               <div className="ai-card-inner">
                 <div className="ai-orb" />
-                <div className="ai-orb-2" />
                 <div className="ai-label">
                   <span className="ai-pulse-dot" />
-                  AI Mentor
+                  Recommended for You
                 </div>
-                <div className="ai-title">Generate Your Daily Roadmap</div>
-                <div className="ai-desc">
-                  Let AI analyze your{" "}
-                  <strong>solved problems, weak sheets, and streak</strong> to
-                  craft a personalized study plan. Make every session count — no
-                  more guessing what to practice.
-                </div>
-                <div className="ai-features">
-                  {[
-                    "Tailored to your gaps",
-                    "Streak-aware pacing",
-                    "Topic sequencing",
-                    "Time-optimized",
-                  ].map((f) => (
-                    <span key={f} className="ai-feature">
-                      {f}
-                    </span>
-                  ))}
-                </div>
-                {!roadmapGenerated ? (
-                  <button
-                    className="ai-cta"
-                    onClick={handleGenerateRoadmap}
-                    disabled={aiLoading}
-                  >
-                    <span className="ai-cta-ico">{aiLoading ? "⏳" : "✦"}</span>
-                    {aiLoading
-                      ? "Generating roadmap..."
-                      : "Generate Today's Roadmap"}
-                  </button>
-                ) : (
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 10 }}
-                  >
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        background: "rgba(16,185,129,0.1)",
-                        border: "1px solid rgba(52,211,153,0.25)",
-                        borderRadius: 10,
-                        padding: "9px 16px",
-                        color: "#34d399",
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
-                      ✓ Roadmap ready — 5 problems queued
+                {recommended.length === 0 ? (
+                  <div className="empty-state" style={{ padding: "20px 0" }}>
+                    <div className="empty-ico">🎯</div>
+                    <div>No recommendations yet</div>
+                    <div className="empty-sub">
+                      Solve more problems to get personalised picks
                     </div>
-                    <button
-                      className="ai-cta"
-                      onClick={() => setRoadmapGenerated(false)}
-                      style={{ padding: "9px 14px", fontSize: 12 }}
-                    >
-                      Regenerate
-                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    {recommended.map((item, i) => {
+                      const diff = item.problem.difficulty;
+                      const diffCapitalised =
+                        diff.charAt(0).toUpperCase() + diff.slice(1);
+                      const t =
+                        tagColors[diffCapitalised as keyof typeof tagColors] ??
+                        tagColors["Medium"];
+                      const reason =
+                        item.confidence === "failed"
+                          ? "Couldn't solve"
+                          : item.confidence === "needs_revision"
+                            ? "Needs revision"
+                            : "Review due";
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.problem.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ textDecoration: "none", display: "block" }}
+                        >
+                          <div
+                            className="rec-row"
+                            style={{ animationDelay: `${0.05 + i * 0.07}s` }}
+                          >
+                            <span
+                              className="rec-tag"
+                              style={{
+                                background: t.bg,
+                                color: t.text,
+                                borderColor: t.border,
+                              }}
+                            >
+                              {diffCapitalised}
+                            </span>
+                            <span className="rec-title">
+                              {item.problem.title}
+                            </span>
+                            <span className="rec-reason">{reason}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -965,23 +943,51 @@ export default function Dashboard({ data }: DashboardProps) {
               </div>
               <div className="quick-grid">
                 {[
-                  { icon: "📊", label: "My Sheets", nav: "sheets" },
-                  { icon: "📋", label: "All Problems", nav: "problems" },
-                  { icon: "🎯", label: "Interview Prep", nav: "interview" },
-                  { icon: "✏️", label: "Revision List", nav: "problems" },
-                  { icon: "✦", label: "AI Roadmap", nav: "dashboard" },
-                  { icon: "📈", label: "Statistics", nav: "dashboard" },
-                ].map(({ icon, label, nav }, i) => (
-                  <button
-                    key={label}
-                    className="quick-btn"
-                    style={{
-                      animation: `popIn 0.4s cubic-bezier(0.22,1,0.36,1) both ${0.46 + i * 0.06}s`,
-                    }}
-                    onClick={() => setActiveNav(nav)}
-                  >
-                    <span className="quick-ico">{icon}</span> {label}
-                  </button>
+                  {
+                    icon: "📊",
+                    label: "My Sheets",
+                    nav: "sheets",
+                    link: "/sheets",
+                  },
+                  {
+                    icon: "📋",
+                    label: "All Problems",
+                    nav: "problems",
+                    link: "/problems",
+                  },
+                  {
+                    icon: "🎯",
+                    label: "Interview Prep",
+                    nav: "interview",
+                    link: "/interview",
+                  },
+                  {
+                    icon: "✏️",
+                    label: "Revision List",
+                    nav: "problems",
+                    link: "/dashboard",
+                  },
+                  {
+                    icon: "📈",
+                    label: "Statistics",
+                    nav: "dashboard",
+                    link: "/dashboard",
+                  },
+                ].map(({ icon, label, nav, link }, i) => (
+                  <div>
+                    <Link href={link}>
+                      <button
+                        key={label}
+                        className="quick-btn"
+                        style={{
+                          animation: `popIn 0.4s cubic-bezier(0.22,1,0.36,1) both ${0.46 + i * 0.06}s`,
+                        }}
+                        onClick={() => setActiveNav(nav)}
+                      >
+                        <span className="quick-ico">{icon}</span> {label}
+                      </button>
+                    </Link>
+                  </div>
                 ))}
               </div>
             </div>
