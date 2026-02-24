@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
+import { Select } from "react-day-picker";
 
+/**
+ * Fetches a sheet and its sections, along with their problems
+ *
+ * @param {NextRequest} req - The NextRequest object
+ * @param {{ params: Promise<{ sheetId: string }> }} - The parameters object
+ * @returns {Promise<NextResponse>} - The response object
+ */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ sheetId: string }> },
@@ -50,11 +58,117 @@ export async function GET(
     );
   }
 
+  /* 
+  i need to find all the sections then all the problems of this sections and then the problems of these problems which are solved by user 
+
+  */
+  const solvedProblemsOfSheetByUser = await prisma.sheetSection.findMany({
+    where: {
+      sheetId: sheetId,
+    },
+    orderBy: {
+      order: "asc", // ✅ keep sections ordered
+    },
+    include: {
+      problems: {
+        orderBy: {
+          order: "asc", // ✅ keep problems ordered
+        },
+        include: {
+          problem: {
+            include: {
+              userProblems: {
+                where: {
+                  userId: session.user.id,
+                },
+                select: {
+                  solved: true,
+                },
+                take: 1, // 🔥 IMPORTANT optimization
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!solvedProblemsOfSheetByUser) {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Unable to fetch solved problems",
+      },
+      { status: 400 },
+    );
+  }
+
   return NextResponse.json(
     {
       success: true,
-      data: sheet,
+      data: { sheet, solvedProblemsOfSheetByUser },
       message: "Sheet fetched successfully",
+    },
+    { status: 200 },
+  );
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session || !session?.user) {
+    return NextResponse.json(
+      { success: false, data: null, message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
+  const { problemId } = await req.json();
+
+  const problem = await prisma.userProblem.upsert({
+    where: {
+      userId_problemId: {
+        userId: session.user.id,
+        problemId: problemId,
+      },
+    },
+    update: {
+      solved: true,
+      solvedAt: new Date(),
+      attempts: {
+        increment: 1,
+      },
+      confidence: "confident", // optional
+    },
+    create: {
+      userId: session.user.id,
+      problemId: problemId,
+      solved: true,
+      solvedAt: new Date(),
+      attempts: 1,
+      confidence: "confident", // optional
+    },
+  });
+
+  if (!problem) {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Unable to mark problem as solved",
+      },
+      { status: 400 },
+    );
+  }
+
+  return NextResponse.json(
+    {
+      success: true,
+      data: problem,
+      message: "Problem marked as solved successfully",
     },
     { status: 200 },
   );

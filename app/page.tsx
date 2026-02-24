@@ -5,6 +5,7 @@
 import Hero from "@/components/Hero"; // ← the Hero we just made (or inline it here)
 
 import { Button } from "@/components/ui/button";
+import UserNavbar from "@/components/UserNavbar";
 import {
   ArrowRight,
   Code2,
@@ -19,9 +20,11 @@ import Link from "next/link";
 
 export default function Home() {
   return (
+
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       {/* Your layout already includes <UserNavbar /> and main wrapper */}
       {/* So we just put content here */}
+      <UserNavbar />
 
       <Hero />
 

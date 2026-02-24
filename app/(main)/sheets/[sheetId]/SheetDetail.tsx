@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,8 +28,10 @@ import {
   ArrowRight,
   Star,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Problem {
   id: string;
@@ -60,68 +63,134 @@ interface SheetData {
   sections: Section[];
 }
 
-export default function SheetDetailPage({ data }: { data: SheetData }) {
+export default function SheetDetailPage({
+  data,
+  initialSolvedIds = [],
+}: {
+  data: SheetData;
+  initialSolvedIds?: string[];
+}) {
   const sheet = data;
   const sectionsRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const totalProblems = useMemo(
-    () => sheet.sections.reduce((sum, sec) => sum + sec.problems.length, 0),
-    [sheet],
+  // ── Solved state seeded from server on first load ──────────────────────────
+  const [solvedMap, setSolvedMap] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(initialSolvedIds.map((id) => [id, true])),
   );
 
-  const easyCnt = useMemo(
-    () =>
-      sheet.sections
-        .flatMap((s) => s.problems)
-        .filter((p) => p.problem.difficulty === "easy").length,
-    [sheet],
-  );
-  const medCnt = useMemo(
-    () =>
-      sheet.sections
-        .flatMap((s) => s.problems)
-        .filter((p) => p.problem.difficulty === "medium").length,
-    [sheet],
-  );
-  const hardCnt = useMemo(
-    () =>
-      sheet.sections
-        .flatMap((s) => s.problems)
-        .filter((p) => p.problem.difficulty === "hard").length,
-    [sheet],
-  );
+  // Track in-flight toggles to show a spinner and prevent double-clicks
+  const [pendingMap, setPendingMap] = useState<Record<string, boolean>>({});
 
   const [openSections, setOpenSections] = useState<string[]>([]);
-  const [solvedMap, setSolvedMap] = useState<Record<string, boolean>>({});
 
-  const toggleSolved = (problemId: string) => {
-    setSolvedMap((prev) => ({ ...prev, [problemId]: !prev[problemId] }));
-  };
+  // ── Derived counts ─────────────────────────────────────────────────────────
+  const allProblems = useMemo(
+    () => sheet.sections.flatMap((s) => s.problems),
+    [sheet],
+  );
+  const totalProblems = allProblems.length;
+  const easyCnt = useMemo(
+    () => allProblems.filter((p) => p.problem.difficulty === "easy").length,
+    [allProblems],
+  );
+  const medCnt = useMemo(
+    () => allProblems.filter((p) => p.problem.difficulty === "medium").length,
+    [allProblems],
+  );
+  const hardCnt = useMemo(
+    () => allProblems.filter((p) => p.problem.difficulty === "hard").length,
+    [allProblems],
+  );
 
   const totalSolvedLive = Object.values(solvedMap).filter(Boolean).length;
   const overallPctLive = totalProblems
     ? Math.round((totalSolvedLive / totalProblems) * 100)
     : 0;
 
-  const handleDifficultyClick = (difficulty: "easy" | "medium" | "hard" | "all") => {
+  // ── Toggle: optimistic update → PATCH → rollback on failure ───────────────
+  // NO router.refresh() — that would re-fetch the entire page on every click.
+  // The optimistic update + server PATCH is enough; state stays correct in memory.
+  const toggleSolved = useCallback(
+    async (problemId: string) => {
+      if (pendingMap[problemId]) return;
+
+      const prevValue = !!solvedMap[problemId];
+      const nextValue = !prevValue;
+
+      // 1. Instant UI update
+      setSolvedMap((prev) => ({ ...prev, [problemId]: nextValue }));
+      setPendingMap((prev) => ({ ...prev, [problemId]: true }));
+
+      // 🔔 loading toast
+      const toastId = toast.loading(
+        nextValue ? "Marking as solved..." : "Marking as unsolved...",
+      );
+
+      try {
+        const body = JSON.stringify({ problemId });
+
+        const res = await fetch(`/api/sheets/${problemId}/section`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+
+          // 🔁 rollback
+          setSolvedMap((prev) => ({ ...prev, [problemId]: prevValue }));
+
+          toast.error(err.message || "Failed to update. Please try again.", {
+            id: toastId,
+          });
+          return;
+        }
+
+        // ✅ success (updates same toast)
+        toast.success("Progress Updated! Keep it up! 🚀", {
+          id: toastId,
+        });
+      } catch {
+        // 🔁 rollback
+        setSolvedMap((prev) => ({ ...prev, [problemId]: prevValue }));
+
+        toast.error("Couldn't save. Please try again.", {
+          id: toastId,
+        });
+      } finally {
+        setPendingMap((prev) => ({ ...prev, [problemId]: false }));
+      }
+    },
+    [solvedMap, pendingMap],
+  );
+
+  // ── Jump helpers ───────────────────────────────────────────────────────────
+  const handleDifficultyClick = (
+    difficulty: "easy" | "medium" | "hard" | "all",
+  ) => {
     if (difficulty === "all") {
       setOpenSections(sheet.sections.map((s) => s.id));
-      setTimeout(() => {
-        sectionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
+      setTimeout(
+        () =>
+          sectionsRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          }),
+        50,
+      );
       return;
     }
-
-    const matchingSections = sheet.sections.filter((s) =>
+    const matching = sheet.sections.filter((s) =>
       s.problems.some((p) => p.problem.difficulty === difficulty),
     );
-    if (matchingSections.length === 0) return;
-
-    setOpenSections((prev) => Array.from(new Set([...prev, ...matchingSections.map((s) => s.id)])));
-
+    if (!matching.length) return;
+    setOpenSections((prev) =>
+      Array.from(new Set([...prev, ...matching.map((s) => s.id)])),
+    );
     setTimeout(() => {
-      sectionRefs.current[matchingSections[0].id]?.scrollIntoView({
+      sectionRefs.current[matching[0].id]?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -165,57 +234,57 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 pb-20 relative overflow-hidden">
-      {/* Ambient glows */}
       <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-amber-950/5 to-neutral-950 pointer-events-none" />
       <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[800px] h-[500px] bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute right-0 top-1/3 w-[400px] h-[400px] bg-orange-600/3 rounded-full blur-3xl pointer-events-none" />
 
       {/* ── Hero ── */}
       <section className="relative pt-12 pb-8 md:pt-16 md:pb-10 border-b border-neutral-800/50">
         <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8 text-center">
-          {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 text-xs font-semibold uppercase tracking-widest mb-5 animate-fade-in-up">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 text-xs font-semibold uppercase tracking-widest mb-5">
             <Star className="w-3 h-3" />
             Curated Problem Sheet
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight animate-fade-in-up animation-delay-100">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
             <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent">
               {sheet.title}
             </span>
           </h1>
 
-          <p className="mt-4 text-lg md:text-xl text-neutral-400 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-            {sheet.description ||
-              "Master every pattern, ace every interview. Work through carefully selected problems ordered by concept — from fundamentals to tricky edge cases."}
+          <p className="mt-4 text-lg md:text-xl text-neutral-400 max-w-3xl mx-auto leading-relaxed">
+            {sheet.description || "Master every pattern, ace every interview."}
           </p>
 
-          {/* Clickable stat cards */}
-          <p className="mt-6 text-xs text-neutral-600 uppercase tracking-widest animate-fade-in-up animation-delay-200">
+          <p className="mt-6 text-xs text-neutral-600 uppercase tracking-widest">
             Click a card to jump to that difficulty ↓
           </p>
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto animate-fade-in-up animation-delay-300">
-            {statCards.map(({ icon: Icon, label, value, color, hoverCls, action }) => (
-              <button
-                key={label}
-                onClick={action}
-                className={cn(
-                  "cursor-pointer flex flex-col items-center gap-2 px-6 py-4 rounded-xl",
-                  "border border-neutral-800/60 bg-neutral-900/40 backdrop-blur-md",
-                  "transition-all duration-300 ease-out",
-                  "hover:scale-[1.05] hover:shadow-lg active:scale-[0.97]",
-                  hoverCls,
-                )}
-              >
-                <Icon className={cn("w-5 h-5", color)} />
-                <span className={cn("text-2xl font-bold", color)}>{value}</span>
-                <span className="text-xs text-neutral-500 uppercase tracking-widest">{label}</span>
-              </button>
-            ))}
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+            {statCards.map(
+              ({ icon: Icon, label, value, color, hoverCls, action }) => (
+                <button
+                  key={label}
+                  onClick={action}
+                  className={cn(
+                    "cursor-pointer flex flex-col items-center gap-2 px-6 py-4 rounded-xl",
+                    "border border-neutral-800/60 bg-neutral-900/40 backdrop-blur-md",
+                    "transition-all duration-300 ease-out hover:scale-[1.05] hover:shadow-lg active:scale-[0.97]",
+                    hoverCls,
+                  )}
+                >
+                  <Icon className={cn("w-5 h-5", color)} />
+                  <span className={cn("text-2xl font-bold", color)}>
+                    {value}
+                  </span>
+                  <span className="text-xs text-neutral-500 uppercase tracking-widest">
+                    {label}
+                  </span>
+                </button>
+              ),
+            )}
           </div>
 
-          {/* Progress */}
-          <div className="mt-6 max-w-xl mx-auto animate-fade-in-up animation-delay-400">
+          {/* Progress bar */}
+          <div className="mt-6 max-w-xl mx-auto">
             <div className="flex items-center justify-between text-sm mb-2 text-neutral-300">
               <span className="font-medium flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-amber-400" />
@@ -235,14 +304,19 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
               <span>
                 {totalSolvedLive} of {totalProblems} solved
                 {totalSolvedLive === 0 && (
-                  <span className="ml-1 text-amber-700/70">— click a card to jump in!</span>
+                  <span className="ml-1 text-amber-700/70">
+                    — click a card to jump in!
+                  </span>
                 )}
               </span>
               <button
                 onClick={() =>
-                  sectionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  sectionsRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  })
                 }
-                className="cursor-pointer text-amber-600 hover:text-amber-400 transition-colors duration-300 ease-out text-xs underline underline-offset-2"
+                className="cursor-pointer text-amber-600 hover:text-amber-400 transition-colors text-xs underline underline-offset-2"
               >
                 Jump to problems ↓
               </button>
@@ -254,11 +328,12 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
       {/* ── Sections ── */}
       <section className="py-8 md:py-10" ref={sectionsRef}>
         <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
-          <div className="text-center mb-7 animate-fade-in-up">
-            <h2 className="text-2xl md:text-3xl font-bold text-amber-100">Problem Sections</h2>
+          <div className="text-center mb-7">
+            <h2 className="text-2xl md:text-3xl font-bold text-amber-100">
+              Problem Sections
+            </h2>
             <p className="mt-1.5 text-neutral-500 text-sm max-w-xl mx-auto">
-              Tackle them in order or click a difficulty card above to jump straight to your weak
-              spots.
+              Tackle them in order or jump straight to your weak spots.
             </p>
           </div>
 
@@ -267,7 +342,9 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
               .sort((a, b) => a.order - b.order)
               .map((section, idx) => {
                 const total = section.problems.length;
-                const solved = section.problems.filter((p) => solvedMap[p.problem.id]).length;
+                const solved = section.problems.filter(
+                  (p) => solvedMap[p.problem.id],
+                ).length;
                 const pct = total ? Math.round((solved / total) * 100) : 0;
 
                 return (
@@ -278,17 +355,17 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                     }}
                     className={cn(
                       "border border-neutral-800/60 rounded-xl overflow-hidden",
-                      "bg-neutral-900/40 backdrop-blur-md",
-                      "transition-all duration-300 ease-out",
+                      "bg-neutral-900/40 backdrop-blur-md transition-all duration-300 ease-out",
                       "hover:border-amber-700/40 hover:shadow-lg hover:shadow-amber-900/15 hover:-translate-y-0.5",
-                      "animate-fade-in-up",
                     )}
                     style={{ animationDelay: `${idx * 60}ms` }}
                   >
                     <Accordion
                       type="single"
                       collapsible
-                      value={openSections.includes(section.id) ? section.id : ""}
+                      value={
+                        openSections.includes(section.id) ? section.id : ""
+                      }
                     >
                       <AccordionItem value={section.id} className="border-none">
                         <AccordionTrigger
@@ -305,7 +382,10 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                             <div className="flex items-center gap-4">
                               {/* Circular progress ring */}
                               <div className="relative w-10 h-10 shrink-0">
-                                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                                <svg
+                                  className="w-full h-full -rotate-90"
+                                  viewBox="0 0 36 36"
+                                >
                                   <circle
                                     cx="18"
                                     cy="18"
@@ -331,9 +411,8 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                   {pct}%
                                 </span>
                               </div>
-
                               <div className="text-left">
-                                <h3 className="text-lg font-semibold text-amber-200 group-hover:text-amber-100 transition-colors duration-300 ease-out">
+                                <h3 className="text-lg font-semibold text-amber-200 group-hover:text-amber-100 transition-colors">
                                   {section.title}
                                 </h3>
                                 <p className="text-sm text-neutral-600 mt-0.5">
@@ -341,7 +420,6 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                 </p>
                               </div>
                             </div>
-
                             <div className="flex items-center gap-4 shrink-0">
                               <span className="text-sm text-neutral-500 tabular-nums hidden sm:block">
                                 {solved}/{total}
@@ -385,6 +463,8 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                   {section.problems.map((item) => {
                                     const p = item.problem;
                                     const isSolved = !!solvedMap[p.id];
+                                    const isPending = !!pendingMap[p.id];
+
                                     return (
                                       <TableRow
                                         key={item.id}
@@ -395,26 +475,42 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                             : "hover:bg-neutral-800/30",
                                         )}
                                       >
+                                        {/* Checkbox */}
                                         <TableCell className="text-center">
                                           <button
                                             onClick={() => toggleSolved(p.id)}
-                                            className="cursor-pointer transition-all duration-300 ease-out hover:scale-110 active:scale-95"
-                                            aria-label={isSolved ? "Mark unsolved" : "Mark solved"}
+                                            disabled={isPending}
+                                            className={cn(
+                                              "transition-all duration-300 ease-out",
+                                              isPending
+                                                ? "cursor-not-allowed opacity-60"
+                                                : "cursor-pointer hover:scale-110 active:scale-95",
+                                            )}
+                                            aria-label={
+                                              isSolved
+                                                ? "Mark unsolved"
+                                                : "Mark solved"
+                                            }
                                           >
-                                            <CheckSquare
-                                              className={cn(
-                                                "h-5 w-5 mx-auto transition-colors duration-300 ease-out",
-                                                isSolved
-                                                  ? "text-amber-400"
-                                                  : "text-neutral-700 hover:text-neutral-500",
-                                              )}
-                                            />
+                                            {isPending ? (
+                                              <Loader2 className="h-5 w-5 mx-auto text-amber-400 animate-spin" />
+                                            ) : (
+                                              <CheckSquare
+                                                className={cn(
+                                                  "h-5 w-5 mx-auto transition-colors duration-300",
+                                                  isSolved
+                                                    ? "text-amber-400"
+                                                    : "text-neutral-700 hover:text-neutral-500",
+                                                )}
+                                              />
+                                            )}
                                           </button>
                                         </TableCell>
+
                                         <TableCell>
                                           <span
                                             className={cn(
-                                              "font-medium text-sm transition-colors duration-300 ease-out",
+                                              "font-medium text-sm transition-colors duration-300",
                                               isSolved
                                                 ? "text-neutral-500 line-through"
                                                 : "text-neutral-200",
@@ -423,6 +519,7 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                             {p.title}
                                           </span>
                                         </TableCell>
+
                                         <TableCell className="text-center">
                                           <Badge
                                             className={cn(
@@ -435,15 +532,18 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                                 "bg-red-950/50 text-red-400 border-red-800/40",
                                             )}
                                           >
-                                            {p.difficulty.charAt(0).toUpperCase() +
+                                            {p.difficulty
+                                              .charAt(0)
+                                              .toUpperCase() +
                                               p.difficulty.slice(1)}
                                           </Badge>
                                         </TableCell>
+
                                         <TableCell className="text-center">
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="cursor-pointer text-amber-500 hover:text-amber-300 hover:bg-amber-950/30 text-xs h-7 px-3 transition-all duration-300 ease-out"
+                                            className="cursor-pointer text-amber-500 hover:text-amber-300 hover:bg-amber-950/30 text-xs h-7 px-3 transition-all duration-300"
                                             asChild
                                           >
                                             <a
@@ -451,7 +551,7 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
                                               target="_blank"
                                               rel="noopener noreferrer"
                                             >
-                                              Solve
+                                              Solve{" "}
                                               <ExternalLink className="ml-1 h-3 w-3" />
                                             </a>
                                           </Button>
@@ -473,18 +573,16 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
         </div>
       </section>
 
-      {/* ── CTA Section ── */}
+      {/* ── CTA ── */}
       <section className="py-14 md:py-20 border-t border-neutral-800/50 relative">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-[600px] h-[300px] bg-amber-500/6 rounded-full blur-3xl" />
         </div>
-
-        <div className="relative mx-auto max-w-4xl px-5 sm:px-6 lg:px-8 text-center animate-fade-in-up">
+        <div className="relative mx-auto max-w-4xl px-5 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-800/40 bg-amber-950/20 text-amber-500 text-xs font-semibold uppercase tracking-widest mb-6">
             <Flame className="w-3 h-3" />
             Keep the momentum going
           </div>
-
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-amber-100 leading-tight">
             Consistency beats
             <br />
@@ -492,56 +590,27 @@ export default function SheetDetailPage({ data }: { data: SheetData }) {
               talent, every time.
             </span>
           </h2>
-
-          <p className="mt-5 text-neutral-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            One problem a day keeps the rejection email away. Stick to the sheet, track your
-            streaks, and watch patterns click into place. Your dream offer is on the other side of
-            consistent practice.
-          </p>
-
-          <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-neutral-500">
-            {[
-              { icon: Trophy, text: `${totalProblems} problems to master` },
-              { icon: Target, text: "Difficulty progression built-in" },
-              { icon: TrendingUp, text: "Track progress in real-time" },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2">
-                <Icon className="w-4 h-4 text-amber-600" />
-                <span>{text}</span>
-              </div>
-            ))}
-          </div>
-
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
               className={cn(
                 "cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 text-neutral-950 font-bold px-8 py-6 text-base rounded-xl",
-                "hover:from-amber-400 hover:to-orange-400 hover:scale-[1.03]",
-                "shadow-lg shadow-amber-700/30 transition-all duration-300 ease-out",
-                "active:scale-[0.98]",
+                "hover:from-amber-400 hover:to-orange-400 hover:scale-[1.03] shadow-lg shadow-amber-700/30 transition-all duration-300 active:scale-[0.98]",
               )}
               onClick={() => handleDifficultyClick("all")}
             >
-              Expand All Sections
-              <ArrowRight className="ml-2 h-4 w-4" />
+              Expand All Sections <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-
             <Button
               variant="ghost"
               className={cn(
                 "cursor-pointer border border-neutral-700 text-neutral-300 hover:text-amber-300 hover:border-amber-700/50 hover:bg-amber-950/20",
-                "px-8 py-6 text-base rounded-xl font-medium",
-                "transition-all duration-300 ease-out hover:scale-[1.02]",
+                "px-8 py-6 text-base rounded-xl font-medium transition-all duration-300 hover:scale-[1.02]",
               )}
               onClick={() => setSolvedMap({})}
             >
               Reset Progress
             </Button>
           </div>
-
-          <p className="mt-6 text-xs text-neutral-700">
-            Progress is saved locally in this session — come back anytime.
-          </p>
         </div>
       </section>
     </div>
