@@ -5,8 +5,8 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, Circle, Pencil } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-// ✅ Fixed: correct import path (was "UpdateProgressingDialog" with extra "ing")
 import {
   UpdateProgressDialog,
   ConfidenceLevel,
@@ -21,6 +21,7 @@ type Problem = {
   userProgress?: {
     solved: boolean;
     confidence: ConfidenceLevel;
+    notes?: string;
   } | null;
 };
 
@@ -40,28 +41,41 @@ const confidenceLabels: Record<ConfidenceLevel, string> = {
 
 interface ProblemsTableProps {
   problems: Problem[];
-  // onConfidenceChange?: (
-  //   problemId: string,
-  //   newConfidence: ConfidenceLevel,
-  // ) => void;
-  // onSolvedToggle?: (problemId: string, newSolved: boolean) => void;
-  // onSaveNotes?: (problemId: string, notes: string) => void;
-
   onSaveChanges?: (
     problemId: string,
     confidence: ConfidenceLevel,
     notes: string,
     solved: boolean,
-  ) => void;
+  ) => Promise<void>; // ✅ must return a Promise
 }
 
 export default function ProblemsTable({
   problems,
-  // onConfidenceChange,
-  // onSolvedToggle,
-  // onSaveNotes,
   onSaveChanges,
 }: ProblemsTableProps) {
+
+  const [localSolved, setLocalSolved] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    problems.forEach((p) => (initial[p.id] = p.userProgress?.solved ?? false));
+    return initial;
+  });
+
+  const [localConfidence, setLocalConfidence] = useState<Record<string, ConfidenceLevel>>(() => {
+    const initial: Record<string, ConfidenceLevel> = {};
+    problems.forEach((p) => {
+      initial[p.id] = p.userProgress?.confidence ?? "not_attempted";
+    });
+    return initial;
+  });
+
+  const [notesMap, setNotesMap] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    problems.forEach((p) => {
+      initial[p.id] = p.userProgress?.notes ?? "";
+    });
+    return initial;
+  });
+
   useEffect(() => {
     setLocalSolved(() => {
       const next: Record<string, boolean> = {};
@@ -77,30 +91,14 @@ export default function ProblemsTable({
       return next;
     });
 
-    setNotesMap({});
-  }, [problems]);
-  // Local state for optimistic UI updates
-  const [localSolved, setLocalSolved] = useState<Record<string, boolean>>(
-    () => {
-      const initial: Record<string, boolean> = {};
-      problems.forEach(
-        (p) => (initial[p.id] = p.userProgress?.solved ?? false),
-      );
-      return initial;
-    },
-  );
-
-  const [localConfidence, setLocalConfidence] = useState<
-    Record<string, ConfidenceLevel>
-  >(() => {
-    const initial: Record<string, ConfidenceLevel> = {};
-    problems.forEach((p) => {
-      initial[p.id] = p.userProgress?.confidence ?? "not_attempted";
+    setNotesMap((prev) => {
+      const next: Record<string, string> = {};
+      problems.forEach((p) => {
+        next[p.id] = prev[p.id] !== undefined ? prev[p.id] : (p.userProgress?.notes ?? "");
+      });
+      return next;
     });
-    return initial;
-  });
-
-  const [notesMap, setNotesMap] = useState<Record<string, string>>({});
+  }, [problems]);
 
   // Dialog control state
   const [showDialog, setShowDialog] = useState(false);
@@ -121,19 +119,32 @@ export default function ProblemsTable({
     setShowDialog(true);
   };
 
-  const handleSave = (confidence: ConfidenceLevel, notes: string) => {
+  const handleSave = async (confidence: ConfidenceLevel, notes: string) => {
     if (!currentProblem) return;
     const problemId = currentProblem.id;
 
-    // Only confident and needs_revision count as "solved"
-    // failed, skipped, not_attempted all mark it as unsolved
     const shouldBeSolved =
       confidence === "confident" || confidence === "needs_revision";
 
-    // No optimistic update — wait for server confirmation via problems prop
-    onSaveChanges?.(problemId, confidence, notes, shouldBeSolved);
-
+    // Close dialog immediately for snappy UX
     setCurrentProblem(null);
+    setShowDialog(false);
+
+    const toastId = toast.loading("Saving your progress...");
+
+    try {
+      await onSaveChanges?.(problemId, confidence, notes, shouldBeSolved);
+
+      // ✅ Only update local state AFTER server confirms
+      setLocalConfidence((prev) => ({ ...prev, [problemId]: confidence }));
+      setLocalSolved((prev) => ({ ...prev, [problemId]: shouldBeSolved }));
+      setNotesMap((prev) => ({ ...prev, [problemId]: notes }));
+
+      toast.success("Progress saved! Keep grinding 🔥", { id: toastId });
+    } catch {
+      // ✅ Local state stays untouched — UI reverts naturally
+      toast.error("Failed to save. Please try again.", { id: toastId });
+    }
   };
 
   const handleCancel = () => {
@@ -148,19 +159,16 @@ export default function ProblemsTable({
           <tr className="border-b border-neutral-800 text-left text-sm text-neutral-400">
             <th className="w-12 p-4 text-center">Done</th>
             <th className="py-4 px-3 font-medium">Problem</th>
-            <th className="w-28 py-4 px-3 font-medium text-center">
-              Difficulty
-            </th>
-            <th className="w-44 py-4 px-3 font-medium">Status</th>
+            <th className="w-28 py-4 px-3 font-medium text-center">Difficulty</th>
+            <th className="py-4 px-3 font-medium">Status</th>
           </tr>
         </thead>
 
         <tbody>
           {problems.map((problem) => {
-            const isSolved =
-              localSolved[problem.id] ?? problem.userProgress?.solved ?? false;
+            const isSolved = localSolved[problem.id] ?? false;
             const confidence = localConfidence[problem.id] ?? "not_attempted";
-            const hasNotes = !!notesMap[problem.id];
+            const notes = notesMap[problem.id] ?? "";
 
             return (
               <tr
@@ -171,7 +179,7 @@ export default function ProblemsTable({
                   "hover:-translate-y-px",
                 )}
               >
-                {/* Done column – opens dialog */}
+                {/* Done column */}
                 <td className="p-4">
                   <button
                     type="button"
@@ -207,7 +215,6 @@ export default function ProblemsTable({
                   >
                     {problem.title}
                   </Link>
-
                   <span
                     className={cn(
                       "absolute bottom-1.5 left-3 right-3 h-0.5 rounded-full",
@@ -227,29 +234,33 @@ export default function ProblemsTable({
                       "group-hover:scale-105 group-hover:shadow-sm group-hover:shadow-amber-500/10",
                     )}
                   >
-                    {problem.difficulty.charAt(0).toUpperCase() +
-                      problem.difficulty.slice(1)}
+                    {problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1)}
                   </span>
                 </td>
 
-                {/* Status */}
+                {/* Status + notes preview */}
                 <td className="py-4 px-3">
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex flex-col gap-1 text-sm">
                     <span
                       className={cn(
                         "font-medium transition-colors",
                         confidence === "confident" && "text-emerald-400",
                         confidence === "needs_revision" && "text-amber-400",
                         confidence === "failed" && "text-rose-400",
-                        (confidence === "not_attempted" ||
-                          confidence === "skipped") &&
-                          "text-neutral-500",
+                        (confidence === "not_attempted" || confidence === "skipped") && "text-neutral-500",
                       )}
                     >
                       {confidenceLabels[confidence]}
                     </span>
-                    {hasNotes && (
-                      <Pencil className="h-3.5 w-3.5 text-amber-400/70 shrink-0" />
+
+                    {notes && (
+                      <span
+                        title={notes}
+                        className="flex items-center gap-1 text-xs text-neutral-400 italic truncate max-w-[220px]"
+                      >
+                        <Pencil className="h-3 w-3 text-amber-400/70 shrink-0" />
+                        {notes}
+                      </span>
                     )}
                   </div>
                 </td>
@@ -265,13 +276,11 @@ export default function ProblemsTable({
         </div>
       )}
 
-      {/* Dialog – only mounts when a problem is selected */}
       {currentProblem && (
         <UpdateProgressDialog
           open={showDialog}
           onOpenChange={(open) => {
             setShowDialog(open);
-            // If dialog is dismissed via outside click / escape, clean up
             if (!open) setCurrentProblem(null);
           }}
           initialConfidence={currentProblem.initialConfidence}

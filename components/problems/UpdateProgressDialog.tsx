@@ -54,7 +54,6 @@ export function UpdateProgressDialog({
     useState<ConfidenceLevel>(initialConfidence);
   const [notes, setNotes] = useState(initialNotes);
 
-  // Reset form when dialog opens with new initial values
   useEffect(() => {
     if (open) {
       setConfidence(initialConfidence);

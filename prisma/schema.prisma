@@ -192,3 +192,14 @@ problem     Problem  @relation(fields: [problemId], references: [id], onDelete: 
 
   @@unique([userId, problemId])
 }
+
+
+model Suggestion {
+  id        String   @id @default(cuid())
+
+  message   String   @db.Text
+
+  importance String  // feature | pain | must | nice
+
+  createdAt DateTime @default(now())
+}

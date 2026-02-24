@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed" : "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -15,6 +16,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^7.4.0",
+    "axios": "^1.13.5",
     "better-auth": "^1.4.18",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

@@ -16,19 +16,31 @@ const genSlug = (title: string) => {
 // /*******  18601527-9168-4310-8a8b-a68dd6ab8552  *******/
 //
 export async function POST(req: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session || !session?.user) {
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        message: "Unauthorized",
-      },
-      { status: 401 },
-    );
+  // ✅ DEV SEED BYPASS (safe)
+  const seedKey = req.headers.get("x-seed-key");
+
+  if (
+    process.env.NODE_ENV === "development" &&
+    seedKey === process.env.SEED_KEY
+  ) {
+    // skip auth — allow seeding
+  } else {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session || !session?.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Unauthorized",
+        },
+        { status: 401 },
+      );
+    }
   }
+
   try {
     const { title, description, tags, companies, difficulty, link } =
       await req.json();
