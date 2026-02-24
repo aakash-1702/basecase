@@ -4,6 +4,16 @@ import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { toast } from "sonner";
 
+function getRelativeTime(date: Date | string) {
+  const diff = Date.now() - new Date(date).getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 1) return "Just now";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  return `${days}d ago`;
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -83,19 +93,19 @@ export async function GET(req: NextRequest) {
 
     const totalSolved = totalEasySolved + totalMediumSolved + totalHardSolved;
     const totalProblems =
-      totalEasyProblems + totalMediumProblems + totalHardProblems;
+      (totalEasyProblems + totalMediumProblems + totalHardProblems);
 
     const easyProgress =
-      totalEasyProblems === 0 ? 0 : (totalEasySolved / totalEasyProblems) * 100;
+      Math.round((totalEasyProblems === 0 ? 0 : (totalEasySolved / totalEasyProblems) * 100));
     const mediumProgress =
       totalMediumProblems === 0
         ? 0
-        : (totalMediumSolved / totalMediumProblems) * 100;
+        : Math.round((totalMediumSolved / totalMediumProblems) * 100);
     const hardProgress =
-      totalHardProblems === 0 ? 0 : (totalHardSolved / totalHardProblems) * 100;
+      totalHardProblems === 0 ? 0 : Math.round((totalHardSolved / totalHardProblems) * 100);
 
     const completion =
-      totalProblems === 0 ? 0 : (totalSolved / totalProblems) * 100;
+      totalProblems === 0 ? 0 : Math.round((totalSolved / totalProblems) * 100);
 
     // finding the sheets data
     const sheets = await prisma.sheet.findMany({
@@ -141,7 +151,7 @@ export async function GET(req: NextRequest) {
           progress:
             totalProblemInSheet === 0
               ? 0
-              : (totalSolvedInSheet / totalProblemInSheet) * 100,
+              : Math.round((totalSolvedInSheet / totalProblemInSheet) * 100),
         };
       }),
     );
@@ -164,6 +174,17 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    const normalizedSubmissions = recentSubmissions.map((sub) => ({
+      id: sub.id,
+      problem: sub.problem.title, // flatten from nested object → string
+      difficulty:
+        sub.problem.difficulty.charAt(0).toUpperCase() +
+        sub.problem.difficulty.slice(1), // "easy" → "Easy"
+      status: sub.solved ? "Accepted" : "Wrong Answer",
+      time: sub.solvedAt ? getRelativeTime(sub.solvedAt) : "Recently",
+      sheet: "", // you'd need to join this from sectionProblems if needed
+    }));
+
     return NextResponse.json(
       {
         success: true,
@@ -179,7 +200,8 @@ export async function GET(req: NextRequest) {
           hardProgress,
           completion,
           sheetProgress,
-          recentSubmissions,
+          recentSubmissions: normalizedSubmissions,
+          name: session.user.name ?? "User", // ← also add this, Dashboard uses d.name
         },
       },
       { status: 200 },
