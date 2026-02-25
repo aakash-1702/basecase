@@ -128,6 +128,19 @@ export async function PATCH(req: NextRequest) {
 
   const { problemId } = await req.json();
 
+  // find previous solved state for this problem so that we can change it to opposite
+  const prev = await prisma.userProblem.findFirst({
+    where: {
+      userId: session.user.id,
+      problemId: problemId,
+    },
+    select: {
+      solved: true,
+    },
+  });
+
+  
+
   const problem = await prisma.userProblem.upsert({
     where: {
       userId_problemId: {
@@ -136,7 +149,7 @@ export async function PATCH(req: NextRequest) {
       },
     },
     update: {
-      solved: true,
+      solved: prev ? !prev.solved : true,
       solvedAt: new Date(),
       attempts: {
         increment: 1,
