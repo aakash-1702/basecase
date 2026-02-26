@@ -18,6 +18,12 @@ enum Role {
   ADMIN
 }
 
+enum ConfidenceV2 {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model User {
   id            String    @id
   name          String
@@ -29,12 +35,11 @@ model User {
   sessions      Session[]
   accounts      Account[]
   role          Role @default(USER)
+  premium      Boolean @default(false)
 
   userProblems  UserProblem[] 
   
-  notes      String?
-  confidence ConfidenceLevel @default(not_attempted)
-  solvedAt   DateTime?  // 👈 ADD THIS
+  
 
   @@unique([email])
   @@map("user")
@@ -96,13 +101,7 @@ enum Difficulty {
   hard
 }
 
-enum ConfidenceLevel {
-  not_attempted
-  confident
-  needs_revision
-  failed
-  skipped
-}
+
 
 model Problem {
   id          String   @id @default(cuid())
@@ -115,6 +114,8 @@ model Problem {
   isPublic    Boolean  @default(true)
   isActive    Boolean  @default(true)
   link        String
+
+  editorial String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -182,13 +183,16 @@ model UserProblem {
   problemId   String
 
   solved      Boolean  @default(false)
-  confidence  ConfidenceLevel?
+  
   attempts    Int      @default(0)
   solvedAt    DateTime?
   notes       String?
 
+  bookmark Boolean @default(false)
+  confidenceV2 ConfidenceV2 @default(LOW)
+
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, problemId])
 }
