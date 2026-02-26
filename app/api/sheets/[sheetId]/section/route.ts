@@ -154,7 +154,7 @@ export async function PATCH(req: NextRequest) {
       attempts: {
         increment: 1,
       },
-      confidence: "confident", // optional
+      confidenceV2: "HIGH", // optional
     },
     create: {
       userId: session.user.id,
@@ -162,7 +162,7 @@ export async function PATCH(req: NextRequest) {
       solved: true,
       solvedAt: new Date(),
       attempts: 1,
-      confidence: "confident", // optional
+      confidenceV2: "HIGH", // optional
     },
   });
 

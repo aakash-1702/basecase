@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
         include: {
           userProblems: {
             where: { userId },
-            select: { solved: true, confidence: true },
+            select: { solved: true, confidenceV2: true },
           },
         },
       }),

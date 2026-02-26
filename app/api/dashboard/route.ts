@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { toast } from "sonner";
-import { ConfidenceLevel } from "@/generated/prisma/enums";
+import { ConfidenceV2 } from "@/generated/prisma/enums";
 
 function getRelativeTime(date: Date | string) {
   const diff = Date.now() - new Date(date).getTime();
@@ -196,8 +196,8 @@ export async function GET(req: NextRequest) {
         userId: session.user.id,
         OR: [
           {
-            confidence: {
-              in: ["needs_revision", "failed"],
+            confidenceV2: {
+              in: ["LOW"],
             },
           },
           {

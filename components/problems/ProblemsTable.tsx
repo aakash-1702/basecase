@@ -204,7 +204,7 @@ export default function ProblemsTable({
                 {/* Problem title */}
                 <td className="py-4 px-3 relative">
                   <Link
-                    href={problem.link}
+                    href={`/problems/${problem.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
