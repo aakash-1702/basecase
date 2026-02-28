@@ -974,7 +974,7 @@ export default function Dashboard({ data }: DashboardProps) {
                     link: "/dashboard",
                   },
                 ].map(({ icon, label, nav, link }, i) => (
-                  <div>
+                  <div key={nav}>
                     <Link href={link}>
                       <button
                         key={label}

@@ -114,9 +114,9 @@ model Problem {
   isPublic    Boolean  @default(true)
   isActive    Boolean  @default(true)
   link        String
-
+  examples   Json?
   editorial String?
-
+  aiHints String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

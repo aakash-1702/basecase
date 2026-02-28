@@ -42,8 +42,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { title, description, tags, companies, difficulty, link } =
-      await req.json();
+    const {
+      title,
+      description,
+      tags,
+      companies,
+      difficulty,
+      link,
+      editorial,
+      aiHints,
+      examples,
+    } = await req.json();
     const genProb = genSlug(title as string);
     const problem = await prisma.problem.create({
       data: {
@@ -54,6 +63,9 @@ export async function POST(req: NextRequest) {
         companies,
         difficulty,
         link,
+        editorial,
+        aiHints,
+        examples,
       },
     });
     return NextResponse.json(
@@ -81,6 +93,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * Fetches a list of problems based on the query parameters.
+ * @param {NextRequest} req - The NextRequest object
+ * @returns {Promise<NextResponse>} - The response object
+ * @throws {Error} - If there is an error fetching the problems
+ */
 export async function GET(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;

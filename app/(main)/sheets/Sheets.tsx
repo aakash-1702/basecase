@@ -258,7 +258,7 @@ export default function SheetsPage() {
                     asChild
                     className="w-full border-amber-600/50 text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 transition-all"
                   >
-                    <Link href={`/sheets/${sheet.id}`}>View Sheet →</Link>
+                    <Link href={`/sheets/${sheet.slug}`}>View Sheet →</Link>
                   </Button>
                 </div>
               </div>

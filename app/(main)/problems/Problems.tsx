@@ -14,13 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import ProblemsTable from "@/components/problems/ProblemsTable";
+
 import PaginationControls from "@/components/PageChange";
-import { ConfidenceLevel } from "@/components/problems/UpdateProgressDialog";
 
 export default function ProblemsPage() {
-  const [localSolvedMap, setLocalSolvedMap] = useState<Record<string, boolean>>(
-    {},
-  );
   const [problems, setProblems] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -65,12 +62,6 @@ export default function ProblemsPage() {
 
       setProblems(fetchedProblems);
 
-      // ⭐ IMPORTANT — seed solved state
-      setLocalSolvedMap(() =>
-        Object.fromEntries(
-          fetchedProblems.map((p: any) => [p.id, !!p.userProblem?.solved]),
-        ),
-      );
       setPagination({
         page: json.data?.pagination?.page || 1,
         totalPages: json.data?.pagination?.totalPages || 1,
@@ -100,49 +91,6 @@ export default function ProblemsPage() {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       setPagination((prev) => ({ ...prev, page: newPage }));
-    }
-  };
-
-  const handleSave = async (
-    problemId: string,
-    confidence: ConfidenceLevel,
-    notes: string,
-    solved: boolean,
-  ) => {
-    const toastId = toast.loading("Saving changes...");
-
-    try {
-      const res = await fetch(`/api/problems/${problemId}/progress`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ confidence, notes, solved }),
-      });
-
-      if (res.status === 401) {
-        toast.error("Session expired. Please log in again.", { id: toastId });
-        return;
-      }
-
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.message || "Failed to save changes", { id: toastId });
-        return;
-      }
-
-      // Patch only the changed row — no full refetch needed
-      setProblems((prev) =>
-        prev.map((p) =>
-          p.id === problemId
-            ? { ...p, userProgress: { solved, confidence } }
-            : p,
-        ),
-      );
-
-      toast.success("Progress saved!", { id: toastId });
-    } catch (error) {
-      console.error("Error saving changes:", error);
-      toast.error("Unable to save progress", { id: toastId });
     }
   };
 
@@ -261,7 +209,7 @@ export default function ProblemsPage() {
             <div className="py-20 text-center text-rose-400">{error}</div>
           ) : (
             <>
-              <ProblemsTable problems={problems} onSaveChanges={handleSave} />
+              <ProblemsTable problems={problems} />
               {pagination.totalPages > 1 && (
                 <PaginationControls
                   currentPage={pagination.page}
