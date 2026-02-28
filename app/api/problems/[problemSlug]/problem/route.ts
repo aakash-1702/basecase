@@ -3,34 +3,30 @@ import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Retrieves a problem by its slug.
- *
- * @param {NextRequest} req - The NextRequest object
- * @param {{ params: Promise<{problemSlug: string}> }} - The parameters object
- * @returns {Promise<NextResponse>} - The response object
- */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ problemSlug: string }> },
 ) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const seedKey = req.headers.get("x-seed-key");
 
-  if (!session || !session?.user) {
-    return NextResponse.json(
-      { success: false, data: null, message: "Unauthorized" },
-      { status: 401 },
-    );
+  let session = null;
+
+  if (
+    process.env.NODE_ENV === "development" &&
+    seedKey === process.env.SEED_KEY
+  ) {
+    // skip auth — allow seeding
+  } else {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    });
   }
 
   try {
     const { problemSlug } = await params;
+
     const problem = await prisma.problem.findUnique({
-      where: {
-        slug: problemSlug,
-      },
+      where: { slug: problemSlug },
     });
 
     if (!problem) {
@@ -40,14 +36,28 @@ export async function GET(
       );
     }
 
-    console.log(problem);
+    // Also fetch user's progress for this problem
+    const userProgress = session?.user?.id
+      ? await prisma.userProblem.findUnique({
+          where: {
+            userId_problemId: {
+              userId: session.user.id,
+              problemId: problem.id,
+            },
+          },
+        })
+      : null;
 
     return NextResponse.json(
-      { success: true, data: problem, message: "Problem fetched successfully" },
+      {
+        success: true,
+        data: { problem, userProgress },
+        message: "Problem fetched successfully",
+      },
       { status: 200 },
     );
   } catch (error) {
-    console.log("Error fetching problem details:", error);
+    console.error("Error fetching problem details:", error);
     return NextResponse.json(
       { success: false, data: null, message: "Error fetching problem details" },
       { status: 500 },
@@ -55,35 +65,11 @@ export async function GET(
   }
 }
 
-/**
- * Updates a user's progress on a problem
- *
- * @param {NextRequest} req - The NextRequest object
- * @param {{ params: Promise<{ problemSlug: string }> }} - The parameters object
- *
- * @returns {Promise<NextResponse>} - The response object
- */
-
-/**
- * Updates a user's progress on a problem
- *
- * @param {NextRequest} req - The NextRequest object
- * @param {{ params: Promise<{problemSlug: string }> }} - The parameters object
- *
- * @returns {Promise<NextResponse>} - The response object
- *
- * Updates a user's progress on a problem with the given slug. If the problem
- * is not found, returns a 404. If the user is not authenticated, returns
- * a 401. If the request body is invalid, returns a 400. If an
- * unexpected error occurs, returns a 500.
- */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ problemSlug: string }> },
 ) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user) {
     return NextResponse.json(
@@ -96,7 +82,6 @@ export async function PATCH(
     const { problemSlug } = await params;
     const body = await req.json();
 
-    // 1️⃣ Fetch problem (slug must be unique)
     const problem = await prisma.problem.findUnique({
       where: { slug: problemSlug },
       select: { id: true },
@@ -109,7 +94,6 @@ export async function PATCH(
       );
     }
 
-    // 2️⃣ Fetch existing user progress (may be null)
     const existing = await prisma.userProblem.findUnique({
       where: {
         userId_problemId: {
@@ -119,7 +103,6 @@ export async function PATCH(
       },
     });
 
-    // 3️⃣ Prevent unsolving once solved
     if (existing?.solved === true && body.solved === false) {
       return NextResponse.json(
         {
@@ -131,8 +114,7 @@ export async function PATCH(
       );
     }
 
-    // 4️⃣ Build update payload safely
-    const toUpdate: any = {};
+    const toUpdate: Record<string, unknown> = {};
 
     if (typeof body.bookmark === "boolean") {
       toUpdate.bookmark = body.bookmark;
@@ -141,23 +123,19 @@ export async function PATCH(
     if (typeof body.solved === "boolean") {
       toUpdate.solved = body.solved;
       if (body.solved === true && !existing?.solved) {
-        toUpdate.solvedAt = new Date(); // useful later for heatmap
+        toUpdate.solvedAt = new Date();
       }
     }
 
-    if (
-      body.confidence === "confident" ||
-      body.confidence === "neutral" ||
-      body.confidence === "shaky"
-    ) {
-      toUpdate.confidence = body.confidence;
+    // Updated to use new ConfidenceV2 enum values
+    if (["LOW", "MEDIUM", "HIGH"].includes(body.confidenceV2)) {
+      toUpdate.confidenceV2 = body.confidenceV2;
     }
 
     if (typeof body.notes === "string") {
       toUpdate.notes = body.notes;
     }
 
-    // 5️⃣ Upsert progress
     const updated = await prisma.userProblem.upsert({
       where: {
         userId_problemId: {
@@ -189,5 +167,3 @@ export async function PATCH(
     );
   }
 }
-
-

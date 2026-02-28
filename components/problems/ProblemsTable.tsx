@@ -1,16 +1,20 @@
 // components/problems/ProblemsTable.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, Circle, Pencil } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
-import {
-  UpdateProgressDialog,
-  ConfidenceLevel,
-} from "@/components/problems/UpdateProgressDialog";
+export type ConfidenceLevel =
+  | "not_attempted"
+  | "confident"
+  | "needs_revision"
+  | "failed"
+  | "skipped";
+
+export type ConfidenceV2 = "LOW" | "MEDIUM" | "HIGH" | null;
 
 type Problem = {
   id: string;
@@ -20,8 +24,7 @@ type Problem = {
   link: string;
   userProgress?: {
     solved: boolean;
-    confidence: ConfidenceLevel;
-    notes?: string;
+    confidenceV2: ConfidenceV2;
   } | null;
 };
 
@@ -31,39 +34,37 @@ const difficultyColors = {
   hard: "bg-rose-500/20 text-rose-400 border-rose-500/30",
 };
 
-const confidenceLabels: Record<ConfidenceLevel, string> = {
-  not_attempted: "Not attempted",
-  confident: "Confident – nailed it!",
-  needs_revision: "Needs revision – almost there",
-  failed: "Unable to solve – tough one",
-  skipped: "Skipped for now",
+const confidenceConfig: Record<
+  NonNullable<ConfidenceV2> | "not_attempted",
+  { label: string; color: string }
+> = {
+  not_attempted: { label: "Not attempted", color: "text-neutral-500" },
+  LOW: { label: "Low confidence", color: "text-rose-400" },
+  MEDIUM: { label: "Med confidence", color: "text-amber-400" },
+  HIGH: { label: "High confidence", color: "text-emerald-400" },
 };
 
 interface ProblemsTableProps {
   problems: Problem[];
-  onSaveChanges?: (
-    problemId: string,
-    confidence: ConfidenceLevel,
-    notes: string,
-    solved: boolean,
-  ) => Promise<void>; // ✅ must return a Promise
 }
 
-export default function ProblemsTable({
-  problems,
-  onSaveChanges,
-}: ProblemsTableProps) {
+export default function ProblemsTable({ problems }: ProblemsTableProps) {
+  const [localSolved, setLocalSolved] = useState<Record<string, boolean>>(
+    () => {
+      const initial: Record<string, boolean> = {};
+      problems.forEach(
+        (p) => (initial[p.id] = p.userProgress?.solved ?? false),
+      );
+      return initial;
+    },
+  );
 
-  const [localSolved, setLocalSolved] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    problems.forEach((p) => (initial[p.id] = p.userProgress?.solved ?? false));
-    return initial;
-  });
-
-  const [localConfidence, setLocalConfidence] = useState<Record<string, ConfidenceLevel>>(() => {
-    const initial: Record<string, ConfidenceLevel> = {};
+  const [localConfidence, setLocalConfidence] = useState<
+    Record<string, ConfidenceV2>
+  >(() => {
+    const initial: Record<string, ConfidenceV2> = {};
     problems.forEach((p) => {
-      initial[p.id] = p.userProgress?.confidence ?? "not_attempted";
+      initial[p.id] = p.userProgress?.confidenceV2 ?? null;
     });
     return initial;
   });
@@ -71,7 +72,7 @@ export default function ProblemsTable({
   const [notesMap, setNotesMap] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     problems.forEach((p) => {
-      initial[p.id] = p.userProgress?.notes ?? "";
+      initial[p.id] = "";
     });
     return initial;
   });
@@ -84,9 +85,9 @@ export default function ProblemsTable({
     });
 
     setLocalConfidence(() => {
-      const next: Record<string, ConfidenceLevel> = {};
+      const next: Record<string, ConfidenceV2> = {};
       problems.forEach((p) => {
-        next[p.id] = p.userProgress?.confidence ?? "not_attempted";
+        next[p.id] = p.userProgress?.confidenceV2 ?? null;
       });
       return next;
     });
@@ -94,81 +95,55 @@ export default function ProblemsTable({
     setNotesMap((prev) => {
       const next: Record<string, string> = {};
       problems.forEach((p) => {
-        next[p.id] = prev[p.id] !== undefined ? prev[p.id] : (p.userProgress?.notes ?? "");
+        next[p.id] = prev[p.id] ?? "";
       });
       return next;
     });
   }, [problems]);
 
-  // Dialog control state
-  const [showDialog, setShowDialog] = useState(false);
-  const [currentProblem, setCurrentProblem] = useState<{
-    id: string;
-    title: string;
-    initialConfidence: ConfidenceLevel;
-    initialNotes: string;
+  const [tooltipId, setTooltipId] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{
+    x: number;
+    y: number;
+    h: number;
   } | null>(null);
+  const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const openDialog = (problem: Problem) => {
-    setCurrentProblem({
-      id: problem.id,
-      title: problem.title,
-      initialConfidence: localConfidence[problem.id] ?? "not_attempted",
-      initialNotes: notesMap[problem.id] ?? "",
-    });
-    setShowDialog(true);
-  };
+  const showTooltip = useCallback((id: string, el: HTMLElement) => {
+    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+    const rect = el.getBoundingClientRect();
+    setTooltipPos({ x: rect.right, y: rect.top, h: rect.height });
+    setTooltipId(id);
+    tooltipTimeout.current = setTimeout(() => setTooltipId(null), 3000);
+  }, []);
 
-  const handleSave = async (confidence: ConfidenceLevel, notes: string) => {
-    if (!currentProblem) return;
-    const problemId = currentProblem.id;
-
-    const shouldBeSolved =
-      confidence === "confident" || confidence === "needs_revision";
-
-    // Close dialog immediately for snappy UX
-    setCurrentProblem(null);
-    setShowDialog(false);
-
-    const toastId = toast.loading("Saving your progress...");
-
-    try {
-      await onSaveChanges?.(problemId, confidence, notes, shouldBeSolved);
-
-      // ✅ Only update local state AFTER server confirms
-      setLocalConfidence((prev) => ({ ...prev, [problemId]: confidence }));
-      setLocalSolved((prev) => ({ ...prev, [problemId]: shouldBeSolved }));
-      setNotesMap((prev) => ({ ...prev, [problemId]: notes }));
-
-      toast.success("Progress saved! Keep grinding 🔥", { id: toastId });
-    } catch {
-      // ✅ Local state stays untouched — UI reverts naturally
-      toast.error("Failed to save. Please try again.", { id: toastId });
-    }
-  };
-
-  const handleCancel = () => {
-    setShowDialog(false);
-    setCurrentProblem(null);
-  };
+  const hideTooltip = useCallback(() => {
+    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+    setTooltipId(null);
+  }, []);
 
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-neutral-800 text-left text-sm text-neutral-400">
-            <th className="w-12 p-4 text-center">Done</th>
+            <th className="w-12 p-4 text-center">Solved</th>
             <th className="py-4 px-3 font-medium">Problem</th>
-            <th className="w-28 py-4 px-3 font-medium text-center">Difficulty</th>
-            <th className="py-4 px-3 font-medium">Status</th>
+            <th className="w-28 py-4 px-3 font-medium text-center">
+              Difficulty
+            </th>
+            <th className="py-4 px-3 font-medium">Confidence</th>
           </tr>
         </thead>
 
         <tbody>
           {problems.map((problem) => {
             const isSolved = localSolved[problem.id] ?? false;
-            const confidence = localConfidence[problem.id] ?? "not_attempted";
+            const confidenceV2 = localConfidence[problem.id] ?? null;
             const notes = notesMap[problem.id] ?? "";
+            const confKey: NonNullable<ConfidenceV2> | "not_attempted" =
+              confidenceV2 ?? "not_attempted";
+            const confCfg = confidenceConfig[confKey];
 
             return (
               <tr
@@ -179,34 +154,36 @@ export default function ProblemsTable({
                   "hover:-translate-y-px",
                 )}
               >
-                {/* Done column */}
+                {/* Solved column */}
                 <td className="p-4">
-                  <button
-                    type="button"
-                    onClick={() => openDialog(problem)}
-                    className={cn(
-                      "relative flex items-center justify-center focus:outline-none",
-                      "transition-transform duration-200 hover:scale-110 active:scale-95",
-                    )}
-                    aria-label={isSolved ? "Update status" : "Mark as solved"}
-                  >
+                  <div className="flex items-center justify-center">
                     {isSolved ? (
-                      <>
+                      <div className="relative">
                         <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-md animate-pulse" />
                         <CheckCircle2 className="h-7 w-7 text-emerald-500 relative z-10" />
-                      </>
+                      </div>
                     ) : (
-                      <Circle className="h-7 w-7 text-neutral-600 group-hover:text-neutral-300 transition-colors" />
+                      <button
+                        type="button"
+                        className="relative cursor-pointer focus:outline-none"
+                        onClick={(e) =>
+                          showTooltip(problem.id, e.currentTarget)
+                        }
+                        onMouseEnter={(e) =>
+                          showTooltip(problem.id, e.currentTarget)
+                        }
+                        onMouseLeave={hideTooltip}
+                      >
+                        <Circle className="h-7 w-7 text-neutral-600 hover:text-rose-400 transition-colors" />
+                      </button>
                     )}
-                  </button>
+                  </div>
                 </td>
 
                 {/* Problem title */}
                 <td className="py-4 px-3 relative">
                   <Link
                     href={`/problems/${problem.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className={cn(
                       "inline-block text-neutral-100 font-medium transition-all duration-300",
                       "group-hover:text-amber-400 group-hover:translate-x-0.5",
@@ -234,23 +211,16 @@ export default function ProblemsTable({
                       "group-hover:scale-105 group-hover:shadow-sm group-hover:shadow-amber-500/10",
                     )}
                   >
-                    {problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1)}
+                    {problem.difficulty.charAt(0).toUpperCase() +
+                      problem.difficulty.slice(1)}
                   </span>
                 </td>
 
-                {/* Status + notes preview */}
+                {/* Confidence */}
                 <td className="py-4 px-3">
                   <div className="flex flex-col gap-1 text-sm">
-                    <span
-                      className={cn(
-                        "font-medium transition-colors",
-                        confidence === "confident" && "text-emerald-400",
-                        confidence === "needs_revision" && "text-amber-400",
-                        confidence === "failed" && "text-rose-400",
-                        (confidence === "not_attempted" || confidence === "skipped") && "text-neutral-500",
-                      )}
-                    >
-                      {confidenceLabels[confidence]}
+                    <span className={cn("font-medium", confCfg.color)}>
+                      {confCfg.label}
                     </span>
 
                     {notes && (
@@ -276,20 +246,57 @@ export default function ProblemsTable({
         </div>
       )}
 
-      {currentProblem && (
-        <UpdateProgressDialog
-          open={showDialog}
-          onOpenChange={(open) => {
-            setShowDialog(open);
-            if (!open) setCurrentProblem(null);
-          }}
-          initialConfidence={currentProblem.initialConfidence}
-          initialNotes={currentProblem.initialNotes}
-          problemTitle={currentProblem.title}
-          onSave={handleSave}
-          onCancel={handleCancel}
-        />
-      )}
+      {/* Portal tooltip — renders at document.body so it's never clipped */}
+      {tooltipId &&
+        tooltipPos &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: tooltipPos.x + 20,
+              top: tooltipPos.y + tooltipPos.h / 2,
+              transform: "translateY(-50%)",
+              zIndex: 9999,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              className={cn(
+                "whitespace-nowrap px-3 py-2 rounded-lg text-xs font-semibold",
+                "bg-rose-950 text-rose-300 border border-rose-500/40",
+                "shadow-xl shadow-rose-900/30",
+              )}
+              style={{ animation: "tooltipFadeIn 0.15s ease-out" }}
+            >
+              Open the problem & solve it — progress syncs automatically!
+              {/* Arrow pointing left toward the circle */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 right-full"
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderTop: "6px solid transparent",
+                  borderBottom: "6px solid transparent",
+                  borderRight: "6px solid rgb(136 19 55 / 0.4)",
+                }}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <style jsx>{`
+        @keyframes tooltipFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

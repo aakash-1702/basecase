@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Accordion,
   AccordionContent,
@@ -19,7 +20,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  CheckSquare,
+  Circle,
+  CheckCircle2,
   ExternalLink,
   Trophy,
   Target,
@@ -28,10 +30,21 @@ import {
   ArrowRight,
   Star,
   TrendingUp,
-  Loader2,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+
+type ConfidenceV2 = "LOW" | "MEDIUM" | "HIGH" | null;
+
+const confidenceConfig: Record<
+  NonNullable<ConfidenceV2> | "unattempted",
+  { label: string; color: string }
+> = {
+  unattempted: { label: "Unattempted", color: "text-neutral-500" },
+  LOW: { label: "Low confidence", color: "text-rose-400" },
+  MEDIUM: { label: "Med confidence", color: "text-amber-400" },
+  HIGH: { label: "High confidence", color: "text-emerald-400" },
+};
 
 interface Problem {
   id: string;
@@ -66,21 +79,46 @@ interface SheetData {
 export default function SheetDetailPage({
   data,
   initialSolvedIds = [],
+  initialConfidenceMap = {},
 }: {
   data: SheetData;
   initialSolvedIds?: string[];
+  initialConfidenceMap?: Record<string, string | null>;
 }) {
   const sheet = data;
   const sectionsRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // ── Solved state seeded from server on first load ──────────────────────────
+  // ── Solved state seeded from server on first load ────────────────────────────────
   const [solvedMap, setSolvedMap] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(initialSolvedIds.map((id) => [id, true])),
   );
 
-  // Track in-flight toggles to show a spinner and prevent double-clicks
-  const [pendingMap, setPendingMap] = useState<Record<string, boolean>>({});
+  // ── Confidence / attempted state ─────────────────────────────────────────
+  const [confidenceMap, setConfidenceMap] = useState<Record<string, ConfidenceV2>>(initialConfidenceMap as Record<string, ConfidenceV2>);
+
+  useEffect(() => {
+    setSolvedMap(Object.fromEntries(initialSolvedIds.map((id) => [id, true])));
+    setConfidenceMap(initialConfidenceMap as Record<string, ConfidenceV2>);
+  }, [initialSolvedIds, initialConfidenceMap]); // eslint-disable-line
+
+  // ── Tooltip for unsolved circle button (no-toggle, just redirects user) ──────
+  const [tooltipId, setTooltipId] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; h: number } | null>(null);
+  const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTooltip = useCallback((id: string, el: HTMLElement) => {
+    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+    const rect = el.getBoundingClientRect();
+    setTooltipPos({ x: rect.right, y: rect.top, h: rect.height });
+    setTooltipId(id);
+    tooltipTimeout.current = setTimeout(() => setTooltipId(null), 3000);
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+    setTooltipId(null);
+  }, []);
 
   const [openSections, setOpenSections] = useState<string[]>([]);
 
@@ -108,63 +146,7 @@ export default function SheetDetailPage({
     ? Math.round((totalSolvedLive / totalProblems) * 100)
     : 0;
 
-  // ── Toggle: optimistic update → PATCH → rollback on failure ───────────────
-  // NO router.refresh() — that would re-fetch the entire page on every click.
-  // The optimistic update + server PATCH is enough; state stays correct in memory.
-  const toggleSolved = useCallback(
-    async (problemId: string) => {
-      if (pendingMap[problemId]) return;
-
-      const prevValue = !!solvedMap[problemId];
-      const nextValue = !prevValue;
-
-      // 1. Instant UI update
-      setSolvedMap((prev) => ({ ...prev, [problemId]: nextValue }));
-      setPendingMap((prev) => ({ ...prev, [problemId]: true }));
-
-      // 🔔 loading toast
-      const toastId = toast.loading(
-        nextValue ? "Marking as solved..." : "Marking as unsolved...",
-      );
-
-      try {
-        const body = JSON.stringify({ problemId });
-
-        const res = await fetch(`/api/sheets/${problemId}/section`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body,
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-
-          // 🔁 rollback
-          setSolvedMap((prev) => ({ ...prev, [problemId]: prevValue }));
-
-          toast.error(err.message || "Failed to update. Please try again.", {
-            id: toastId,
-          });
-          return;
-        }
-
-        // ✅ success (updates same toast)
-        toast.success("Progress Updated! Keep it up! 🚀", {
-          id: toastId,
-        });
-      } catch {
-        // 🔁 rollback
-        setSolvedMap((prev) => ({ ...prev, [problemId]: prevValue }));
-
-        toast.error("Couldn't save. Please try again.", {
-          id: toastId,
-        });
-      } finally {
-        setPendingMap((prev) => ({ ...prev, [problemId]: false }));
-      }
-    },
-    [solvedMap, pendingMap],
-  );
+  // Solved is read-only; progress syncs automatically when user solves on the problem page.
 
   // ── Jump helpers ───────────────────────────────────────────────────────────
   const handleDifficultyClick = (
@@ -439,14 +421,14 @@ export default function SheetDetailPage({
                         <AccordionContent className="overflow-hidden transition-all duration-300 ease-out">
                           <div className="px-6 pb-6 pt-2 border-t border-neutral-800/40">
                             <p className="text-xs text-neutral-600 uppercase tracking-widest mb-4 font-medium">
-                              {total} problems · click checkbox to mark solved
+                              {total} problems · visit a problem to mark it solved
                             </p>
                             <div className="border border-neutral-800/40 rounded-lg overflow-hidden bg-neutral-950/50">
                               <Table>
                                 <TableHeader className="bg-neutral-900/70">
                                   <TableRow className="border-neutral-800/50 hover:bg-transparent">
                                     <TableHead className="w-12 text-center text-neutral-400 text-xs uppercase tracking-wide">
-                                      Done
+                                      Solved
                                     </TableHead>
                                     <TableHead className="text-neutral-400 text-xs uppercase tracking-wide">
                                       Problem
@@ -454,8 +436,11 @@ export default function SheetDetailPage({
                                     <TableHead className="w-28 text-center text-neutral-400 text-xs uppercase tracking-wide">
                                       Difficulty
                                     </TableHead>
-                                    <TableHead className="w-28 text-center text-neutral-400 text-xs uppercase tracking-wide">
-                                      Solve
+                                    <TableHead className="w-36 text-neutral-400 text-xs uppercase tracking-wide">
+                                      Confidence
+                                    </TableHead>
+                                    <TableHead className="w-24 text-center text-neutral-400 text-xs uppercase tracking-wide">
+                                      LeetCode
                                     </TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -463,63 +448,58 @@ export default function SheetDetailPage({
                                   {section.problems.map((item) => {
                                     const p = item.problem;
                                     const isSolved = !!solvedMap[p.id];
-                                    const isPending = !!pendingMap[p.id];
+                                    const confidence = confidenceMap[p.id] ?? null;
+                                    const confKey = (confidence as NonNullable<ConfidenceV2> | null) ?? "unattempted";
+                                    const confCfg = confidenceConfig[confKey];
 
                                     return (
                                       <TableRow
                                         key={item.id}
                                         className={cn(
-                                          "border-neutral-800/40 transition-all duration-300 ease-out",
+                                          "border-neutral-800/40 transition-all duration-300 ease-out group",
                                           isSolved
-                                            ? "bg-amber-950/10 hover:bg-amber-950/20"
-                                            : "hover:bg-neutral-800/30",
+                                            ? "bg-emerald-950/10 hover:bg-emerald-950/15"
+                                            : "hover:bg-neutral-800/30 hover:shadow-[inset_0_1px_0_0_rgba(245,158,11,0.06)]",
                                         )}
                                       >
-                                        {/* Checkbox */}
-                                        <TableCell className="text-center">
-                                          <button
-                                            onClick={() => toggleSolved(p.id)}
-                                            disabled={isPending}
-                                            className={cn(
-                                              "transition-all duration-300 ease-out",
-                                              isPending
-                                                ? "cursor-not-allowed opacity-60"
-                                                : "cursor-pointer hover:scale-110 active:scale-95",
-                                            )}
-                                            aria-label={
-                                              isSolved
-                                                ? "Mark unsolved"
-                                                : "Mark solved"
-                                            }
-                                          >
-                                            {isPending ? (
-                                              <Loader2 className="h-5 w-5 mx-auto text-amber-400 animate-spin" />
+                                        {/* Solved circle (read-only; tooltip on unsolved) */}
+                                        <TableCell className="text-center p-4">
+                                          <div className="flex items-center justify-center">
+                                            {isSolved ? (
+                                              <div className="relative">
+                                                <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-md animate-pulse" />
+                                                <CheckCircle2 className="h-6 w-6 text-emerald-500 relative z-10" />
+                                              </div>
                                             ) : (
-                                              <CheckSquare
-                                                className={cn(
-                                                  "h-5 w-5 mx-auto transition-colors duration-300",
-                                                  isSolved
-                                                    ? "text-amber-400"
-                                                    : "text-neutral-700 hover:text-neutral-500",
-                                                )}
-                                              />
+                                              <button
+                                                type="button"
+                                                className="relative cursor-pointer focus:outline-none"
+                                                onClick={(e) => showTooltip(p.id, e.currentTarget)}
+                                                onMouseEnter={(e) => showTooltip(p.id, e.currentTarget)}
+                                                onMouseLeave={hideTooltip}
+                                              >
+                                                <Circle className="h-6 w-6 text-neutral-600 hover:text-rose-400 transition-colors rounded-full" />
+                                              </button>
                                             )}
-                                          </button>
+                                          </div>
                                         </TableCell>
 
+                                        {/* Title → internal problem page */}
                                         <TableCell>
-                                          <span
+                                          <Link
+                                            href={`/problems/${p.slug}`}
                                             className={cn(
-                                              "font-medium text-sm transition-colors duration-300",
+                                              "inline-block font-medium text-sm transition-all duration-300",
                                               isSolved
-                                                ? "text-neutral-500 line-through"
-                                                : "text-neutral-200",
+                                                ? "text-neutral-500 line-through hover:text-neutral-400"
+                                                : "text-neutral-200 group-hover:text-amber-400 group-hover:translate-x-0.5",
                                             )}
                                           >
                                             {p.title}
-                                          </span>
+                                          </Link>
                                         </TableCell>
 
+                                        {/* Difficulty */}
                                         <TableCell className="text-center">
                                           <Badge
                                             className={cn(
@@ -532,27 +512,27 @@ export default function SheetDetailPage({
                                                 "bg-red-950/50 text-red-400 border-red-800/40",
                                             )}
                                           >
-                                            {p.difficulty
-                                              .charAt(0)
-                                              .toUpperCase() +
-                                              p.difficulty.slice(1)}
+                                            {p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)}
                                           </Badge>
                                         </TableCell>
 
+                                        {/* Confidence / Attempted */}
+                                        <TableCell>
+                                          <span className={cn("text-sm font-medium", confCfg.color)}>
+                                            {confCfg.label}
+                                          </span>
+                                        </TableCell>
+
+                                        {/* LeetCode external link */}
                                         <TableCell className="text-center">
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="cursor-pointer text-amber-500 hover:text-amber-300 hover:bg-amber-950/30 text-xs h-7 px-3 transition-all duration-300"
+                                            className="cursor-pointer text-amber-500/70 hover:text-amber-300 hover:bg-amber-950/30 text-xs h-7 px-3 transition-all duration-300"
                                             asChild
                                           >
-                                            <a
-                                              href={p.link}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                            >
-                                              Solve{" "}
-                                              <ExternalLink className="ml-1 h-3 w-3" />
+                                            <a href={p.link} target="_blank" rel="noopener noreferrer">
+                                              <ExternalLink className="h-3.5 w-3.5" />
                                             </a>
                                           </Button>
                                         </TableCell>
@@ -613,6 +593,51 @@ export default function SheetDetailPage({
           </div>
         </div>
       </section>
+
+      {/* Portal tooltip — renders at document.body so it's never clipped */}
+      {tooltipId &&
+        tooltipPos &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: tooltipPos.x + 12,
+              top: tooltipPos.y + tooltipPos.h / 2,
+              transform: "translateY(-50%)",
+              zIndex: 9999,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              className={cn(
+                "whitespace-nowrap px-3 py-2 rounded-lg text-xs font-semibold",
+                "bg-rose-950 text-rose-300 border border-rose-500/40",
+                "shadow-xl shadow-rose-900/30",
+              )}
+              style={{ animation: "tooltipFadeIn 0.15s ease-out" }}
+            >
+              Open the problem &amp; solve it — progress syncs automatically!
+              <div
+                className="absolute top-1/2 -translate-y-1/2 right-full"
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderTop: "6px solid transparent",
+                  borderBottom: "6px solid transparent",
+                  borderRight: "6px solid rgb(136 19 55 / 0.4)",
+                }}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <style>{`
+        @keyframes tooltipFadeIn {
+          from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
+          to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+        }
+      `}</style>
     </div>
   );
 }
