@@ -10,24 +10,28 @@ export default function Footer() {
       { label: "Interview", href: "/interview" },
     ],
     resources: [
-      { label: "Documentation", href: "/docs" },
-      { label: "Blog", href: "/blog" },
-      { label: "Guides", href: "/guides" },
-      { label: "Changelog", href: "/changelog" },
+      { label: "Documentation - Coming Soon", href: "/" },
+      { label: "Blog - Coming Soon", href: "/" },
+      { label: "Guides - Coming Soon", href: "/" },
+      { label: "Changelog - Coming Soon", href: "/" },
     ],
     company: [
-      { label: "About", href: "/about" },
-      { label: "Contact", href: "/contact" },
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Service", href: "/terms" },
+      { label: "About", href: "/" },
+      { label: "Contact", href: "/" },
+      { label: "Privacy Policy", href: "/" },
+      { label: "Terms of Service", href: "/" },
     ],
   };
 
   const socialLinks = [
-    { name: "GitHub", icon: Github, href: "https://github.com" },
-    { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
-    { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
-    { name: "Email", icon: Mail, href: "mailto:hello@basecase.dev" },
+    { name: "GitHub", icon: Github, href: "https://github.com/aakash-1702" },
+    { name: "Twitter", icon: Twitter, href: "https://x.com/im_aakash49" },
+    {
+      name: "LinkedIn",
+      icon: Linkedin,
+      href: "https://www.linkedin.com/in/aakash49/",
+    },
+    { name: "Email", icon: Mail, href: "mailto:dwivediakash1702@gmail.com" },
   ];
 
   return (
