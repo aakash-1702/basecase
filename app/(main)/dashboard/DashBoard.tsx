@@ -341,9 +341,8 @@ interface DashboardProps {
       hardProgress: number;
       completion: number;
       sheetProgress: Array<{
-
         id: string;
-        slug : string
+        slug: string;
         title: string;
         total: number;
         solved: number;
@@ -576,7 +575,6 @@ export default function Dashboard({ data }: DashboardProps) {
                   >
                     <div className="sheet-name">{s.title}</div>
                     <div className="sheet-prog-bar">
-                      console.log("sheet-slug",s.slug);
                       <div
                         className="sheet-prog-fill"
                         style={{ width: `${pct}%`, background: color }}
