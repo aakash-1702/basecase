@@ -44,9 +44,7 @@ export default async function MainLayout({
       <Toaster position="top-right" theme="dark" richColors />
       <UserNavbar session={session as any} />
 
-      <main
-        className={cn("relative w-full min-h-[calc(100vh-3.5rem)]", "pb-16")}
-      >
+      <main className={cn("relative w-full min-h-[calc(100vh-3.5rem)]")}>
         {children}
       </main>
 

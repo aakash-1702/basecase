@@ -8,7 +8,6 @@ import {
   Bookmark,
   BookmarkCheck,
   ExternalLink,
-  ArrowLeft,
   Bot,
   Send,
   RotateCcw,
@@ -26,8 +25,6 @@ import {
   Highlighter,
   Underline,
   Type,
-  Info,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   Zap,
@@ -1002,27 +999,8 @@ export default function ProblemPage({
 
         .page {
           font-family: 'IBM Plex Sans', sans-serif;
-          background: #080a0e;
           min-height: 100vh;
           color: #7a8496;
-        }
-
-        /* Orange-tinted grid */
-        .page::before {
-          content: '';
-          position: fixed; inset: 0; pointer-events: none;
-          background-image:
-            linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
-          background-size: 48px 48px;
-          z-index: 0;
-        }
-        /* Orange ambient glow at top */
-        .page::after {
-          content: '';
-          position: fixed; top: 0; left: 0; right: 0; height: 300px;
-          background: radial-gradient(ellipse 55% 45% at 50% -5%, rgba(249,115,22,0.09), transparent 70%);
-          pointer-events: none; z-index: 0;
         }
 
         .mono { font-family: 'IBM Plex Mono', monospace; }
@@ -1358,86 +1336,24 @@ export default function ProblemPage({
       `}</style>
 
       <div className="page">
-        {/* ── NOTICE BAR ── */}
-        <div
-          className="notice"
-          style={{ padding: "8px 24px", position: "relative", zIndex: 10 }}
-        >
-          <div
-            style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Info size={12} color="rgba(249,115,22,0.55)" />
-              <span style={{ fontSize: 12, color: "rgba(249,115,22,0.45)" }}>
-                <strong
-                  style={{ fontWeight: 600, color: "rgba(249,115,22,0.65)" }}
-                >
-                  BaseCase is a progress tracker.
-                </strong>{" "}
-                Solve on LeetCode → return here to log mastery.
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexShrink: 0,
-              }}
-            >
-              <span
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  color: "rgba(249,115,22,0.4)",
-                  letterSpacing: "0.07em",
-                }}
-              >
-                1 · Solve on LeetCode
-              </span>
-              <ChevronRight size={11} color="rgba(249,115,22,0.2)" />
-              <span
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  color: "#10b981",
-                  letterSpacing: "0.07em",
-                }}
-              >
-                2 · Log here
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── HEADER ── */}
-        <header
+        <main
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 40,
-            background: "rgba(8,10,14,0.95)",
-            borderBottom: "1px solid #1c1f26",
-            backdropFilter: "blur(14px)",
+            maxWidth: 1280,
+            margin: "0 auto",
+            padding: "28px 24px",
+            position: "relative",
+            zIndex: 1,
           }}
         >
+          {/* Problem Header */}
           <div
             style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              padding: "0 24px",
-              height: 48,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 12,
+              marginBottom: 24,
+              paddingBottom: 16,
+              borderBottom: "1px solid rgba(249,115,22,0.12)",
             }}
           >
             <div
@@ -1446,17 +1362,14 @@ export default function ProblemPage({
                 alignItems: "center",
                 gap: 12,
                 minWidth: 0,
+                flex: 1,
               }}
             >
-              <button className="btn-ghost">
-                <ArrowLeft size={12} /> Back
-              </button>
-              <div style={{ width: 1, height: 16, background: "#1c1f26" }} />
               <h1
                 style={{
-                  fontSize: 14,
+                  fontSize: 20,
                   fontWeight: 600,
-                  color: "#c9d1e0",
+                  color: "#e5e7eb",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -1467,14 +1380,14 @@ export default function ProblemPage({
               <span
                 className="mono"
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   color: diffColor,
                   flexShrink: 0,
-                  padding: "2px 7px",
-                  borderRadius: 4,
+                  padding: "4px 10px",
+                  borderRadius: 6,
                   background: `${diffColor}14`,
                   border: `1px solid ${diffColor}28`,
                 }}
@@ -1486,7 +1399,7 @@ export default function ProblemPage({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 10,
                 flexShrink: 0,
               }}
             >
@@ -1499,93 +1412,30 @@ export default function ProblemPage({
                 className={`btn-bookmark${progress.bookmark ? " active" : ""}`}
               >
                 {progress.bookmark ? (
-                  <BookmarkCheck size={12} />
+                  <BookmarkCheck size={13} />
                 ) : (
-                  <Bookmark size={12} />
+                  <Bookmark size={13} />
                 )}
                 {progress.bookmark ? "Bookmarked" : "Bookmark"}
-                {pendingBookmark && (
-                  <span
-                    title="Pending — not yet saved to DB"
-                    style={{
-                      marginLeft: 4,
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background: "#f97316",
-                      boxShadow: "0 0 5px #f97316",
-                      display: "inline-block",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
               </button>
-              {isDirty && (
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="btn-save-hdr"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 size={11} className="spin" /> Saving…
-                    </>
-                  ) : (
-                    <>
-                      <Cloud size={11} /> Save
-                    </>
-                  )}
-                </button>
-              )}
               <a
                 href={p.link}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="btn-og"
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  background: "#ffa116",
-                  color: "#000",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  fontFamily: "IBM Plex Mono, monospace",
+                  gap: 7,
+                  padding: "8px 16px",
                   textDecoration: "none",
-                  boxShadow: "0 0 12px rgba(255,161,22,0.4)",
-                  transition: "box-shadow .2s, transform .15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow =
-                    "0 0 24px rgba(255,161,22,0.6)";
-                  (e.currentTarget as HTMLAnchorElement).style.transform =
-                    "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow =
-                    "0 0 12px rgba(255,161,22,0.4)";
-                  (e.currentTarget as HTMLAnchorElement).style.transform =
-                    "translateY(0)";
                 }}
               >
-                <ExternalLink size={11} /> LeetCode
+                <ExternalLink size={12} /> Solve on LeetCode
               </a>
             </div>
           </div>
-        </header>
 
-        <main
-          style={{
-            maxWidth: 1280,
-            margin: "0 auto",
-            padding: "28px 24px",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
           {/* ════════════════════════════════════════════
               LAYER 1 — INTAKE   75% / 25%
           ════════════════════════════════════════════ */}

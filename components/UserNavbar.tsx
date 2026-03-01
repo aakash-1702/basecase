@@ -45,7 +45,7 @@ export default function UserNavbar({
         "transition-all duration-300",
       )}
     >
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link
           href="/"
