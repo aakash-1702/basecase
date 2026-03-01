@@ -31,9 +31,18 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  Trophy,
+  Target,
+  FileText,
+  StickyNote,
 } from "lucide-react";
 import { Problem, UserProblem } from "@/generated/prisma/client";
 import { toast } from "sonner";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import UnderlineExt from "@tiptap/extension-underline";
+import HighlightExt from "@tiptap/extension-highlight";
+import Placeholder from "@tiptap/extension-placeholder";
 
 type ConfidenceV2 = "LOW" | "MEDIUM" | "HIGH";
 interface Message {
@@ -86,7 +95,7 @@ function parseEditorial(raw?: string | null) {
   return { insight, points };
 }
 
-// ── RICH EDITOR ──
+// ── RICH EDITOR (TipTap) ──
 function RichEditor({
   initialValue,
   onChange,
@@ -96,142 +105,104 @@ function RichEditor({
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const cbRef = useRef(onChange);
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    cbRef.current = onChange;
-  }, [onChange]);
-  useEffect(() => {
-    if (ref.current) ref.current.innerHTML = initialValue || "";
-  }, []); // eslint-disable-line
+  // Track what WE last sent out so we don't fight with our own updates
+  const lastEmittedRef = useRef(initialValue || "");
 
-  // Sync editor when parent rolls back (e.g. on save failure)
-  const prevInitial = useRef(initialValue);
-  useEffect(() => {
-    if (prevInitial.current !== initialValue && ref.current) {
-      ref.current.innerHTML = initialValue || "";
-      prevInitial.current = initialValue;
-    }
-  }, [initialValue]);
-
-  const exec = useCallback((cmd: string, val?: string) => {
-    if (disabled) return;
-    ref.current?.focus();
-    try {
-      document.execCommand(cmd, false, val ?? "");
-    } catch {}
-    setTick((n) => n + 1);
-  }, [disabled]);
-  const toggleH3 = useCallback(() => {
-    if (disabled) return;
-    ref.current?.focus();
-    const sel = window.getSelection();
-    if (!sel?.rangeCount) return;
-    const node = sel.getRangeAt(0).commonAncestorContainer;
-    const el =
-      node.nodeType === 1 ? (node as Element) : (node as Text).parentElement;
-    try {
-      document.execCommand(
-        "formatBlock",
-        false,
-        el?.closest("h3") ? "p" : "h3",
-      );
-    } catch {}
-    setTick((n) => n + 1);
-  }, []);
-  const onInput = useCallback(() => {
-    if (ref.current) cbRef.current(ref.current.innerHTML);
-  }, []);
-  const onKey = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!e.metaKey && !e.ctrlKey) return;
-      if (e.key === "b") {
-        e.preventDefault();
-        exec("bold");
-      }
-      if (e.key === "i") {
-        e.preventDefault();
-        exec("italic");
-      }
+  const editor = useEditor({
+    immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [3] },
+      }),
+      UnderlineExt,
+      HighlightExt.configure({ multicolor: false }),
+      Placeholder.configure({
+        placeholder: "Key insights, edge cases, patterns, what tripped you up…",
+      }),
+    ],
+    content: initialValue || "",
+    editable: !disabled,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      lastEmittedRef.current = html;
+      onChange(html);
     },
-    [exec],
-  );
+    editorProps: {
+      attributes: {
+        class: "re",
+        dir: "ltr",
+      },
+    },
+  });
 
-  void tick;
-  const isOn = (cmd: string) => {
-    try {
-      return document.queryCommandState(cmd);
-    } catch {
-      return false;
+  // Sync editable state
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!disabled);
     }
-  };
+  }, [disabled, editor]);
+
+  // Sync content ONLY when initialValue changes from EXTERNAL source (e.g., rollback)
+  // Skip if the change is from our own typing (lastEmittedRef matches initialValue)
+  useEffect(() => {
+    if (editor && initialValue !== lastEmittedRef.current) {
+      editor.commands.setContent(initialValue || "");
+      lastEmittedRef.current = initialValue || "";
+    }
+  }, [initialValue, editor]);
+
+  if (!editor) return null;
+
   const tools = [
     {
       icon: <Type size={12} />,
       label: "H",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        toggleH3();
-      },
+      fn: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+      active: editor.isActive("heading", { level: 3 }),
     },
     {
       icon: <Bold size={12} />,
       label: "B",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        exec("bold");
-      },
-      active: isOn("bold"),
+      fn: () => editor.chain().focus().toggleBold().run(),
+      active: editor.isActive("bold"),
     },
     {
       icon: <Italic size={12} />,
       label: "I",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        exec("italic");
-      },
-      active: isOn("italic"),
+      fn: () => editor.chain().focus().toggleItalic().run(),
+      active: editor.isActive("italic"),
     },
     {
       icon: <Underline size={12} />,
       label: "U",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        exec("underline");
-      },
-      active: isOn("underline"),
+      fn: () => editor.chain().focus().toggleUnderline().run(),
+      active: editor.isActive("underline"),
+      div: true,
     },
     {
       icon: <Highlighter size={12} />,
       label: "HL",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        exec("hiliteColor", "rgba(249,115,22,0.22)");
-      },
-      div: true,
+      fn: () => editor.chain().focus().toggleHighlight().run(),
+      active: editor.isActive("highlight"),
     },
     {
       icon: <List size={12} />,
       label: "UL",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        exec("insertUnorderedList");
-      },
+      fn: () => editor.chain().focus().toggleBulletList().run(),
+      active: editor.isActive("bulletList"),
       div: true,
     },
     {
       icon: <ListOrdered size={12} />,
       label: "OL",
-      fn: (e: React.MouseEvent) => {
-        e.preventDefault();
-        exec("insertOrderedList");
-      },
+      fn: () => editor.chain().focus().toggleOrderedList().run(),
+      active: editor.isActive("orderedList"),
     },
   ];
 
   return (
-    <div>
+    <div style={{ opacity: disabled ? 0.5 : 1 }}>
       <div
         style={{
           display: "flex",
@@ -255,37 +226,28 @@ function RichEditor({
             <button
               type="button"
               title={t.label}
-              onMouseDown={t.fn}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                t.fn();
+              }}
               className="re-tool"
               style={{
                 padding: "5px 7px",
                 borderRadius: 5,
                 border: "none",
-                cursor: "pointer",
-                color: (t as any).active ? "#f97316" : "#3f4756",
-                background: (t as any).active
-                  ? "rgba(249,115,22,0.1)"
-                  : "transparent",
+                cursor: disabled ? "default" : "pointer",
+                color: t.active ? "#f97316" : "#6b7280",
+                background: t.active ? "rgba(249,115,22,0.1)" : "transparent",
                 transition: "color .15s, background .15s",
               }}
+              disabled={disabled}
             >
               {t.icon}
             </button>
           </React.Fragment>
         ))}
       </div>
-      <div
-        ref={ref}
-        contentEditable={!disabled}
-        suppressContentEditableWarning
-        data-placeholder="Key insights, edge cases, patterns, what tripped you up…"
-        className="re"
-        style={{ opacity: disabled ? 0.5 : 1 }}
-        onInput={onInput}
-        onKeyDown={onKey}
-        onKeyUp={() => setTick((n) => n + 1)}
-        onMouseUp={() => setTick((n) => n + 1)}
-      />
+      <EditorContent editor={editor} />
     </div>
   );
 }
@@ -311,46 +273,53 @@ function EditorialBlock({
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
-          background: "none",
+          background: open ? "rgba(249,115,22,0.03)" : "none",
           border: "none",
           cursor: "pointer",
-          paddingBottom: open ? 16 : 0,
+          padding: open ? "12px 14px" : "12px 14px",
+          borderRadius: 8,
+          marginBottom: open ? 12 : 0,
+          transition: "background .2s",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Terminal
-            size={13}
+            size={15}
             className="et-icon"
-            style={{ color: "#3f4756", transition: "color .2s" }}
+            style={{
+              color: open ? "#f97316" : "#6b7280",
+              transition: "color .2s",
+            }}
           />
           <span
             style={{
               fontFamily: "'IBM Plex Mono',monospace",
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
-              color: "#5a6478",
-              letterSpacing: "0.1em",
+              color: open ? "#f97316" : "#9ca3b8",
+              letterSpacing: "0.08em",
               textTransform: "uppercase",
+              transition: "color .2s",
             }}
           >
-            Editorial
+            Editorial &amp; Approach
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span
             style={{
               fontFamily: "'IBM Plex Mono',monospace",
               fontSize: 10,
-              color: open ? "#f97316" : "#3f4756",
+              color: open ? "#f97316" : "#6b7280",
               transition: "color .2s",
             }}
           >
             {open ? "hide" : "reveal"}
           </span>
           {open ? (
-            <ChevronUp size={13} color="#3f4756" />
+            <ChevronUp size={14} color={open ? "#f97316" : "#6b7280"} />
           ) : (
-            <ChevronDown size={13} color="#3f4756" />
+            <ChevronDown size={14} color="#6b7280" />
           )}
         </div>
       </button>
@@ -400,9 +369,9 @@ function EditorialBlock({
               <p
                 style={{
                   fontFamily: "'IBM Plex Mono',monospace",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
-                  color: "#3f4756",
+                  color: "#9ca3b8",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   marginBottom: 12,
@@ -425,9 +394,9 @@ function EditorialBlock({
                     <span
                       style={{
                         fontFamily: "'IBM Plex Mono',monospace",
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: 700,
-                        color: "#3f4756",
+                        color: "#f97316",
                         minWidth: 18,
                         paddingTop: 3,
                       }}
@@ -437,7 +406,7 @@ function EditorialBlock({
                     <p
                       style={{
                         fontSize: 13.5,
-                        color: "#7a8496",
+                        color: "#c9d1e0",
                         lineHeight: 1.78,
                       }}
                     >
@@ -453,9 +422,9 @@ function EditorialBlock({
               <p
                 style={{
                   fontFamily: "'IBM Plex Mono',monospace",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
-                  color: "#3f4756",
+                  color: "#9ca3b8",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   marginBottom: 10,
@@ -463,26 +432,26 @@ function EditorialBlock({
               >
                 Hints
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {aiHintLines.map((hint, i) => (
                   <div
                     key={i}
                     style={{
                       display: "flex",
-                      gap: 9,
+                      gap: 10,
                       alignItems: "flex-start",
                     }}
                   >
                     <Lightbulb
-                      size={11}
-                      color="#3f4756"
+                      size={13}
+                      color="#fbbf24"
                       style={{ marginTop: 3, flexShrink: 0 }}
                     />
                     <p
                       style={{
-                        fontSize: 13,
-                        color: "#5a6478",
-                        lineHeight: 1.7,
+                        fontSize: 13.5,
+                        color: "#c9d1e0",
+                        lineHeight: 1.75,
                       }}
                     >
                       {hint}
@@ -496,6 +465,77 @@ function EditorialBlock({
       )}
     </div>
   );
+}
+
+// ── SIMPLE TIPTAP INPUT (for AI chat) ──
+function TipTapInput({
+  value,
+  onChange,
+  onSubmit,
+  placeholder = "Ask anything…",
+  disabled = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+        bulletList: false,
+        orderedList: false,
+        blockquote: false,
+        codeBlock: false,
+        horizontalRule: false,
+        hardBreak: false,
+      }),
+      Placeholder.configure({ placeholder }),
+    ],
+    content: "",
+    editable: !disabled,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getText());
+    },
+    editorProps: {
+      attributes: {
+        class: "ai-input",
+        dir: "ltr",
+      },
+      handleKeyDown: (_view, event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          onSubmitRef.current();
+          return true;
+        }
+        return false;
+      },
+    },
+  });
+
+  // Clear editor when value becomes empty (after submit)
+  useEffect(() => {
+    if (editor && value === "" && editor.getText() !== "") {
+      editor.commands.clearContent();
+    }
+  }, [value, editor]);
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!disabled);
+    }
+  }, [disabled, editor]);
+
+  if (!editor) return null;
+
+  return <EditorContent editor={editor} />;
 }
 
 // ── AI MENTOR ──
@@ -555,14 +595,14 @@ function AIMentor({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Bot size={14} color="#3f4756" />
+            <Bot size={15} color="#f97316" />
             <span
               style={{
                 fontFamily: "'IBM Plex Mono',monospace",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
-                color: "#5a6478",
-                letterSpacing: "0.1em",
+                color: "#9ca3b8",
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}
             >
@@ -664,8 +704,8 @@ function AIMentor({
                 border: "1px solid #1c1f26",
               }}
             >
-              <span style={{ color: "#3f4756" }}>{f.icon}</span>
-              <span style={{ fontSize: 11, color: "#5a6478" }}>{f.label}</span>
+              <span style={{ color: "#f97316", opacity: 0.7 }}>{f.icon}</span>
+              <span style={{ fontSize: 11, color: "#9ca3b8" }}>{f.label}</span>
             </div>
           ))}
         </div>
@@ -708,14 +748,14 @@ function AIMentor({
               boxShadow: "0 0 6px #10b981",
             }}
           />
-          <Bot size={13} color="#5a6478" />
+          <Bot size={14} color="#f97316" />
           <span
             style={{
               fontFamily: "'IBM Plex Mono',monospace",
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
-              color: "#5a6478",
-              letterSpacing: "0.1em",
+              color: "#9ca3b8",
+              letterSpacing: "0.08em",
               textTransform: "uppercase",
             }}
           >
@@ -734,8 +774,8 @@ function AIMentor({
             <p
               style={{
                 fontFamily: "'IBM Plex Mono',monospace",
-                fontSize: 10,
-                color: "#3f4756",
+                fontSize: 11,
+                color: "#6b7280",
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
                 marginBottom: 8,
@@ -791,7 +831,7 @@ function AIMentor({
               <div
                 style={{
                   fontSize: 12,
-                  color: "#3f4756",
+                  color: "#9ca3b8",
                   display: "flex",
                   alignItems: "center",
                   gap: 7,
@@ -807,18 +847,12 @@ function AIMentor({
       </div>
       <div style={{ borderTop: "1px solid #1c1f26", paddingTop: 12 }}>
         <div style={{ position: "relative" }}>
-          <textarea
+          <TipTapInput
             value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleAI();
-              }
-            }}
+            onChange={setAiInput}
+            onSubmit={handleAI}
             placeholder="Ask anything…"
-            rows={2}
-            className="ai-textarea"
+            disabled={aiLoading}
           />
           <button
             onClick={handleAI}
@@ -869,8 +903,12 @@ export default function ProblemPage({
   });
 
   // `progress` = local draft; `committed` = last DB-confirmed state
-  const [progress, setProgress] = useState<ProgressState>(() => toState(userProblem));
-  const [committed, setCommitted] = useState<ProgressState>(() => toState(userProblem));
+  const [progress, setProgress] = useState<ProgressState>(() =>
+    toState(userProblem),
+  );
+  const [committed, setCommitted] = useState<ProgressState>(() =>
+    toState(userProblem),
+  );
   const [saving, setSaving] = useState(false);
   const isDirty = JSON.stringify(progress) !== JSON.stringify(committed);
 
@@ -938,7 +976,9 @@ export default function ProblemPage({
     } catch (err: any) {
       // Rollback draft to last committed state
       setProgress({ ...committed });
-      toast.error(err?.message ?? "Save failed — changes rolled back", { id: TOAST_ID });
+      toast.error(err?.message ?? "Save failed — changes rolled back", {
+        id: TOAST_ID,
+      });
     } finally {
       setSaving(false);
     }
@@ -989,25 +1029,63 @@ export default function ProblemPage({
 
         /* Card */
         .card {
-          background: #0d0f14;
+          background: linear-gradient(180deg, #0d0f14 0%, #0a0c10 100%);
           border: 1px solid #1c1f26;
           position: relative;
-          transition: border-color .25s;
+          transition: border-color .25s, box-shadow .25s;
+        }
+        .card:hover {
+          border-color: rgba(249,115,22,0.15);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.3);
         }
         /* Orange top line on every card */
         .card::before {
           content: '';
-          position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(249,115,22,0.22), transparent);
+          position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(249,115,22,0.35), transparent);
           pointer-events: none;
+        }
+
+        /* Card title - prominent section header */
+        .card-title {
+          font-family: 'IBM Plex Sans', sans-serif;
+          font-size: 14px; font-weight: 600;
+          color: #f3f4f6;
+          display: flex; align-items: center; gap: 8px;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(249,115,22,0.12);
+        }
+        .card-title-icon {
+          color: #f97316;
         }
 
         /* Section label */
         .slabel {
           font-family: 'IBM Plex Mono', monospace;
-          font-size: 10px; font-weight: 600;
-          letter-spacing: 0.1em; text-transform: uppercase; color: "#2e3340";
-          color: #2e3340;
+          font-size: 11px; font-weight: 600;
+          letter-spacing: 0.1em; text-transform: uppercase;
+          color: #6b7280;
+          display: flex; align-items: center; gap: 6px;
+        }
+        .slabel-icon {
+          color: #f97316;
+          opacity: 0.7;
+        }
+
+        /* Section header - more prominent */
+        .section-header {
+          font-family: 'IBM Plex Sans', sans-serif;
+          font-size: 15px; font-weight: 600;
+          color: #e5e7eb;
+          margin-bottom: 14px;
+          display: flex; align-items: center; gap: 10px;
+        }
+        .section-header::before {
+          content: '';
+          width: 3px; height: 16px;
+          background: linear-gradient(180deg, #f97316, #ea580c);
+          border-radius: 2px;
         }
 
         /* Notice */
@@ -1040,7 +1118,7 @@ export default function ProblemPage({
           font-size: 10px; font-weight: 600;
           letter-spacing: 0.06em; text-transform: uppercase;
           background: transparent; border: 1px solid #1c1f26;
-          border-radius: 6px; color: #3f4756; cursor: pointer;
+          border-radius: 6px; color: #6b7280; cursor: pointer;
           padding: 5px 11px;
           display: flex; align-items: center; gap: 5px;
           transition: border-color .18s, color .18s, background .18s;
@@ -1054,7 +1132,7 @@ export default function ProblemPage({
         /* ── GHOST SMALL ── */
         .btn-ghost-sm {
           font-family: 'IBM Plex Mono', monospace; font-size: 9px;
-          color: #3f4756; background: none; border: none; cursor: pointer;
+          color: #6b7280; background: none; border: none; cursor: pointer;
           display: flex; align-items: center; gap: 5px;
           padding: 3px 6px; border-radius: 5px; transition: color .15s;
         }
@@ -1103,7 +1181,7 @@ export default function ProblemPage({
           background: transparent; border: 1px solid #1c1f26; border-radius: 6px;
           padding: 8px 0; cursor: pointer;
           font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600;
-          letter-spacing: 0.06em; text-transform: uppercase; color: #3f4756;
+          letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280;
           transition: border-color .18s, color .18s, background .18s, transform .12s, box-shadow .18s;
         }
         .conf-btn:hover:not(.conf-active) {
@@ -1120,7 +1198,7 @@ export default function ProblemPage({
           border-radius: 6px; background: transparent; border: 1px solid #1c1f26;
           cursor: pointer;
           font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600;
-          letter-spacing: 0.06em; text-transform: uppercase; color: #3f4756;
+          letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280;
           transition: border-color .18s, color .18s, background .18s;
         }
         .btn-bookmark:hover, .btn-bookmark.active {
@@ -1149,27 +1227,43 @@ export default function ProblemPage({
         /* ── CODE BLOCK ── */
         .code {
           font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;
-          background: #080a0e; border: 1px solid #1c1f26; border-radius: 6px;
-          padding: 9px 13px; color: #5a6478; line-height: 1.6;
+          background: #0d0f14; border: 1px solid rgba(249,115,22,0.12); border-radius: 6px;
+          padding: 10px 14px; color: #9ca3b8; line-height: 1.6;
         }
 
         /* ── RICH EDITOR ── */
         .re {
           outline: none; min-height: 130px;
           font-family: 'IBM Plex Sans', sans-serif;
-          font-size: 13px; color: #7a8496; line-height: 1.78;
-          caret-color: #f97316; padding-top: 10px;
-          border-top: 1px solid #1c1f26;
+          font-size: 13.5px; color: #9ca3b8; line-height: 1.78;
+          caret-color: #f97316; padding: 12px 0;
+          border-top: 1px solid rgba(249,115,22,0.15);
           transition: border-color .2s;
+          direction: ltr !important;
+          unicode-bidi: embed !important;
+          text-align: left !important;
         }
-        .re:focus { border-top-color: rgba(249,115,22,0.25); }
-        .re h3 { font-size: .875rem; font-weight: 700; color: #c9d1e0; margin: .5rem 0 .2rem; }
+        .re * {
+          direction: ltr !important;
+          unicode-bidi: embed !important;
+          text-align: left !important;
+        }
+        .re:focus { border-top-color: rgba(249,115,22,0.35); }
+        .re h3 { font-size: .95rem; font-weight: 700; color: #e5e7eb; margin: .5rem 0 .25rem; }
         .re p  { margin: .2rem 0; }
         .re ul { list-style: disc; padding-left: 1.25rem; margin: .25rem 0; }
         .re ol { list-style: decimal; padding-left: 1.25rem; margin: .25rem 0; }
-        .re li { margin: .1rem 0; }
-        .re b, .re strong { color: #c9d1e0; font-weight: 600; }
-        .re:empty:before { content: attr(data-placeholder); color: #2e3340; pointer-events: none; }
+        .re li { margin: .15rem 0; }
+        .re b, .re strong { color: #e5e7eb; font-weight: 600; }
+        .re mark { background: rgba(249,115,22,0.22); color: inherit; border-radius: 2px; padding: 0 2px; }
+        .re p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          color: #4b5563;
+          pointer-events: none;
+          font-style: italic;
+          float: left;
+          height: 0;
+        }
 
         /* ── RE TOOL HOVER ── */
         .re-tool:hover { color: #f97316 !important; background: rgba(249,115,22,0.09) !important; }
@@ -1184,7 +1278,39 @@ export default function ProblemPage({
           transition: border-color .2s;
         }
         .ai-textarea:focus { border-color: rgba(249,115,22,0.3); }
-        .ai-textarea::placeholder { color: #2e3340; }
+        .ai-textarea::placeholder { color: #4b5563; }
+
+        /* ── AI TIPTAP INPUT ── */
+        .ai-input {
+          font-family: 'IBM Plex Sans', sans-serif;
+          width: 100%; min-height: 44px;
+          background: rgba(249,115,22,0.03); border: 1px solid #1c1f26;
+          border-radius: 7px; padding: 9px 42px 9px 12px;
+          font-size: 13px; color: #94a3b8; outline: none; line-height: 1.5;
+          transition: border-color .2s;
+          direction: ltr !important;
+          text-align: left !important;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+        .ai-input:focus { border-color: rgba(249,115,22,0.3); }
+        .ai-input p { margin: 0; white-space: pre-wrap; }
+        .ai-input p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          color: #4b5563;
+          pointer-events: none;
+          float: left;
+          height: 0;
+        }
+
+        /* TipTap ProseMirror base styles */
+        .ProseMirror {
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+        .ProseMirror:focus {
+          outline: none;
+        }
 
         /* ── STARTER BUTTONS ── */
         .starter-btn {
@@ -1513,9 +1639,9 @@ export default function ProblemPage({
                       textTransform: "uppercase",
                       padding: "3px 8px",
                       borderRadius: 4,
-                      background: "rgba(255,255,255,0.015)",
-                      border: "1px solid #1c1f26",
-                      color: "#2e3340",
+                      background: "rgba(139,92,246,0.08)",
+                      border: "1px solid rgba(139,92,246,0.2)",
+                      color: "rgba(139,92,246,0.7)",
                     }}
                   >
                     {c}
@@ -1524,12 +1650,12 @@ export default function ProblemPage({
               </div>
 
               {/* 60% constraint */}
-              <div style={{ maxWidth: "60%" }}>
+              <div style={{ maxWidth: "65%" }}>
                 <p
                   style={{
-                    fontSize: 14,
-                    color: "#7a8496",
-                    lineHeight: 1.88,
+                    fontSize: 14.5,
+                    color: "#9ca3b8",
+                    lineHeight: 1.9,
                     whiteSpace: "pre-line",
                   }}
                 >
@@ -1542,19 +1668,21 @@ export default function ProblemPage({
                 style={{
                   marginTop: 28,
                   paddingTop: 22,
-                  borderTop: "1px solid #1c1f26",
+                  borderTop: "1px solid rgba(249,115,22,0.12)",
                 }}
               >
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 7,
-                    marginBottom: 16,
+                    gap: 8,
+                    marginBottom: 18,
                   }}
                 >
-                  <Code2 size={12} color="#2e3340" />
-                  <span className="slabel">Examples</span>
+                  <Code2 size={14} color="#f97316" style={{ opacity: 0.7 }} />
+                  <span className="slabel" style={{ color: "#6b7280" }}>
+                    Examples
+                  </span>
                 </div>
                 <div
                   style={{
@@ -1570,7 +1698,7 @@ export default function ProblemPage({
                         className="mono"
                         style={{
                           fontSize: 9,
-                          color: "#2e3340",
+                          color: "#6b7280",
                           marginBottom: 9,
                           letterSpacing: "0.08em",
                         }}
@@ -1603,12 +1731,12 @@ export default function ProblemPage({
                         <p
                           style={{
                             fontSize: 12.5,
-                            color: "#3f4756",
+                            color: "#7a8496",
                             marginTop: 8,
                             lineHeight: 1.6,
                           }}
                         >
-                          <span style={{ color: "#2e3340", fontWeight: 500 }}>
+                          <span style={{ color: "#9ca3b8", fontWeight: 500 }}>
                             Explanation:{" "}
                           </span>
                           {ex.explanation}
@@ -1626,9 +1754,10 @@ export default function ProblemPage({
                 className="card"
                 style={{ borderRadius: 10, padding: "22px 20px" }}
               >
-                <p className="slabel" style={{ marginBottom: 16 }}>
-                  Mastery
-                </p>
+                <div className="card-title">
+                  <Trophy size={16} className="card-title-icon" />
+                  Your Progress
+                </div>
 
                 {/* Solve */}
                 <div
@@ -1667,7 +1796,7 @@ export default function ProblemPage({
                             className="mono"
                             style={{
                               fontSize: 10,
-                              color: "#2e3340",
+                              color: "#6b7280",
                               marginTop: 2,
                             }}
                           >
@@ -1692,13 +1821,26 @@ export default function ProblemPage({
                             flexShrink: 0,
                           }}
                         >
-                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#f97316", boxShadow: "0 0 5px #f97316", display: "inline-block" }} />
+                          <span
+                            style={{
+                              width: 5,
+                              height: 5,
+                              borderRadius: "50%",
+                              background: "#f97316",
+                              boxShadow: "0 0 5px #f97316",
+                              display: "inline-block",
+                            }}
+                          />
                           pending
                         </span>
                       )}
                     </div>
                   ) : (
-                    <button onClick={handleSolve} disabled={saving} className="btn-solve">
+                    <button
+                      onClick={handleSolve}
+                      disabled={saving}
+                      className="btn-solve"
+                    >
                       <CheckCircle size={13} /> Mark Solved
                     </button>
                   )}
@@ -1712,8 +1854,18 @@ export default function ProblemPage({
                     borderBottom: "1px solid #1c1f26",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <p className="slabel">Confidence</p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <p className="slabel">
+                      <Target size={12} className="slabel-icon" />
+                      Confidence
+                    </p>
                     {pendingConfidence && (
                       <span
                         title="Pending — not yet saved to DB"
@@ -1727,7 +1879,16 @@ export default function ProblemPage({
                           gap: 4,
                         }}
                       >
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#f97316", boxShadow: "0 0 5px #f97316", display: "inline-block" }} />
+                        <span
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: "50%",
+                            background: "#f97316",
+                            boxShadow: "0 0 5px #f97316",
+                            display: "inline-block",
+                          }}
+                        />
                         pending
                       </span>
                     )}
@@ -1748,7 +1909,8 @@ export default function ProblemPage({
                             key={level}
                             disabled={saving}
                             onClick={() =>
-                              !saving && setProgress((prev) => ({
+                              !saving &&
+                              setProgress((prev) => ({
                                 ...prev,
                                 confidenceV2: level,
                               }))
@@ -1780,10 +1942,13 @@ export default function ProblemPage({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      marginBottom: 8,
+                      marginBottom: 10,
                     }}
                   >
-                    <p className="slabel">Notes</p>
+                    <p className="slabel">
+                      <StickyNote size={12} className="slabel-icon" />
+                      Notes
+                    </p>
                     {pendingNotes ? (
                       <span
                         title="Pending — not yet saved to DB"
@@ -1797,11 +1962,29 @@ export default function ProblemPage({
                           gap: 4,
                         }}
                       >
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#f97316", boxShadow: "0 0 5px #f97316", display: "inline-block" }} />
+                        <span
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: "50%",
+                            background: "#f97316",
+                            boxShadow: "0 0 5px #f97316",
+                            display: "inline-block",
+                          }}
+                        />
                         pending
                       </span>
                     ) : progress.notes ? (
-                      <span className="mono" style={{ fontSize: 9, color: "#10b981", letterSpacing: "0.06em" }}>saved</span>
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: 9,
+                          color: "#10b981",
+                          letterSpacing: "0.06em",
+                        }}
+                      >
+                        saved
+                      </span>
                     ) : null}
                   </div>
                   <RichEditor
@@ -1887,10 +2070,19 @@ export default function ProblemPage({
               <p className="slabel">Discussion</p>
               <span
                 className="mono"
-                style={{ fontSize: 10, color: "#2e3340" }}
+                style={{ fontSize: 10, color: "#6b7280" }}
               ></span>
             </div>
-            <div style={{ maxWidth: 640 }}>Coming Soon....</div>
+            <div
+              style={{
+                maxWidth: 640,
+                color: "#6b7280",
+                fontSize: 14,
+                fontStyle: "italic",
+              }}
+            >
+              Coming Soon...
+            </div>
           </div>
         </main>
       </div>

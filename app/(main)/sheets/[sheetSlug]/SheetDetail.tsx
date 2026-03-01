@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Accordion,
@@ -22,28 +28,53 @@ import { Button } from "@/components/ui/button";
 import {
   Circle,
   CheckCircle2,
-  ExternalLink,
   Trophy,
   Target,
   Flame,
   BookOpen,
   ArrowRight,
-  Star,
   TrendingUp,
+  ChevronRight,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type ConfidenceV2 = "LOW" | "MEDIUM" | "HIGH" | null;
 
 const confidenceConfig: Record<
   NonNullable<ConfidenceV2> | "unattempted",
-  { label: string; color: string }
+  { label: string; color: string; bg: string; border: string; icon: string }
 > = {
-  unattempted: { label: "Unattempted", color: "text-neutral-500" },
-  LOW: { label: "Low confidence", color: "text-rose-400" },
-  MEDIUM: { label: "Med confidence", color: "text-amber-400" },
-  HIGH: { label: "High confidence", color: "text-emerald-400" },
+  unattempted: {
+    label: "Not started",
+    color: "text-neutral-400",
+    bg: "bg-neutral-800/30",
+    border: "border-neutral-700/40",
+    icon: "○",
+  },
+  LOW: {
+    label: "Low",
+    color: "text-rose-400",
+    bg: "bg-rose-950/40",
+    border: "border-rose-800/40",
+    icon: "◔",
+  },
+  MEDIUM: {
+    label: "Medium",
+    color: "text-amber-400",
+    bg: "bg-amber-950/40",
+    border: "border-amber-800/40",
+    icon: "◑",
+  },
+  HIGH: {
+    label: "High",
+    color: "text-emerald-400",
+    bg: "bg-emerald-950/40",
+    border: "border-emerald-800/40",
+    icon: "●",
+  },
 };
 
 interface Problem {
@@ -86,6 +117,7 @@ export default function SheetDetailPage({
   initialConfidenceMap?: Record<string, string | null>;
 }) {
   const sheet = data;
+  const router = useRouter();
   const sectionsRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -95,16 +127,36 @@ export default function SheetDetailPage({
   );
 
   // ── Confidence / attempted state ─────────────────────────────────────────
-  const [confidenceMap, setConfidenceMap] = useState<Record<string, ConfidenceV2>>(initialConfidenceMap as Record<string, ConfidenceV2>);
+  const [confidenceMap, setConfidenceMap] = useState<
+    Record<string, ConfidenceV2>
+  >(initialConfidenceMap as Record<string, ConfidenceV2>);
 
   useEffect(() => {
     setSolvedMap(Object.fromEntries(initialSolvedIds.map((id) => [id, true])));
     setConfidenceMap(initialConfidenceMap as Record<string, ConfidenceV2>);
   }, [initialSolvedIds, initialConfidenceMap]); // eslint-disable-line
 
+  // Refresh data when returning to the page (after solving problems elsewhere)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [router]);
+
   // ── Tooltip for unsolved circle button (no-toggle, just redirects user) ──────
   const [tooltipId, setTooltipId] = useState<string | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; h: number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{
+    x: number;
+    y: number;
+    h: number;
+  } | null>(null);
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showTooltip = useCallback((id: string, el: HTMLElement) => {
@@ -216,48 +268,59 @@ export default function SheetDetailPage({
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 pb-20 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-amber-950/5 to-neutral-950 pointer-events-none" />
-      <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[800px] h-[500px] bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+      {/* Enhanced background gradients for better depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-neutral-900 via-neutral-950 to-neutral-950 pointer-events-none" />
+      <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[1000px] h-[600px] bg-amber-500/8 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute right-0 top-1/3 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[80px] pointer-events-none" />
 
       {/* ── Hero ── */}
-      <section className="relative pt-12 pb-8 md:pt-16 md:pb-10 border-b border-neutral-800/50">
+      <section className="relative pt-16 pb-12 md:pt-20 md:pb-14 border-b border-neutral-800/30">
         <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 text-xs font-semibold uppercase tracking-widest mb-5">
-            <Star className="w-3 h-3" />
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-amber-600/50 bg-gradient-to-r from-amber-950/50 to-orange-950/50 text-amber-400 text-xs font-bold uppercase tracking-widest mb-6 shadow-lg shadow-amber-900/20">
+            <Zap className="w-3.5 h-3.5" />
             Curated Problem Sheet
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
-            <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight">
+            <span className="bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent drop-shadow-sm">
               {sheet.title}
             </span>
           </h1>
 
-          <p className="mt-4 text-lg md:text-xl text-neutral-400 max-w-3xl mx-auto leading-relaxed">
+          <p className="mt-5 text-lg md:text-xl text-neutral-300 max-w-3xl mx-auto leading-relaxed">
             {sheet.description || "Master every pattern, ace every interview."}
           </p>
 
-          <p className="mt-6 text-xs text-neutral-600 uppercase tracking-widest">
-            Click a card to jump to that difficulty ↓
+          <p className="mt-8 text-xs text-neutral-500 uppercase tracking-widest font-medium">
+            Select a category to jump
           </p>
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
             {statCards.map(
               ({ icon: Icon, label, value, color, hoverCls, action }) => (
                 <button
                   key={label}
                   onClick={action}
                   className={cn(
-                    "cursor-pointer flex flex-col items-center gap-2 px-6 py-4 rounded-xl",
-                    "border border-neutral-800/60 bg-neutral-900/40 backdrop-blur-md",
-                    "transition-all duration-300 ease-out hover:scale-[1.05] hover:shadow-lg active:scale-[0.97]",
+                    "cursor-pointer flex flex-col items-center gap-3 px-6 py-5 rounded-2xl",
+                    "border border-neutral-800/70 bg-neutral-900/60 backdrop-blur-xl",
+                    "transition-all duration-300 ease-out hover:scale-[1.04] hover:shadow-xl active:scale-[0.97]",
+                    "group relative overflow-hidden",
                     hoverCls,
                   )}
                 >
-                  <Icon className={cn("w-5 h-5", color)} />
-                  <span className={cn("text-2xl font-bold", color)}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Icon
+                    className={cn(
+                      "w-6 h-6 transition-transform group-hover:scale-110",
+                      color,
+                    )}
+                  />
+                  <span
+                    className={cn("text-3xl font-black tabular-nums", color)}
+                  >
                     {value}
                   </span>
-                  <span className="text-xs text-neutral-500 uppercase tracking-widest">
+                  <span className="text-xs text-neutral-400 uppercase tracking-widest font-semibold">
                     {label}
                   </span>
                 </button>
@@ -266,60 +329,65 @@ export default function SheetDetailPage({
           </div>
 
           {/* Progress bar */}
-          <div className="mt-6 max-w-xl mx-auto">
-            <div className="flex items-center justify-between text-sm mb-2 text-neutral-300">
-              <span className="font-medium flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-amber-400" />
-                Your Progress
-              </span>
-              <span className="text-amber-400 font-bold text-base tabular-nums">
-                {overallPctLive}%
-              </span>
-            </div>
-            <div className="h-2.5 bg-neutral-800/60 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full shadow-md shadow-amber-500/30 transition-all duration-300 ease-out"
-                style={{ width: `${overallPctLive}%` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-sm text-neutral-500">
-              <span>
-                {totalSolvedLive} of {totalProblems} solved
-                {totalSolvedLive === 0 && (
-                  <span className="ml-1 text-amber-700/70">
-                    — click a card to jump in!
-                  </span>
-                )}
-              </span>
-              <button
-                onClick={() =>
-                  sectionsRef.current?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  })
-                }
-                className="cursor-pointer text-amber-600 hover:text-amber-400 transition-colors text-xs underline underline-offset-2"
-              >
-                Jump to problems ↓
-              </button>
+          <div className="mt-10 max-w-xl mx-auto">
+            <div className="p-5 rounded-2xl border border-neutral-800/60 bg-neutral-900/50 backdrop-blur-xl">
+              <div className="flex items-center justify-between text-sm mb-3">
+                <span className="font-semibold flex items-center gap-2 text-neutral-200">
+                  <Trophy className="w-5 h-5 text-amber-400" />
+                  Your Progress
+                </span>
+                <span className="text-amber-400 font-black text-xl tabular-nums">
+                  {overallPctLive}%
+                </span>
+              </div>
+              <div className="h-3 bg-neutral-800/80 rounded-full overflow-hidden shadow-inner">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400 rounded-full shadow-lg shadow-amber-500/40 transition-all duration-500 ease-out"
+                  style={{ width: `${overallPctLive}%` }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <span className="text-neutral-400 font-medium">
+                  <span className="text-amber-400">{totalSolvedLive}</span> of{" "}
+                  {totalProblems} problems solved
+                  {totalSolvedLive === 0 && (
+                    <span className="ml-2 text-neutral-500">
+                      — let&apos;s get started!
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={() =>
+                    sectionsRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    })
+                  }
+                  className="cursor-pointer text-amber-500 hover:text-amber-300 transition-colors text-xs font-semibold flex items-center gap-1"
+                >
+                  Jump to problems
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Sections ── */}
-      <section className="py-8 md:py-10" ref={sectionsRef}>
+      <section className="py-12 md:py-16" ref={sectionsRef}>
         <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
-          <div className="text-center mb-7">
-            <h2 className="text-2xl md:text-3xl font-bold text-amber-100">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-black text-neutral-100">
               Problem Sections
             </h2>
-            <p className="mt-1.5 text-neutral-500 text-sm max-w-xl mx-auto">
-              Tackle them in order or jump straight to your weak spots.
+            <p className="mt-3 text-neutral-400 text-base max-w-xl mx-auto">
+              Click on any problem to start practicing. Your progress syncs
+              automatically.
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {sheet.sections
               .sort((a, b) => a.order - b.order)
               .map((section, idx) => {
@@ -336,9 +404,9 @@ export default function SheetDetailPage({
                       sectionRefs.current[section.id] = el;
                     }}
                     className={cn(
-                      "border border-neutral-800/60 rounded-xl overflow-hidden",
-                      "bg-neutral-900/40 backdrop-blur-md transition-all duration-300 ease-out",
-                      "hover:border-amber-700/40 hover:shadow-lg hover:shadow-amber-900/15 hover:-translate-y-0.5",
+                      "border border-neutral-800/50 rounded-2xl overflow-hidden",
+                      "bg-gradient-to-br from-neutral-900/70 to-neutral-950/70 backdrop-blur-xl transition-all duration-300 ease-out",
+                      "hover:border-amber-700/50 hover:shadow-xl hover:shadow-amber-900/10",
                     )}
                     style={{ animationDelay: `${idx * 60}ms` }}
                   >
@@ -351,7 +419,7 @@ export default function SheetDetailPage({
                     >
                       <AccordionItem value={section.id} className="border-none">
                         <AccordionTrigger
-                          className="px-6 py-4 hover:no-underline group cursor-pointer"
+                          className="px-6 py-5 hover:no-underline group cursor-pointer"
                           onClick={() =>
                             setOpenSections((prev) =>
                               prev.includes(section.id)
@@ -361,9 +429,9 @@ export default function SheetDetailPage({
                           }
                         >
                           <div className="flex-1 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-5">
                               {/* Circular progress ring */}
-                              <div className="relative w-10 h-10 shrink-0">
+                              <div className="relative w-14 h-14 shrink-0">
                                 <svg
                                   className="w-full h-full -rotate-90"
                                   viewBox="0 0 36 36"
@@ -374,42 +442,63 @@ export default function SheetDetailPage({
                                     r="15.9"
                                     fill="none"
                                     stroke="currentColor"
-                                    strokeWidth="3"
-                                    className="text-neutral-800"
+                                    strokeWidth="2.5"
+                                    className="text-neutral-800/60"
                                   />
                                   <circle
                                     cx="18"
                                     cy="18"
                                     r="15.9"
                                     fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="3"
+                                    stroke="url(#progressGradient)"
+                                    strokeWidth="2.5"
                                     strokeDasharray={`${(pct / 100) * 100} 100`}
                                     strokeLinecap="round"
-                                    className="text-amber-500 transition-all duration-300 ease-out"
+                                    className="transition-all duration-500 ease-out"
                                   />
+                                  <defs>
+                                    <linearGradient
+                                      id="progressGradient"
+                                      x1="0%"
+                                      y1="0%"
+                                      x2="100%"
+                                      y2="0%"
+                                    >
+                                      <stop offset="0%" stopColor="#f59e0b" />
+                                      <stop offset="100%" stopColor="#f97316" />
+                                    </linearGradient>
+                                  </defs>
                                 </svg>
-                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-amber-300">
+                                <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-amber-400">
                                   {pct}%
                                 </span>
                               </div>
                               <div className="text-left">
-                                <h3 className="text-lg font-semibold text-amber-200 group-hover:text-amber-100 transition-colors">
+                                <h3 className="text-xl font-bold text-neutral-100 group-hover:text-amber-300 transition-colors">
                                   {section.title}
                                 </h3>
-                                <p className="text-sm text-neutral-600 mt-0.5">
-                                  {section.description || `${total} problems`}
+                                <p className="text-sm text-neutral-500 mt-1">
+                                  {section.description ||
+                                    `${total} problems to master`}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4 shrink-0">
-                              <span className="text-sm text-neutral-500 tabular-nums hidden sm:block">
-                                {solved}/{total}
-                              </span>
-                              <div className="w-28 md:w-36 hidden sm:block">
-                                <div className="h-1.5 bg-neutral-800/50 rounded-full overflow-hidden">
+                            <div className="flex items-center gap-5 shrink-0">
+                              <div className="hidden sm:flex flex-col items-end gap-1">
+                                <span className="text-base font-bold text-neutral-300 tabular-nums">
+                                  {solved}
+                                  <span className="text-neutral-600">
+                                    /{total}
+                                  </span>
+                                </span>
+                                <span className="text-xs text-neutral-500">
+                                  completed
+                                </span>
+                              </div>
+                              <div className="w-32 md:w-40 hidden md:block">
+                                <div className="h-2 bg-neutral-800/60 rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300 ease-out"
+                                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500 ease-out shadow-sm shadow-amber-500/30"
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
@@ -419,28 +508,33 @@ export default function SheetDetailPage({
                         </AccordionTrigger>
 
                         <AccordionContent className="overflow-hidden transition-all duration-300 ease-out">
-                          <div className="px-6 pb-6 pt-2 border-t border-neutral-800/40">
-                            <p className="text-xs text-neutral-600 uppercase tracking-widest mb-4 font-medium">
-                              {total} problems · visit a problem to mark it solved
-                            </p>
-                            <div className="border border-neutral-800/40 rounded-lg overflow-hidden bg-neutral-950/50">
+                          <div className="px-6 pb-6 pt-4 border-t border-neutral-800/30">
+                            <div className="flex items-center justify-between mb-5">
+                              <p className="text-sm text-neutral-400 font-medium">
+                                <span className="text-amber-400 font-bold">
+                                  {total}
+                                </span>{" "}
+                                problems in this section
+                              </p>
+                              <p className="text-xs text-neutral-500">
+                                Click a problem to start practicing
+                              </p>
+                            </div>
+                            <div className="border border-neutral-800/30 rounded-xl overflow-hidden bg-neutral-950/40">
                               <Table>
-                                <TableHeader className="bg-neutral-900/70">
-                                  <TableRow className="border-neutral-800/50 hover:bg-transparent">
-                                    <TableHead className="w-12 text-center text-neutral-400 text-xs uppercase tracking-wide">
-                                      Solved
+                                <TableHeader className="bg-neutral-900/60">
+                                  <TableRow className="border-neutral-800/40 hover:bg-transparent">
+                                    <TableHead className="w-16 text-center text-neutral-500 text-xs uppercase tracking-wider font-semibold">
+                                      Status
                                     </TableHead>
-                                    <TableHead className="text-neutral-400 text-xs uppercase tracking-wide">
+                                    <TableHead className="text-neutral-500 text-xs uppercase tracking-wider font-semibold">
                                       Problem
                                     </TableHead>
-                                    <TableHead className="w-28 text-center text-neutral-400 text-xs uppercase tracking-wide">
+                                    <TableHead className="w-28 text-center text-neutral-500 text-xs uppercase tracking-wider font-semibold">
                                       Difficulty
                                     </TableHead>
-                                    <TableHead className="w-36 text-neutral-400 text-xs uppercase tracking-wide">
+                                    <TableHead className="w-32 text-center text-neutral-500 text-xs uppercase tracking-wider font-semibold">
                                       Confidence
-                                    </TableHead>
-                                    <TableHead className="w-24 text-center text-neutral-400 text-xs uppercase tracking-wide">
-                                      LeetCode
                                     </TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -448,93 +542,117 @@ export default function SheetDetailPage({
                                   {section.problems.map((item) => {
                                     const p = item.problem;
                                     const isSolved = !!solvedMap[p.id];
-                                    const confidence = confidenceMap[p.id] ?? null;
-                                    const confKey = (confidence as NonNullable<ConfidenceV2> | null) ?? "unattempted";
+                                    const confidence =
+                                      confidenceMap[p.id] ?? null;
+                                    const confKey =
+                                      (confidence as NonNullable<ConfidenceV2> | null) ??
+                                      "unattempted";
                                     const confCfg = confidenceConfig[confKey];
 
                                     return (
                                       <TableRow
                                         key={item.id}
                                         className={cn(
-                                          "border-neutral-800/40 transition-all duration-300 ease-out group",
+                                          "border-neutral-800/30 transition-all duration-200 ease-out group cursor-pointer",
                                           isSolved
-                                            ? "bg-emerald-950/10 hover:bg-emerald-950/15"
-                                            : "hover:bg-neutral-800/30 hover:shadow-[inset_0_1px_0_0_rgba(245,158,11,0.06)]",
+                                            ? "bg-emerald-950/15 hover:bg-emerald-950/25"
+                                            : "hover:bg-amber-950/10",
                                         )}
                                       >
                                         {/* Solved circle (read-only; tooltip on unsolved) */}
-                                        <TableCell className="text-center p-4">
+                                        <TableCell className="text-center py-4">
                                           <div className="flex items-center justify-center">
                                             {isSolved ? (
                                               <div className="relative">
-                                                <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-md animate-pulse" />
-                                                <CheckCircle2 className="h-6 w-6 text-emerald-500 relative z-10" />
+                                                <div className="absolute inset-0 rounded-full bg-emerald-500/30 blur-sm" />
+                                                <CheckCircle2 className="h-5 w-5 text-emerald-400 relative z-10" />
                                               </div>
                                             ) : (
                                               <button
                                                 type="button"
                                                 className="relative cursor-pointer focus:outline-none"
-                                                onClick={(e) => showTooltip(p.id, e.currentTarget)}
-                                                onMouseEnter={(e) => showTooltip(p.id, e.currentTarget)}
+                                                onClick={(e) =>
+                                                  showTooltip(
+                                                    p.id,
+                                                    e.currentTarget,
+                                                  )
+                                                }
+                                                onMouseEnter={(e) =>
+                                                  showTooltip(
+                                                    p.id,
+                                                    e.currentTarget,
+                                                  )
+                                                }
                                                 onMouseLeave={hideTooltip}
                                               >
-                                                <Circle className="h-6 w-6 text-neutral-600 hover:text-rose-400 transition-colors rounded-full" />
+                                                <Circle className="h-5 w-5 text-neutral-600 group-hover:text-amber-500/60 transition-colors" />
                                               </button>
                                             )}
                                           </div>
                                         </TableCell>
 
                                         {/* Title → internal problem page */}
-                                        <TableCell>
+                                        <TableCell className="py-4">
                                           <Link
                                             href={`/problems/${p.slug}`}
                                             className={cn(
-                                              "inline-block font-medium text-sm transition-all duration-300",
+                                              "flex items-center gap-2 font-medium text-sm transition-all duration-200",
                                               isSolved
-                                                ? "text-neutral-500 line-through hover:text-neutral-400"
-                                                : "text-neutral-200 group-hover:text-amber-400 group-hover:translate-x-0.5",
+                                                ? "text-neutral-500 hover:text-neutral-300"
+                                                : "text-neutral-100 group-hover:text-amber-400",
                                             )}
                                           >
-                                            {p.title}
+                                            <span
+                                              className={
+                                                isSolved ? "line-through" : ""
+                                              }
+                                            >
+                                              {p.title}
+                                            </span>
+                                            <ChevronRight
+                                              className={cn(
+                                                "w-4 h-4 opacity-0 -translate-x-1 transition-all duration-200",
+                                                "group-hover:opacity-100 group-hover:translate-x-0 text-amber-500",
+                                              )}
+                                            />
                                           </Link>
                                         </TableCell>
 
                                         {/* Difficulty */}
-                                        <TableCell className="text-center">
+                                        <TableCell className="text-center py-4">
                                           <Badge
                                             className={cn(
-                                              "text-xs px-2.5 py-0.5 rounded-full border font-medium",
+                                              "text-xs px-3 py-1 rounded-full border font-semibold",
                                               p.difficulty === "easy" &&
-                                                "bg-green-950/50 text-green-400 border-green-800/40",
+                                                "bg-emerald-950/50 text-emerald-400 border-emerald-800/50",
                                               p.difficulty === "medium" &&
-                                                "bg-amber-950/50 text-amber-400 border-amber-800/40",
+                                                "bg-amber-950/50 text-amber-400 border-amber-800/50",
                                               p.difficulty === "hard" &&
-                                                "bg-red-950/50 text-red-400 border-red-800/40",
+                                                "bg-rose-950/50 text-rose-400 border-rose-800/50",
                                             )}
                                           >
-                                            {p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)}
+                                            {p.difficulty
+                                              .charAt(0)
+                                              .toUpperCase() +
+                                              p.difficulty.slice(1)}
                                           </Badge>
                                         </TableCell>
 
-                                        {/* Confidence / Attempted */}
-                                        <TableCell>
-                                          <span className={cn("text-sm font-medium", confCfg.color)}>
+                                        {/* Confidence badge */}
+                                        <TableCell className="text-center py-4">
+                                          <span
+                                            className={cn(
+                                              "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border",
+                                              confCfg.bg,
+                                              confCfg.border,
+                                              confCfg.color,
+                                            )}
+                                          >
+                                            <span className="text-[10px]">
+                                              {confCfg.icon}
+                                            </span>
                                             {confCfg.label}
                                           </span>
-                                        </TableCell>
-
-                                        {/* LeetCode external link */}
-                                        <TableCell className="text-center">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="cursor-pointer text-amber-500/70 hover:text-amber-300 hover:bg-amber-950/30 text-xs h-7 px-3 transition-all duration-300"
-                                            asChild
-                                          >
-                                            <a href={p.link} target="_blank" rel="noopener noreferrer">
-                                              <ExternalLink className="h-3.5 w-3.5" />
-                                            </a>
-                                          </Button>
                                         </TableCell>
                                       </TableRow>
                                     );

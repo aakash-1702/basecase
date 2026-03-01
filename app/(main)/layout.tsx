@@ -1,4 +1,5 @@
 import UserNavbar from "@/components/UserNavbar";
+import Footer from "@/components/Footer";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { cn } from "@/lib/utils";
@@ -44,19 +45,12 @@ export default async function MainLayout({
       <UserNavbar session={session as any} />
 
       <main
-        className={cn(
-          "relative w-full min-h-[calc(100vh-3.5rem)]",
-          "pt-8 pb-16 md:pt-12",
-        )}
+        className={cn("relative w-full min-h-[calc(100vh-3.5rem)]", "pb-16")}
       >
         {children}
       </main>
 
-      <footer className="border-t border-neutral-800/60 bg-[#080808]/80 py-6 text-center text-sm text-neutral-500 relative z-10">
-        <div className="mx-auto max-w-7xl px-6">
-          © {new Date().getFullYear()} BaseCase. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -1,100 +1,21 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
-
-// ── Backend Data (from API) ──────────────────────────────────────────────────
-const backendData = {
-  success: true,
-  data: {
-    totalEasyProblems: 10,
-    totalMediumProblems: 18,
-    totalHardProblems: 1,
-    totalEasySolved: 0,
-    totalMediumSolved: 0,
-    totalHardSolved: 0,
-    easyProgress: 0,
-    mediumProgress: 0,
-    hardProgress: 0,
-    completion: 0,
-    sheetProgress: [
-      {
-        id: "cmlx9xfr5000qo8epxbjph909",
-        title: "Array",
-        total: 29,
-        solved: 0,
-        progress: 0,
-      },
-    ],
-    recentSubmissions: [],
-  },
-};
-
-// ── Demo/Static Data ─────────────────────────────────────────────────────────
-const streak = { current: 7, best: 12 };
-
-const demoSheets = [
-  { id: "1", title: "Array", total: 29, solved: 0, progress: 0 },
-  {
-    id: "2",
-    title: "Heap / Priority Queue",
-    total: 45,
-    solved: 12,
-    progress: 27,
-  },
-  { id: "3", title: "Stack", total: 30, solved: 18, progress: 60 },
-  { id: "4", title: "Dynamic Programming", total: 50, solved: 5, progress: 10 },
-];
-
-const demoSubmissions = [
-  {
-    id: "1",
-    problem: "Two Sum",
-    difficulty: "Easy",
-    status: "Accepted",
-    time: "2h ago",
-    sheet: "Array",
-  },
-  {
-    id: "2",
-    problem: "Median of Two Sorted Arrays",
-    difficulty: "Hard",
-    status: "Wrong Answer",
-    time: "3h ago",
-    sheet: "Array",
-  },
-  {
-    id: "3",
-    problem: "Top K Frequent Elements",
-    difficulty: "Medium",
-    status: "Accepted",
-    time: "Yesterday",
-    sheet: "Heap / Priority Queue",
-  },
-  {
-    id: "4",
-    problem: "Valid Parentheses",
-    difficulty: "Easy",
-    status: "Accepted",
-    time: "Yesterday",
-    sheet: "Stack",
-  },
-];
 
 const tagColors = {
-  Easy: {
-    bg: "rgba(16,185,129,0.14)",
+  easy: {
+    bg: "rgba(16,185,129,0.12)",
     text: "#34d399",
-    border: "rgba(52,211,153,0.35)",
+    border: "rgba(52,211,153,0.25)",
   },
-  Medium: {
-    bg: "rgba(245,158,11,0.14)",
+  medium: {
+    bg: "rgba(245,158,11,0.12)",
     text: "#fbbf24",
-    border: "rgba(251,191,36,0.35)",
+    border: "rgba(251,191,36,0.25)",
   },
-  Hard: {
-    bg: "rgba(239,68,68,0.14)",
+  hard: {
+    bg: "rgba(239,68,68,0.12)",
     text: "#f87171",
-    border: "rgba(248,113,113,0.35)",
+    border: "rgba(248,113,113,0.25)",
   },
 };
 
@@ -107,409 +28,265 @@ const dailyTips = [
     text: "For array problems, consider the <strong>two-pointer technique</strong> — it often reduces O(n²) solutions to O(n).",
     topic: "Array",
   },
-  {
-    text: "Stack problems often involve <strong>matching pairs or tracking state</strong>. Think about what needs to be 'remembered' until later.",
-    topic: "Stack",
-  },
 ];
 
-// ── CSS ───────────────────────────────────────────────────────────────────────
 const css = `
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
-  --bg:        #080808;
-  --surface:   #0f0f0f;
-  --surface2:  #141414;
-  --surface3:  #181818;
-  --border:    rgba(255,255,255,0.06);
-  --border-h:  rgba(245,158,11,0.25);
-  --text:      #e5e5e5;
-  --muted:     #7a7a7a;
-  --dimmer:    #4a4a4a;
-  --amber:     #f59e0b;
-  --amber-d:   #d97706;
-  --orange:    #ea580c;
-  --emerald:   #10b981;
-  --red:       #ef4444;
-  --font:      'DM Sans', sans-serif;
-  --font-head: 'Syne', sans-serif;
-  --mono:      'DM Mono', monospace;
-  --radius-sm: 10px;
-  --radius:    14px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
-  --shadow-card: 0 4px 28px rgba(0,0,0,0.45);
-  --shadow-amber: 0 8px 36px rgba(245,158,11,0.10);
-  --glow-amber: 0 0 0 1px rgba(245,158,11,0.14), 0 8px 36px rgba(245,158,11,0.10);
+  --bg: transparent;
+  --surface: rgba(23, 23, 23, 0.6);
+  --surface2: rgba(38, 38, 38, 0.5);
+  --surface3: rgba(45, 45, 45, 0.5);
+  --border: rgba(255,255,255,0.06);
+  --border-active: rgba(255,255,255,0.12);
+  --text: #e5e5e5;
+  --muted: #737373;
+  --dim: #525252;
+  --accent: #f59e0b;
+  --accent-dim: rgba(245,158,11,0.06);
+  --accent-border: rgba(245,158,11,0.15);
+  --red: #ef4444;
+  --green: #10b981;
+  --r: 10px;
+  --r-lg: 12px;
 }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes popIn {
-  0%   { opacity: 0; transform: scale(0.92); }
-  65%  { transform: scale(1.02); }
-  100% { opacity: 1; transform: scale(1); }
-}
-@keyframes slideFade {
-  from { opacity: 0; transform: translateX(-12px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes barGrow {
-  from { width: 0; }
-}
-@keyframes ringFill {
-  from { stroke-dashoffset: 226; }
-}
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulseAmber {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
-  50%       { box-shadow: 0 0 0 5px rgba(245,158,11,0.07); }
-}
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-}
-@keyframes flamePulse {
-  0%, 100% { text-shadow: none; }
-  50%       { text-shadow: 0 0 14px rgba(245,158,11,0.7); }
-}
-@keyframes dotPop {
-  0%   { transform: scale(0); opacity: 0; }
-  70%  { transform: scale(1.35); }
-  100% { transform: scale(1); opacity: 1; }
-}
-@keyframes aiOrb {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
-  33%       { transform: scale(1.08) rotate(120deg); opacity: 0.9; }
-  66%       { transform: scale(0.95) rotate(240deg); opacity: 0.75; }
-}
-@keyframes borderFlow {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.35; }
-  50%       { opacity: 0.65; }
-}
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes barGrow { from { width: 0; } }
+@keyframes ringDraw { from { stroke-dashoffset: 226; } }
 
-.db {
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  -webkit-font-smoothing: antialiased;
-}
+.db { color:var(--text); -webkit-font-smoothing:antialiased; }
 
-/* ── TOP HEADER ── */
-.db-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 32px;
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 40;
-  background: rgba(8,8,8,0.88);
-  backdrop-filter: blur(20px);
-  max-width: 100%;
-}
-.logo {
-  display: flex; align-items: center; gap: 10px;
-  font-family: var(--font-head); font-size: 20px; font-weight: 800; color: #fff;
-  letter-spacing: -0.5px;
-}
-.logo-mark {
-  width: 32px; height: 32px; background: linear-gradient(135deg, var(--amber-d), var(--orange));
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  font-size: 15px; flex-shrink: 0;
-}
-.logo em { color: var(--amber); font-style: normal; }
+/* LAYOUT */
+.db-main { max-width:1200px; margin:0 auto; padding:0 24px 48px; display:flex; flex-direction:column; gap:16px; }
 
-.nav { display: flex; align-items: center; gap: 4px; }
-.nav-item {
-  padding: 7px 15px; border-radius: var(--radius-sm);
-  font-size: 13.5px; font-weight: 500; color: var(--muted);
-  background: none; border: none; cursor: pointer; font-family: var(--font);
-  transition: color 0.18s, background 0.18s;
-  position: relative;
-}
-.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-.nav-item.active {
-  color: var(--amber); background: rgba(245,158,11,0.08);
-}
-.nav-item.active::after {
-  content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
-  width: 16px; height: 2px; background: var(--amber); border-radius: 999px;
-}
+/* GREETING */
+.greeting { animation:fadeUp 0.35s ease both; }
+.greeting-name { font-size:1.75rem; font-weight:600; color:#fff; letter-spacing:-0.02em; }
+.greeting-sub { font-size:0.875rem; color:var(--muted); margin-top:2px; }
 
-.header-right { display: flex; align-items: center; gap: 12px; }
-.streak-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.18);
-  border-radius: 999px; padding: 6px 14px;
-  font-size: 12.5px; font-weight: 600; color: var(--amber); font-family: var(--mono);
+/* REVISION BANNER */
+.revision-banner {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  animation:fadeUp 0.35s ease both 0.05s;
+  transition:border-color 0.2s, box-shadow 0.2s;
 }
-.streak-pill .fl { animation: flamePulse 2.5s ease-in-out infinite; display: inline-block; }
-.btn-session {
-  background: linear-gradient(135deg, var(--amber-d), var(--orange));
-  color: #fff; border: none; border-radius: var(--radius-sm);
-  padding: 8px 18px; font-size: 13px; font-weight: 600; font-family: var(--font);
-  cursor: pointer; transition: filter 0.18s, transform 0.18s;
+.revision-banner:hover {
+  border-color:rgba(245,158,11,0.2);
+  box-shadow:0 0 0 1px rgba(245,158,11,0.08);
 }
-.btn-session:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.revision-top {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px 12px;
+  border-bottom:1px solid var(--border);
+}
+.revision-heading { display:flex; align-items:center; gap:8px; }
+.revision-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+.revision-title { font-size:0.75rem; font-weight:500; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px; }
+.revision-count {
+  font-size:0.7rem; color:var(--muted);
+  background:var(--surface3); border:1px solid var(--border);
+  padding:2px 8px; border-radius:999px;
+}
+.revision-count strong { color:var(--accent); }
+.revision-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:0; }
+.revision-item {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 18px;
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background 0.15s, box-shadow 0.15s;
+  text-decoration:none;
+  color:inherit;
+}
+.revision-item:hover { background:rgba(255,255,255,0.02); box-shadow:inset 0 0 0 1px rgba(245,158,11,0.1); }
+.revision-item:last-child { border-right:none; }
+.rev-num { font-size:0.7rem; color:var(--dim); width:16px; flex-shrink:0; }
+.rev-info { flex:1; min-width:0; }
+.rev-name { font-size:0.85rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rev-due { font-size:0.65rem; color:var(--red); margin-top:1px; }
+.rev-tag { font-size:0.6rem; font-weight:500; padding:2px 6px; border-radius:999px; border:1px solid; white-space:nowrap; flex-shrink:0; }
+.rev-empty { padding:24px 18px; text-align:center; color:var(--muted); font-size:0.85rem; }
+.rev-empty-icon { font-size:20px; margin-bottom:6px; }
 
-/* ── GREETING ── */
-.db-top {
-  padding: 32px 32px 0; max-width: 1320px; margin: 0 auto;
-  animation: fadeUp 0.45s ease both;
-}
-.db-greeting { font-family: var(--font-head); font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-.db-greeting em { font-style: normal; color: var(--amber); }
-.db-subline { font-size: 14px; color: var(--muted); margin-top: 5px; }
+/* TWO COLUMN GRID */
+.p2-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; animation:fadeUp 0.35s ease both 0.1s; }
 
-/* ── LAYOUT ── */
-.db-body {
-  display: grid; grid-template-columns: 1fr 344px; gap: 22px;
-  padding: 24px 32px 80px; max-width: 1320px; margin: 0 auto;
-}
-@media (max-width: 980px) {
-  .db-body { grid-template-columns: 1fr; padding: 20px; }
-  .db-top  { padding: 24px 20px 0; }
-  .db-header { padding: 16px 20px; }
-}
-.col-l, .col-r { display: flex; flex-direction: column; gap: 20px; }
-
-/* ── CARD BASE ── */
-.card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-xl); padding: 22px;
-  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
-}
-.card:hover { border-color: var(--border-h); transform: translateY(-2px); box-shadow: var(--shadow-amber); }
-.card-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.card-title { font-size: 10.5px; font-weight: 700; color: var(--dimmer); text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
-.view-all { font-size: 12.5px; color: var(--muted); background: none; border: none; cursor: pointer; font-family: var(--font); transition: color 0.18s; padding: 0; }
-.view-all:hover { color: var(--amber); }
-
-/* ── HERO CARD ── */
-.hero-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-xl); padding: 28px;
-  position: relative; overflow: hidden;
-  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
-  animation: fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both 0.05s;
-}
-.hero-card:hover { border-color: var(--border-h); transform: translateY(-2px); box-shadow: var(--shadow-amber); }
-.hero-card::before {
-  content: ''; position: absolute; top: -80px; right: -80px;
-  width: 240px; height: 240px;
-  background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 65%);
-  pointer-events: none; animation: glowPulse 4s ease-in-out infinite;
-}
-.hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 28px; }
-.hero-num { font-family: var(--font-head); font-size: 60px; font-weight: 800; color: var(--amber); line-height: 1; letter-spacing: -3px; animation: countUp 0.55s ease both 0.2s; }
-.hero-num sub { font-size: 18px; color: var(--dimmer); font-weight: 400; letter-spacing: 0; vertical-align: baseline; }
-.hero-lbl { font-size: 13px; color: var(--muted); margin-top: 6px; }
-
-.ring-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
-.ring-wrap svg { transform: rotate(-90deg); }
-.ring-fill { stroke-dasharray: 226; animation: ringFill 1.3s cubic-bezier(0.22,1,0.36,1) both 0.3s; }
-.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--amber); font-family: var(--mono); animation: countUp 0.5s ease both 0.65s; opacity: 0; animation-fill-mode: both; }
-
-.diff-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.diff-pill { border-radius: var(--radius-sm); padding: 14px 16px; transition: transform 0.22s; cursor: default; }
-.diff-pill:hover { transform: translateY(-3px); }
-.diff-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; opacity: 0.7; margin-bottom: 8px; font-family: var(--mono); }
-.diff-val { font-size: 30px; font-weight: 800; line-height: 1; font-family: var(--font-head); }
-.diff-total { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
-.diff-bar { height: 3px; background: rgba(255,255,255,0.07); border-radius: 999px; margin-top: 12px; overflow: hidden; }
-.diff-bar-fill { height: 100%; border-radius: 999px; animation: barGrow 1.1s cubic-bezier(0.22,1,0.36,1) both; }
-
-/* ── RECOMMENDED CARD ── */
-.ai-card {
-  border-radius: var(--radius-xl); overflow: hidden; position: relative;
-  animation: fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both 0.12s;
-}
-.ai-card-inner {
-  background: linear-gradient(135deg, #0c0c0e 0%, #100f0c 50%, #0d0b08 100%);
-  border: 1px solid rgba(245,158,11,0.18);
-  border-radius: var(--radius-xl);
-  padding: 22px 24px; position: relative; overflow: hidden;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-.ai-card-inner:hover {
-  border-color: rgba(245,158,11,0.32);
-  box-shadow: 0 12px 48px rgba(245,158,11,0.10);
-}
-.ai-orb {
-  position: absolute; right: -30px; top: -30px;
-  width: 160px; height: 160px;
-  background: radial-gradient(circle at center, rgba(245,158,11,0.10) 0%, rgba(234,88,12,0.05) 40%, transparent 70%);
-  border-radius: 50%; pointer-events: none;
-}
-.ai-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px;
-  color: var(--amber-d); margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
-  font-family: var(--mono);
-}
-.ai-pulse-dot {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
-  box-shadow: 0 0 0 2px rgba(245,158,11,0.2);
-  animation: flamePulse 1.8s ease-in-out infinite;
-  flex-shrink: 0;
-}
-.rec-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: var(--radius-sm);
-  background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05);
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
-  animation: slideFade 0.35s ease both;
-}
-.rec-row + .rec-row { margin-top: 7px; }
-.rec-row:hover { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.18); transform: translateX(4px); }
-.rec-title { flex: 1; font-size: 13px; font-weight: 600; color: #d8d8d8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rec-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid; letter-spacing: 0.3px; white-space: nowrap; }
-.rec-reason { font-size: 10.5px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
-
-/* ── SHEETS ── */
-.sheet-row {
-  border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.055);
-  background: var(--surface2); padding: 16px 18px; cursor: pointer;
-  transition: background 0.22s, border-color 0.22s, transform 0.22s, box-shadow 0.22s;
-  animation: slideFade 0.38s ease both;
-}
-.sheet-row + .sheet-row { margin-top: 10px; }
-.sheet-row:hover {
-  background: rgba(245,158,11,0.035); border-color: rgba(245,158,11,0.2);
-  transform: translateX(5px); box-shadow: -3px 0 0 0 rgba(245,158,11,0.45);
-}
-.sheet-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.sheet-name { font-size: 14px; font-weight: 600; color: #e0e0e0; font-family: var(--font-head); }
-.sheet-count { font-size: 12px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
-.pct-badge {
-  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
-  background: rgba(245,158,11,0.09); color: var(--amber);
-  border: 1px solid rgba(245,158,11,0.2); font-family: var(--mono);
-  transition: background 0.18s;
-}
-.sheet-row:hover .pct-badge { background: rgba(245,158,11,0.18); }
-.prog-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; margin-bottom: 10px; }
-.prog-fill { height: 100%; background: linear-gradient(90deg, var(--amber-d), var(--orange)); border-radius: 999px; animation: barGrow 1.1s cubic-bezier(0.22,1,0.36,1) both; }
-.sheet-next { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.next-prob { color: #b0b0b0; }
-.tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid; letter-spacing: 0.3px; white-space: nowrap; }
-
-/* ── SUBMISSIONS ── */
-.sub-row {
-  display: flex; align-items: center; gap: 12px; padding: 13px 14px;
-  background: var(--surface2); border: 1px solid rgba(255,255,255,0.055);
-  border-radius: var(--radius-sm); cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
-  animation: slideFade 0.38s ease both;
-}
-.sub-row + .sub-row { margin-top: 8px; }
-.sub-row:hover { background: rgba(245,158,11,0.03); border-color: rgba(245,158,11,0.15); transform: translateX(4px); }
-.sub-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; animation: dotPop 0.4s ease both; }
-.sub-info { flex: 1; min-width: 0; }
-.sub-problem { font-size: 13.5px; font-weight: 600; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
-.sub-time { font-size: 11px; color: var(--dimmer); font-family: var(--mono); white-space: nowrap; }
-.sub-status { font-size: 11px; font-weight: 600; white-space: nowrap; font-family: var(--mono); }
-.status-accepted { color: #34d399; }
-.status-wrong { color: #f87171; }
-
-/* ── WEAK SECTION CARD (Right Column) ── */
+/* Weakest Sheet */
 .weak-card {
-  background: var(--surface); border: 1px solid rgba(239,68,68,0.15);
-  border-radius: var(--radius-xl); padding: 22px; position: relative; overflow: hidden;
-  transition: border-color 0.25s, transform 0.25s;
-  animation: popIn 0.45s cubic-bezier(0.22,1,0.36,1) both 0.22s;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg); padding:18px;
+  transition:border-color 0.2s, box-shadow 0.2s;
 }
-.weak-card:hover { border-color: rgba(239,68,68,0.3); transform: translateY(-2px); }
-.weak-card::before {
-  content: ''; position: absolute; top: -40px; right: -40px;
-  width: 120px; height: 120px;
-  background: radial-gradient(circle, rgba(239,68,68,0.07) 0%, transparent 70%);
-  pointer-events: none; border-radius: 50%;
+.weak-card:hover {
+  border-color:rgba(239,68,68,0.15);
+  box-shadow:0 0 0 1px rgba(239,68,68,0.06);
 }
-.weak-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #f87171; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; font-family: var(--mono); }
-.weak-title { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 6px; }
-.weak-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
-.weak-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.weak-pct { font-family: var(--mono); font-size: 24px; font-weight: 700; color: #f87171; }
-.weak-total { font-size: 12px; color: var(--muted); font-family: var(--mono); }
-.weak-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
-.weak-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ef4444, #f87171); animation: barGrow 1.1s cubic-bezier(0.22,1,0.36,1) both 0.5s; }
-.weak-cta {
-  margin-top: 16px; width: 100%; padding: 9px; font-size: 12.5px; font-weight: 600;
-  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.18);
-  color: #f87171; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font);
-  transition: background 0.2s, border-color 0.2s, transform 0.18s;
+.weak-eyebrow { font-size:0.65rem; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; color:#f87171; margin-bottom:10px; display:flex; align-items:center; gap:5px; }
+.weak-name { font-size:1.25rem; font-weight:600; color:#fff; margin-bottom:4px; letter-spacing:-0.01em; }
+.weak-desc { font-size:0.8rem; color:var(--muted); line-height:1.5; margin-bottom:14px; }
+.weak-stats { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:8px; }
+.weak-pct { font-size:2rem; font-weight:700; color:#f87171; line-height:1; }
+.weak-frac { font-size:0.7rem; color:var(--muted); }
+.progress-bar { height:2px; background:rgba(255,255,255,0.04); border-radius:999px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:999px; animation:barGrow 0.8s cubic-bezier(0.22,1,0.36,1) both; }
+.btn-focus {
+  margin-top:12px; width:100%; padding:8px 14px;
+  background:transparent; border:1px solid rgba(239,68,68,0.15);
+  color:#f87171; border-radius:var(--r); font-size:0.8rem; font-weight:500;
+  cursor:pointer; transition:background 0.15s, border-color 0.15s;
 }
-.weak-cta:hover { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.35); transform: translateY(-1px); }
+.btn-focus:hover { background:rgba(239,68,68,0.06); border-color:rgba(239,68,68,0.25); }
 
-/* ── TIP CARD ── */
+/* Overall Progress */
+.progress-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg); padding:18px;
+  display:flex; flex-direction:column; gap:0;
+  transition:border-color 0.2s, box-shadow 0.2s;
+}
+.progress-card:hover {
+  border-color:rgba(245,158,11,0.15);
+  box-shadow:0 0 0 1px rgba(245,158,11,0.06);
+}
+.progress-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
+.prog-label { font-size:0.65rem; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); }
+.ring-wrap { position:relative; width:72px; height:72px; flex-shrink:0; }
+.ring-wrap svg { transform:rotate(-90deg); }
+.ring-fill { stroke-dasharray:226; animation:ringDraw 1s cubic-bezier(0.22,1,0.36,1) both 0.15s; }
+.ring-label { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ring-pct { font-size:0.9rem; font-weight:600; color:var(--accent); }
+.ring-sub { font-size:0.6rem; color:var(--muted); }
+.diff-rows { display:flex; flex-direction:column; gap:10px; }
+.diff-row { display:flex; align-items:center; gap:10px; }
+.diff-label-col { font-size:0.7rem; color:var(--muted); width:44px; }
+.diff-bar-wrap { flex:1; height:3px; background:rgba(255,255,255,0.04); border-radius:999px; overflow:hidden; }
+.diff-bar-fill { height:100%; border-radius:999px; animation:barGrow 0.8s cubic-bezier(0.22,1,0.36,1) both; }
+.diff-count { font-size:0.7rem; color:var(--muted); width:36px; text-align:right; }
+.total-solved { margin-bottom:16px; }
+.total-num { font-size:2.5rem; font-weight:700; color:#fff; line-height:1; letter-spacing:-0.02em; }
+.total-num span { font-size:1rem; color:var(--muted); font-weight:400; }
+.total-sub { font-size:0.8rem; color:var(--muted); margin-top:2px; }
+
+/* SHEETS PROGRESS */
+.sheets-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  animation:fadeUp 0.35s ease both 0.15s;
+  transition:border-color 0.2s, box-shadow 0.2s;
+}
+.sheets-card:hover {
+  border-color:rgba(255,255,255,0.08);
+  box-shadow:0 0 0 1px rgba(255,255,255,0.03);
+}
+.card-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px; border-bottom:1px solid var(--border);
+}
+.card-label { font-size:0.65rem; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); }
+.link-btn { font-size:0.75rem; color:var(--muted); background:none; border:none; cursor:pointer; transition:color 0.15s; }
+.link-btn:hover { color:var(--accent); }
+.sheet-list { padding:4px 0; }
+.sheet-row {
+  display:grid; grid-template-columns:1fr 72px 100px 52px;
+  align-items:center; gap:14px;
+  padding:10px 16px; cursor:pointer;
+  transition:background 0.15s, box-shadow 0.15s;
+  text-decoration:none; color:inherit;
+  border-bottom:1px solid var(--border);
+}
+.sheet-row:last-child { border-bottom:none; }
+.sheet-row:hover { background:rgba(255,255,255,0.015); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04); }
+.sheet-name { font-size:0.85rem; font-weight:500; color:var(--text); }
+.sheet-prog-bar { height:2px; background:rgba(255,255,255,0.04); border-radius:999px; overflow:hidden; }
+.sheet-prog-fill { height:100%; border-radius:999px; animation:barGrow 0.8s cubic-bezier(0.22,1,0.36,1) both; }
+.sheet-frac { font-size:0.7rem; color:var(--muted); text-align:center; }
+.sheet-pct { font-size:0.75rem; font-weight:600; text-align:right; }
+
+/* BOTTOM ROW */
+.bottom-grid { display:grid; grid-template-columns:1fr 280px; gap:14px; animation:fadeUp 0.35s ease both 0.2s; }
+.submissions-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); transition:border-color 0.2s, box-shadow 0.2s; }
+.submissions-card:hover { border-color:rgba(255,255,255,0.08); box-shadow:0 0 0 1px rgba(255,255,255,0.03); }
+.sub-list { padding:4px 0; }
+.sub-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; cursor:pointer;
+  transition:background 0.15s, box-shadow 0.15s;
+  text-decoration:none; color:inherit;
+  border-bottom:1px solid var(--border);
+}
+.sub-row:last-child { border-bottom:none; }
+.sub-row:hover { background:rgba(255,255,255,0.015); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04); }
+.sub-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.sub-info { flex:1; min-width:0; }
+.sub-title { font-size:0.8rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sub-meta { font-size:0.65rem; color:var(--muted); margin-top:1px; }
+.sub-diff { font-size:0.6rem; font-weight:500; padding:2px 6px; border-radius:999px; border:1px solid; }
+.sub-time { font-size:0.65rem; color:var(--dim); white-space:nowrap; }
+.empty { padding:24px; text-align:center; color:var(--muted); font-size:0.8rem; }
+
+/* Side column */
+.side-col { display:flex; flex-direction:column; gap:12px; }
 .tip-card {
-  background: linear-gradient(135deg, rgba(245,158,11,0.07), rgba(234,88,12,0.03));
-  border: 1px solid rgba(245,158,11,0.13); border-radius: var(--radius-xl); padding: 20px 22px;
-  transition: border-color 0.25s, transform 0.25s;
-  animation: popIn 0.45s cubic-bezier(0.22,1,0.36,1) both 0.35s;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-lg); padding:14px 16px;
+  border-left:2px solid rgba(245,158,11,0.4);
+  transition:border-color 0.2s;
 }
-.tip-card:hover { border-color: rgba(245,158,11,0.26); transform: translateY(-1px); }
-.tip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--amber-d); margin-bottom: 10px; font-family: var(--mono); }
-.tip-text { font-size: 13px; color: #909090; line-height: 1.65; }
-.tip-text strong { color: #d8d8d8; font-weight: 500; }
-
-/* ── QUICK JUMP ── */
-.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tip-card:hover { border-color:rgba(245,158,11,0.25); border-left-color:rgba(245,158,11,0.6); }
+.tip-label { font-size:0.65rem; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; color:var(--accent); margin-bottom:8px; }
+.tip-text { font-size:0.8rem; color:var(--muted); line-height:1.55; }
+.tip-text strong { color:var(--text); font-weight:500; }
+.quick-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px 16px; transition:border-color 0.2s, box-shadow 0.2s; }
+.quick-card:hover { border-color:rgba(255,255,255,0.08); box-shadow:0 0 0 1px rgba(255,255,255,0.03); }
+.quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px; }
 .quick-btn {
-  background: var(--surface2); border: 1px solid rgba(255,255,255,0.055);
-  border-radius: var(--radius-sm); padding: 12px 14px;
-  display: flex; align-items: center; gap: 9px; font-size: 13px; color: #909090;
-  cursor: pointer; font-family: var(--font);
-  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.18s;
-  text-align: left;
+  display:flex; align-items:center; gap:6px;
+  padding:7px 10px; border-radius:var(--r);
+  background:var(--surface2); border:1px solid var(--border);
+  font-size:0.75rem; color:var(--muted); cursor:pointer;
+  transition:color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  text-decoration:none; white-space:nowrap;
 }
-.quick-btn:hover { background: rgba(245,158,11,0.065); border-color: rgba(245,158,11,0.2); color: var(--amber); transform: translateY(-2px); }
-.quick-btn:active { transform: translateY(0); }
-.quick-ico { font-size: 16px; transition: transform 0.2s; }
-.quick-btn:hover .quick-ico { transform: scale(1.15); }
+.quick-btn:hover { color:var(--text); background:var(--surface3); border-color:var(--border-active); box-shadow:0 0 0 1px rgba(255,255,255,0.04); }
 
-/* ── EMPTY STATES ── */
-.empty-state { text-align: center; padding: 32px 20px; color: var(--muted); font-size: 13.5px; }
-.empty-ico { font-size: 28px; margin-bottom: 10px; }
-.empty-sub { font-size: 12px; color: var(--dimmer); margin-top: 5px; }
+@media (max-width:900px) {
+  .p2-grid, .bottom-grid { grid-template-columns:1fr; }
+  .db-main { padding:0 16px 40px; }
+  .sheet-row { grid-template-columns:1fr 56px 40px; }
+  .sheet-frac { display:none; }
+}
 `;
 
 function ProgressRing({ pct }: { pct: number }) {
-  const r = 36,
+  const r = 30,
     circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
   return (
     <div className="ring-wrap">
-      <svg width="88" height="88" viewBox="0 0 88 88">
+      <svg width="72" height="72" viewBox="0 0 72 72">
         <circle
-          cx="44"
-          cy="44"
+          cx="36"
+          cy="36"
           r={r}
           fill="none"
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth="7"
+          stroke="rgba(255,255,255,0.04)"
+          strokeWidth="5"
         />
         <circle
           className="ring-fill"
-          cx="44"
-          cy="44"
+          cx="36"
+          cy="36"
           r={r}
           fill="none"
           stroke="url(#rg)"
-          strokeWidth="7"
+          strokeWidth="5"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={offset}
@@ -521,478 +298,384 @@ function ProgressRing({ pct }: { pct: number }) {
           </linearGradient>
         </defs>
       </svg>
-      <div className="ring-pct">{pct}%</div>
+      <div className="ring-label">
+        <div className="ring-pct">{pct}%</div>
+        <div className="ring-sub">done</div>
+      </div>
     </div>
   );
 }
 
-type Sheet = {
-  id: string;
-  title: string;
-  total: number;
-  solved: number;
-  progress: number;
-};
-
-interface WeakSectionCardProps {
-  sheets: Sheet[];
+function getRelativeTime(date: Date | string | null) {
+  if (!date) return "—";
+  const diff = Date.now() - new Date(date).getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 1) return "Just now";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  return `${days}d ago`;
 }
 
-function WeakSectionCard({ sheets }: WeakSectionCardProps) {
-  const weakest = [...sheets].sort((a, b) => a.progress - b.progress)[0];
-  if (!weakest) return null;
-  return (
-    <div className="weak-card">
-      <div className="weak-eyebrow">
-        <span style={{ fontSize: 13 }}>⚠</span>
-        Focus Area
-      </div>
-      <div className="weak-title">{weakest.title}</div>
-      <div className="weak-desc">
-        This is your weakest sheet — only {weakest.solved} of {weakest.total}{" "}
-        problems solved. A focused session here will boost your overall score.
-      </div>
-      <div className="weak-stat">
-        <div className="weak-pct">{weakest.progress}%</div>
-        <div className="weak-total">
-          {weakest.solved} / {weakest.total}
-        </div>
-      </div>
-      <div className="weak-bar">
-        <div
-          className="weak-bar-fill"
-          style={{ width: `${weakest.progress}%` }}
-        />
-      </div>
-      <button className="weak-cta">Practice {weakest.title} Now →</button>
-    </div>
-  );
+function getDueLabel(date: Date | string | null) {
+  if (!date) return "Due now";
+  const diff = Date.now() - new Date(date).getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "Due today";
+  if (days === 1) return "1 day overdue";
+  return `${days} days overdue`;
 }
 
 interface DashboardProps {
   data: {
     success: boolean;
     data: {
-      totalEasyProblems: number;
-      totalMediumProblems: number;
-      totalHardProblems: number;
-      totalEasySolved: number;
-      totalMediumSolved: number;
-      totalHardSolved: number;
+      easy: number;
+      medium: number;
+      hard: number;
+      easySolved: number;
+      mediumSolved: number;
+      hardSolved: number;
       easyProgress: number;
       mediumProgress: number;
       hardProgress: number;
       completion: number;
       sheetProgress: Array<{
+
         id: string;
+        slug : string
         title: string;
         total: number;
         solved: number;
         progress: number;
       }>;
-      recentSubmissions: any[];
-      name: string;
-      recommended: Array<{
+      recentSubmission: Array<{
         id: string;
-        confidence: string;
-        solved: boolean;
         solvedAt: string | null;
+        updatedAt: string;
         problem: {
-          id: string;
           title: string;
           difficulty: string;
-          link: string;
           slug: string;
+          link: string;
         };
       }>;
+      name: string;
+      problemsToRevise: Array<{
+        id: string;
+        nextAttempt: string | null;
+        problem: {
+          title: string;
+          difficulty: string;
+          slug: string;
+          link: string;
+        };
+      }>;
+      totalDue: number;
     };
   };
 }
 
 export default function Dashboard({ data }: DashboardProps) {
   const d = data.data;
-  const totalProblems =
-    d.totalEasyProblems + d.totalMediumProblems + d.totalHardProblems;
-  const totalSolved =
-    d.totalEasySolved + d.totalMediumSolved + d.totalHardSolved;
+
+  const totalProblems = d.easy + d.medium + d.hard;
+  const totalSolved = d.easySolved + d.mediumSolved + d.hardSolved;
   const completion =
     totalProblems > 0 ? Math.round((totalSolved / totalProblems) * 100) : 0;
 
-  const sheets = d.sheetProgress;
-  const submissions = d.recentSubmissions;
-  const recommended = d.recommended ?? [];
+  const weakest = [...d.sheetProgress].sort(
+    (a, b) => a.progress - b.progress,
+  )[0];
   const tip = dailyTips[0];
 
-  const [activeNav, setActiveNav] = useState("dashboard");
-
-  const diffData = [
-    {
-      label: "Easy",
-      solved: d.totalEasySolved,
-      total: d.totalEasyProblems,
-      color: "#34d399",
-      bg: "rgba(16,185,129,0.09)",
-      delay: "0.42s",
-    },
-    {
-      label: "Medium",
-      solved: d.totalMediumSolved,
-      total: d.totalMediumProblems,
-      color: "#fbbf24",
-      bg: "rgba(245,158,11,0.09)",
-      delay: "0.54s",
-    },
-    {
-      label: "Hard",
-      solved: d.totalHardSolved,
-      total: d.totalHardProblems,
-      color: "#f87171",
-      bg: "rgba(239,68,68,0.09)",
-      delay: "0.66s",
-    },
+  const quickLinks = [
+    { icon: "📊", label: "My Sheets", href: "/sheets" },
+    { icon: "📋", label: "Problems", href: "/problems" },
+    { icon: "🎯", label: "Interview", href: "/interview" },
+    { icon: "✏️", label: "Revisions", href: "/dashboard" },
   ];
 
   return (
     <>
       <style>{css}</style>
       <div className="db">
-        {/* ── GREETING ── */}
-        <div className="db-top">
-          <div className="db-greeting">Greetings ! {d.name}👋</div>
-          <div className="db-subline">Keep the momentum going</div>
-        </div>
+        <main className="db-main">
+          {/* GREETING */}
+          <div className="greeting">
+            <div className="greeting-name">Good to see you, {d.name}</div>
+            <div className="greeting-sub">
+              {d.totalDue > 0
+                ? `You have ${d.totalDue} problem${d.totalDue > 1 ? "s" : ""} due for revision today.`
+                : "All caught up — keep the streak going."}
+            </div>
+          </div>
 
-        {/* ── BODY ── */}
-        <div className="db-body">
-          <div className="col-l">
-            {/* Hero Progress Card */}
-            <div className="hero-card">
-              <div className="hero-top">
-                <div>
-                  <div className="hero-num">
-                    {totalSolved} <sub>/ {totalProblems}</sub>
+          {/* ── P1: REVISION BANNER ── */}
+          <div className="revision-banner">
+            <div className="revision-top">
+              <div className="revision-heading">
+                <div className="revision-dot" />
+                <div className="revision-title">Due for Revision</div>
+              </div>
+              <div className="revision-count">
+                <strong>{d.totalDue}</strong> total due
+              </div>
+            </div>
+            {d.problemsToRevise.length === 0 ? (
+              <div className="rev-empty">
+                <div className="rev-empty-icon">✅</div>
+                No problems due right now — you're all caught up!
+              </div>
+            ) : (
+              <div className="revision-grid">
+                {d.problemsToRevise.map((item, i) => {
+                  const diff = item.problem
+                    .difficulty as keyof typeof tagColors;
+                  const t = tagColors[diff] ?? tagColors.medium;
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.problem.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="revision-item"
+                    >
+                      <div className="rev-num">0{i + 1}</div>
+                      <div className="rev-info">
+                        <div className="rev-name">{item.problem.title}</div>
+                        <div className="rev-due">
+                          {getDueLabel(item.nextAttempt)}
+                        </div>
+                      </div>
+                      <div
+                        className="rev-tag"
+                        style={{
+                          background: t.bg,
+                          color: t.text,
+                          borderColor: t.border,
+                        }}
+                      >
+                        {diff}
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── P2: WEAKEST SHEET + OVERALL PROGRESS ── */}
+          <div className="p2-grid">
+            {/* Weakest Sheet */}
+            {weakest && (
+              <div className="weak-card">
+                <div className="weak-eyebrow">⚠ Focus Area</div>
+                <div className="weak-name">{weakest.title}</div>
+                <div className="weak-desc">
+                  Your weakest sheet — only {weakest.solved} of {weakest.total}{" "}
+                  solved. A focused session here will make the biggest
+                  difference.
+                </div>
+                <div className="weak-stats">
+                  <div className="weak-pct">{weakest.progress}%</div>
+                  <div className="weak-frac">
+                    {weakest.solved} / {weakest.total}
                   </div>
-                  <div className="hero-lbl">
-                    Problems solved across all sheets
+                </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${weakest.progress}%`,
+                      background: "linear-gradient(90deg,#ef4444,#f87171)",
+                    }}
+                  />
+                </div>
+                <button className="btn-focus">
+                  Practice {weakest.title} →
+                </button>
+              </div>
+            )}
+
+            {/* Overall Progress */}
+            <div className="progress-card">
+              <div className="progress-card-top">
+                <div>
+                  <div className="prog-label">Overall Progress</div>
+                  <div className="total-solved">
+                    <div className="total-num">
+                      {totalSolved} <span>/ {totalProblems}</span>
+                    </div>
+                    <div className="total-sub">problems solved</div>
                   </div>
                 </div>
                 <ProgressRing pct={completion} />
               </div>
-              <div className="diff-row">
-                {diffData.map(({ label, solved, total, color, bg, delay }) => (
-                  <div
-                    key={label}
-                    className="diff-pill"
-                    style={{ background: bg }}
-                  >
-                    <div className="diff-label" style={{ color }}>
+              <div className="diff-rows">
+                {[
+                  {
+                    label: "easy",
+                    solved: d.easySolved,
+                    total: d.easy,
+                    color: "#34d399",
+                  },
+                  {
+                    label: "medium",
+                    solved: d.mediumSolved,
+                    total: d.medium,
+                    color: "#fbbf24",
+                  },
+                  {
+                    label: "hard",
+                    solved: d.hardSolved,
+                    total: d.hard,
+                    color: "#f87171",
+                  },
+                ].map(({ label, solved, total, color }) => (
+                  <div key={label} className="diff-row">
+                    <div className="diff-label-col" style={{ color }}>
                       {label}
                     </div>
-                    <div className="diff-val" style={{ color }}>
-                      {solved}
-                    </div>
-                    <div className="diff-total">/ {total}</div>
-                    <div className="diff-bar">
+                    <div className="diff-bar-wrap">
                       <div
                         className="diff-bar-fill"
                         style={{
                           width: `${total > 0 ? (solved / total) * 100 : 0}%`,
                           background: color,
-                          animationDelay: delay,
                         }}
                       />
+                    </div>
+                    <div className="diff-count">
+                      {solved}/{total}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Recommended Problems Card */}
-            <div
-              className="ai-card"
-              style={{
-                animation:
-                  "fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both 0.12s",
-              }}
-            >
-              <div className="ai-card-inner">
-                <div className="ai-orb" />
-                <div className="ai-label">
-                  <span className="ai-pulse-dot" />
-                  Recommended for You
-                </div>
-                {recommended.length === 0 ? (
-                  <div className="empty-state" style={{ padding: "20px 0" }}>
-                    <div className="empty-ico">🎯</div>
-                    <div>No recommendations yet</div>
-                    <div className="empty-sub">
-                      Solve more problems to get personalised picks
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {recommended.map((item, i) => {
-                      const diff = item.problem.difficulty;
-                      const diffCapitalised =
-                        diff.charAt(0).toUpperCase() + diff.slice(1);
-                      const t =
-                        tagColors[diffCapitalised as keyof typeof tagColors] ??
-                        tagColors["Medium"];
-                      const reason =
-                        item.confidence === "failed"
-                          ? "Couldn't solve"
-                          : item.confidence === "needs_revision"
-                            ? "Needs revision"
-                            : "Review due";
-                      return (
-                        <Link
-                          key={item.id}
-                          href={item.problem.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ textDecoration: "none", display: "block" }}
-                        >
-                          <div
-                            className="rec-row"
-                            style={{ animationDelay: `${0.05 + i * 0.07}s` }}
-                          >
-                            <span
-                              className="rec-tag"
-                              style={{
-                                background: t.bg,
-                                color: t.text,
-                                borderColor: t.border,
-                              }}
-                            >
-                              {diffCapitalised}
-                            </span>
-                            <span className="rec-title">
-                              {item.problem.title}
-                            </span>
-                            <span className="rec-reason">{reason}</span>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+          {/* ── P3: SHEETS PROGRESS ── */}
+          <div className="sheets-card">
+            <div className="card-header">
+              <div className="card-label">Sheet Progress</div>
+              <Link href="/sheets">
+                <button className="link-btn">View all →</button>
+              </Link>
             </div>
-
-            {/* Sheets */}
-            <div
-              className="card"
-              style={{
-                animation:
-                  "fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both 0.20s",
-              }}
-            >
-              <div className="card-hd">
-                <span className="card-title">Your Sheets</span>
-                <Link href="/sheets">
-                  <button
-                    className="view-all"
-                    onClick={() => setActiveNav("sheets")}
-                  >
-                    View all →
-                  </button>
-                </Link>
-              </div>
-              {sheets.map((s, i) => {
+            <div className="sheet-list">
+              {d.sheetProgress.map((s) => {
                 const pct = s.progress;
-                const difficulty =
-                  pct < 30 ? "Hard" : pct < 70 ? "Medium" : "Easy";
-                const t = tagColors[difficulty];
+                const color =
+                  pct < 30 ? "#f87171" : pct < 70 ? "#fbbf24" : "#34d399";
                 return (
-                  <div
+                  <Link
                     key={s.id}
+                    href={`/sheets/${s.slug}`}
                     className="sheet-row"
-                    style={{ animationDelay: `${0.28 + i * 0.08}s` }}
                   >
-                    <div className="sheet-top">
-                      <div>
-                        <div className="sheet-name">{s.title}</div>
-                        <div className="sheet-count">
-                          {s.solved} / {s.total} solved
-                        </div>
-                      </div>
-                      <div className="pct-badge">{pct}%</div>
-                    </div>
-                    <div className="prog-bar">
+                    <div className="sheet-name">{s.title}</div>
+                    <div className="sheet-prog-bar">
+                      console.log("sheet-slug",s.slug);
                       <div
-                        className="prog-fill"
-                        style={{
-                          width: `${pct}%`,
-                          animationDelay: `${0.5 + i * 0.1}s`,
-                        }}
+                        className="sheet-prog-fill"
+                        style={{ width: `${pct}%`, background: color }}
                       />
                     </div>
-                    <div className="sheet-next">
-                      <span>Progress:</span>
-                      <span className="next-prob">
-                        {s.solved === 0
-                          ? "Not started yet"
-                          : `${s.total - s.solved} remaining`}
-                      </span>
-                      <span
-                        className="tag"
-                        style={{
-                          background: t.bg,
-                          color: t.text,
-                          borderColor: t.border,
-                        }}
-                      >
-                        {difficulty}
-                      </span>
+                    <div
+                      className="sheet-frac"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      {s.solved}/{s.total}
                     </div>
-                  </div>
+                    <div className="sheet-pct" style={{ color }}>
+                      {pct}%
+                    </div>
+                  </Link>
                 );
               })}
             </div>
+          </div>
 
-            {/* Recent Submissions */}
-            <div
-              className="card"
-              style={{
-                animation:
-                  "fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both 0.27s",
-              }}
-            >
-              <div className="card-hd">
-                <span className="card-title">Recent Submissions</span>
+          {/* ── P4: RECENT SUBMISSIONS + SIDE ── */}
+          <div className="bottom-grid">
+            <div className="submissions-card">
+              <div className="card-header">
+                <div className="card-label">Recent Submissions</div>
                 <Link href="/problems">
-                  <button className="view-all">Solve More →</button>
+                  <button className="link-btn">Solve more →</button>
                 </Link>
               </div>
-              {submissions.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-ico">📭</div>
-                  No submissions yet
-                  <div className="empty-sub">
-                    Solve your first problem to see it here
-                  </div>
+              {d.recentSubmission.length === 0 ? (
+                <div className="empty">
+                  No submissions yet — solve your first problem!
                 </div>
               ) : (
-                submissions.map((sub, i) => {
-                  const t = tagColors[sub.difficulty as keyof typeof tagColors];
-                  const accepted = sub.status === "Accepted";
-                  return (
-                    <div
-                      key={sub.id}
-                      className="sub-row"
-                      style={{ animationDelay: `${0.3 + i * 0.07}s` }}
-                    >
-                      <div
-                        className="sub-status-dot"
-                        style={{
-                          background: accepted ? "#34d399" : "#f87171",
-                          boxShadow: `0 0 0 2px ${accepted ? "rgba(52,211,153,0.2)" : "rgba(248,113,113,0.2)"}`,
-                          animationDelay: `${0.35 + i * 0.07}s`,
-                        }}
-                      />
-                      <div className="sub-info">
-                        <div className="sub-problem">{sub.problem}</div>
-                        <div className="sub-meta">{sub.sheet}</div>
-                      </div>
-                      <span
-                        className="tag"
-                        style={{
-                          background: t.bg,
-                          color: t.text,
-                          borderColor: t.border,
-                        }}
+                <div className="sub-list">
+                  {d.recentSubmission.map((sub) => {
+                    const diff = sub.problem
+                      .difficulty as keyof typeof tagColors;
+                    const t = tagColors[diff] ?? tagColors.medium;
+                    return (
+                      <a
+                        key={sub.id}
+                        href={sub.problem.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="sub-row"
                       >
-                        {sub.difficulty}
-                      </span>
-                      <div
-                        className={`sub-status ${accepted ? "status-accepted" : "status-wrong"}`}
-                      >
-                        {accepted ? "✓ Accepted" : "✗ Wrong"}
-                      </div>
-                      <div className="sub-time">{sub.time}</div>
-                    </div>
-                  );
-                })
+                        <div
+                          className="sub-dot"
+                          style={{
+                            background: "#34d399",
+                            boxShadow: "0 0 0 2px rgba(52,211,153,0.2)",
+                          }}
+                        />
+                        <div className="sub-info">
+                          <div className="sub-title">{sub.problem.title}</div>
+                          <div className="sub-meta">Solved</div>
+                        </div>
+                        <div
+                          className="sub-diff"
+                          style={{
+                            background: t.bg,
+                            color: t.text,
+                            borderColor: t.border,
+                          }}
+                        >
+                          {diff}
+                        </div>
+                        <div className="sub-time">
+                          {getRelativeTime(sub.solvedAt)}
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
               )}
             </div>
-          </div>
 
-          {/* ── RIGHT COLUMN ── */}
-          <div className="col-r">
-            {/* Weak Section Card */}
-            <WeakSectionCard sheets={sheets} />
-
-            {/* Daily Tip */}
-            <div className="tip-card">
-              <div className="tip-label">✦ Daily Tip</div>
-              <div
-                className="tip-text"
-                dangerouslySetInnerHTML={{ __html: tip.text }}
-              />
-            </div>
-
-            {/* Quick Jump */}
-            <div
-              className="card"
-              style={{
-                animation: "popIn 0.45s cubic-bezier(0.22,1,0.36,1) both 0.44s",
-              }}
-            >
-              <div className="card-hd">
-                <span className="card-title">Quick Jump</span>
+            <div className="side-col">
+              <div className="tip-card">
+                <div className="tip-label">✦ Daily Tip</div>
+                <div
+                  className="tip-text"
+                  dangerouslySetInnerHTML={{ __html: tip.text }}
+                />
               </div>
-              <div className="quick-grid">
-                {[
-                  {
-                    icon: "📊",
-                    label: "My Sheets",
-                    nav: "sheets",
-                    link: "/sheets",
-                  },
-                  {
-                    icon: "📋",
-                    label: "All Problems",
-                    nav: "problems",
-                    link: "/problems",
-                  },
-                  {
-                    icon: "🎯",
-                    label: "Interview Prep",
-                    nav: "interview",
-                    link: "/interview",
-                  },
-                  {
-                    icon: "✏️",
-                    label: "Revision List",
-                    nav: "problems",
-                    link: "/dashboard",
-                  },
-                  {
-                    icon: "📈",
-                    label: "Statistics",
-                    nav: "dashboard",
-                    link: "/dashboard",
-                  },
-                ].map(({ icon, label, nav, link }, i) => (
-                  <div key={nav}>
-                    <Link href={link}>
-                      <button
-                        key={label}
-                        className="quick-btn"
-                        style={{
-                          animation: `popIn 0.4s cubic-bezier(0.22,1,0.36,1) both ${0.46 + i * 0.06}s`,
-                        }}
-                        onClick={() => setActiveNav(nav)}
-                      >
-                        <span className="quick-ico">{icon}</span> {label}
-                      </button>
+              <div className="quick-card">
+                <div className="card-label">Quick Jump</div>
+                <div className="quick-grid">
+                  {quickLinks.map((q) => (
+                    <Link key={q.href} href={q.href} className="quick-btn">
+                      <span>{q.icon}</span> {q.label}
                     </Link>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </>
   );
