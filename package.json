@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed" : "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -16,6 +16,11 @@
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^7.4.0",
+    "@tiptap/extension-highlight": "^3.20.0",
+    "@tiptap/extension-placeholder": "^3.20.0",
+    "@tiptap/extension-underline": "^3.20.0",
+    "@tiptap/react": "^3.20.0",
+    "@tiptap/starter-kit": "^3.20.0",
     "axios": "^1.13.5",
     "better-auth": "^1.4.18",
     "canvas-confetti": "^1.9.4",

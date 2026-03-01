@@ -15,6 +15,25 @@ function getRelativeTime(date: Date | string) {
   return `${days}d ago`;
 }
 
+/**
+ * GET /api/dashboard
+ *
+ * Fetches the dashboard data for the user.
+ *
+ * Returns an object containing the following data:
+ * - totalEasyProblems: the total number of easy problems
+ * - totalMediumProblems: the total number of medium problems
+ * - totalHardProblems: the total number of hard problems
+ * - totalEasySolved: the total number of easy problems solved by the user
+ * - totalMediumSolved: the total number of medium problems solved by the user
+ * - totalHardSolved: the total number of hard problems solved by the user
+ * - easyProgress: the progress of the user in easy problems (0-100%)
+ * - mediumProgress: the progress of the user in medium problems (0-100%)
+ * - hardProgress: the progress of the user in hard problems (0-100%)
+ * - completion: the overall completion percentage of the user (0-100%)
+ * - sheetProgress: an array of objects containing the progress of the user in each sheet
+ * - recentSubmissions: an array of objects containing the last 5 submissions of the user
+ */
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -44,69 +63,30 @@ export async function GET(req: NextRequest) {
       */
 
   try {
-    const totalEasyProblems = await prisma.problem.count({
-      where: {
-        difficulty: "easy",
-      },
-    });
-
-    const totalMediumProblems = await prisma.problem.count({
-      where: {
-        difficulty: "medium",
-      },
-    });
-
-    const totalHardProblems = await prisma.problem.count({
-      where: {
-        difficulty: "hard",
-      },
-    });
-
-    const totalEasySolved = await prisma.userProblem.count({
-      where: {
-        userId: session.user.id,
-        solved: true,
-        problem: {
-          difficulty: "easy",
-        },
-      },
-    });
-
-    const totalMediumSolved = await prisma.userProblem.count({
-      where: {
-        userId: session.user.id,
-        solved: true,
-        problem: {
-          difficulty: "medium",
-        },
-      },
-    });
-
-    const totalHardSolved = await prisma.userProblem.count({
-      where: {
-        userId: session.user.id,
-        solved: true,
-        problem: {
-          difficulty: "hard",
-        },
-      },
-    });
-
-    const totalSolved = totalEasySolved + totalMediumSolved + totalHardSolved;
+    const [easy, medium, hard, easySolved, mediumSolved, hardSolved] = await Promise.all([
+  prisma.problem.count({ where: { difficulty: "easy" } }),
+  prisma.problem.count({ where: { difficulty: "medium" } }),
+  prisma.problem.count({ where: { difficulty: "hard" } }),
+  prisma.userProblem.count({ where: { userId: session.user.id, solved: true, problem: { difficulty: "easy" } } }),
+  prisma.userProblem.count({ where: { userId: session.user.id, solved: true, problem: { difficulty: "medium" } } }),
+  prisma.userProblem.count({ where: { userId: session.user.id, solved: true, problem: { difficulty: "hard" } } }),
+]);
+    
+    const totalSolved = easySolved + mediumSolved + hardSolved;
     const totalProblems =
-      totalEasyProblems + totalMediumProblems + totalHardProblems;
+      medium + easy + hard;
 
     const easyProgress = Math.round(
-      totalEasyProblems === 0 ? 0 : (totalEasySolved / totalEasyProblems) * 100,
+      easy === 0 ? 0 : (easySolved / easy) * 100,
     );
     const mediumProgress =
-      totalMediumProblems === 0
+      medium === 0
         ? 0
-        : Math.round((totalMediumSolved / totalMediumProblems) * 100);
+        : Math.round((mediumSolved / medium) * 100);
     const hardProgress =
-      totalHardProblems === 0
+      hard === 0
         ? 0
-        : Math.round((totalHardSolved / totalHardProblems) * 100);
+        : Math.round((hardSolved / hard) * 100);
 
     const completion =
       totalProblems === 0 ? 0 : Math.round((totalSolved / totalProblems) * 100);
@@ -117,6 +97,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         title: true,
+        slug : true,
       },
     });
 
@@ -149,6 +130,7 @@ export async function GET(req: NextRequest) {
 
         return {
           id: sheet.id,
+          slug : sheet.slug,
           title: sheet.title,
           total: totalProblemInSheet,
           solved: totalSolvedInSheet,
@@ -160,77 +142,62 @@ export async function GET(req: NextRequest) {
       }),
     );
 
-    // fetching the last 5 submission of the users
-    const recentSubmissions = await prisma.userProblem.findMany({
-      where: {
-        userId: session.user.id,
-        solved: true,
-      },
-      orderBy: { solvedAt: "desc" },
-      take: 5,
-      include: {
-        problem: {
-          select: {
-            title: true,
-            difficulty: true,
-          },
+    // finding the problems which are supposed to be revised
+    const now = new Date();
+    const [problemsToRevise, totalDue] = await prisma.$transaction([
+      prisma.userProblem.findMany({
+        where: {
+          userId: session.user.id,
+          solved: true,
+          nextAttempt: { lte: now },
         },
-      },
-    });
+        include: { problem: true },
+        orderBy: { nextAttempt: "asc" },
+        take: 5,
+      }),
+      prisma.userProblem.count({
+        where: {
+          userId: session.user.id,
+          solved: true,
+          nextAttempt: { lte: now },
+        },
+      }),
+    ]);
 
-    const normalizedSubmissions = recentSubmissions.map((sub) => ({
-      id: sub.id,
-      problem: sub.problem.title, // flatten from nested object → string
-      difficulty:
-        sub.problem.difficulty.charAt(0).toUpperCase() +
-        sub.problem.difficulty.slice(1), // "easy" → "Easy"
-      status: sub.solved ? "Accepted" : "Wrong Answer",
-      time: sub.solvedAt ? getRelativeTime(sub.solvedAt) : "Recently",
-      sheet: "", // you'd need to join this from sectionProblems if needed
-    }));
 
-    const threeDaysAgo = new Date(Date.now() - 15 * 60 * 1000);
-
-    const recommended = await prisma.userProblem.findMany({
-      where: {
-        userId: session.user.id,
-        OR: [
-          {
-            confidenceV2: {
-              in: ["LOW"],
-            },
-          },
-          {
-            solved: true,
-            solvedAt: {
-              lte: threeDaysAgo,
-            },
-          },
-        ],
+    // finding the recent submission of the user
+    const recentSubmission = await prisma.userProblem.findMany({
+      where : {
+        userId : session.user.id,
+        solved : true,
       },
-      include: {
-        problem: true, // 🔥 this gives you full problem data
+      include : {
+        problem : true,
       },
-      take: 5,
-    });
+      orderBy : {
+        solvedAt : "desc",
+      },
+      take : 5,
+    })
     return NextResponse.json(
       {
         success: true,
         data: {
-          totalEasyProblems,
-          totalMediumProblems,
-          totalHardProblems,
-          totalEasySolved,
-          totalMediumSolved,
-          totalHardSolved,
+          easy,
+          medium,
+          hard,
+          easySolved,
+          mediumSolved,
+          hardSolved,
           easyProgress,
           mediumProgress,
           hardProgress,
           completion,
           sheetProgress,
-          recentSubmissions: normalizedSubmissions,
+          recentSubmission,
           name: session.user.name ?? "User", // ← also add this, Dashboard uses d.name
-          recommended,
+          problemsToRevise,
+          totalDue,
         },
       },
       { status: 200 },

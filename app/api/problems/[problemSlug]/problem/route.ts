@@ -2,6 +2,15 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+type ProblemUpdate = {
+  bookmark? : boolean,
+  solved? : boolean,
+  notes? : string,
+  confidenceV2? : "LOW" | "MEDIUM" | "HIGH",
+  interval? : number,
+  revision? : number,
+  nextAttempt? : Date,
+}
 
 export async function GET(
   req: NextRequest,
@@ -114,7 +123,10 @@ export async function PATCH(
       );
     }
 
-    const toUpdate: Record<string, unknown> = {};
+    // repetition logic
+   
+
+    const toUpdate: ProblemUpdate = {};
 
     if (typeof body.bookmark === "boolean") {
       toUpdate.bookmark = body.bookmark;
@@ -122,15 +134,37 @@ export async function PATCH(
 
     if (typeof body.solved === "boolean") {
       toUpdate.solved = body.solved;
-      if (body.solved === true && !existing?.solved) {
-        toUpdate.solvedAt = new Date();
-      }
+        if(body.solved === true && existing?.solved === false){
+          // i need to put interval as 1 , nextRevision as tomorrow and revision as 0
+          toUpdate.interval = 1;
+          toUpdate.revision = 0;
+          toUpdate.nextAttempt  = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
     }
 
     // Updated to use new ConfidenceV2 enum values
     if (["LOW", "MEDIUM", "HIGH"].includes(body.confidenceV2)) {
       toUpdate.confidenceV2 = body.confidenceV2;
+      if(existing?.solved === true){
+        if(body.confidenceV2 === "HIGH"){
+          toUpdate.interval  = existing.interval * 2;
+          const newInterval = toUpdate.interval || (existing.interval * 2);
+          toUpdate.revision = existing.revision + 1;
+          toUpdate.nextAttempt = new Date(Date.now() + newInterval * 24 * 60 * 60 * 1000);
+        }else if(body.confidenceV2 === "MEDIUM"){
+          toUpdate.interval = Math.round(existing.interval * 1.5);
+          const newInterval = toUpdate.interval || (existing.interval * 2);
+          toUpdate.revision = existing.revision + 1;
+          toUpdate.nextAttempt = new Date(Date.now() + newInterval * 24 * 60 * 60 * 1000);
+        }else {
+          toUpdate.interval = 1;
+          toUpdate.revision = 0;
+          toUpdate.nextAttempt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
+      }      
     }
+
+
 
     if (typeof body.notes === "string") {
       toUpdate.notes = body.notes;

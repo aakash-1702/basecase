@@ -185,7 +185,11 @@ model UserProblem {
   solved      Boolean  @default(false)
   
   attempts    Int      @default(0)
+  revision   Int @default(0)
+  interval    Int      @default(1)
+  nextAttempt DateTime?
   solvedAt    DateTime?
+  updatedAt DateTime @updatedAt @default(now())
   notes       String?
 
   bookmark Boolean @default(false)

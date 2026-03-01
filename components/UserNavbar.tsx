@@ -9,15 +9,22 @@ import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
+import { useSession } from "@/lib/auth-client";
 const navItems = [
   { label: "Problems", href: "/problems" },
   { label: "Sheets", href: "/sheets" },
   { label: "Interview", href: "/interview" },
-  { label: "Dashboard", href: "/dashboard" }
+  { label: "Dashboard", href: "/dashboard" },
 ];
 
-export default function UserNavbar({ session }: any) {
+export default function UserNavbar({
+  session: sessionProp,
+}: {
+  session?: any;
+}) {
   const router = useRouter();
+  const { data: sessionFromHook } = useSession();
+  const session = sessionProp ?? sessionFromHook;
 
   const handleLogout = async () => {
     await signOut({

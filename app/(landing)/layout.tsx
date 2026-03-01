@@ -23,9 +23,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await auth.api.getSession({
-    headers : await headers(),
+    headers: await headers(),
   });
-  
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body

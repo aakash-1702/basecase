@@ -222,26 +222,6 @@ export default function ProblemsPage() {
           )}
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="py-16 border-t border-neutral-800/40 bg-gradient-to-b from-neutral-950 to-amber-950/10">
-        <div className="mx-auto max-w-4xl px-5 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to <span className="text-amber-500">Level Up</span>?
-          </h2>
-          <p className="text-lg text-neutral-400 mb-8">
-            Start solving curated problems and track real progress toward your
-            dream offer.
-          </p>
-          <Button
-            size="lg"
-            className="h-12 px-10 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-lg shadow-amber-900/30 hover:scale-[1.02] transition-all"
-          >
-            Start Practicing Now
-            <Code2 className="ml-2 h-5 w-5" />
-          </Button>
-        </div>
-      </section>
     </div>
   );
 }
