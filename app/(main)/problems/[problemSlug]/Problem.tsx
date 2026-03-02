@@ -800,11 +800,12 @@ function AIMentor({
 export default function ProblemPage({
   problem: p,
   userProblem,
+  isPremium = false,
 }: {
   problem: Problem;
   userProblem?: UserProblem | null;
+  isPremium?: boolean;
 }) {
-  const isPremium = true;
   const editorial = parseEditorial(p.editorial);
   const aiHintLines = parseLines(p.aiHints);
 
