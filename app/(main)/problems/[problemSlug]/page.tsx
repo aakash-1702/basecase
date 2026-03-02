@@ -43,7 +43,11 @@ const page = async ({
 
   return (
     <div>
-      <ProblemPage problem={data.data.problem} userProblem={data.data.userProgress} />
+      <ProblemPage
+        problem={data.data.problem}
+        userProblem={data.data.userProgress}
+        isPremium={session.user.premium ?? false}
+      />
     </div>
   );
 };
