@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
+    "@google/adk": "^0.4.0",
     "@google/genai": "^1.42.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
@@ -21,6 +22,7 @@
     "@tiptap/extension-underline": "^3.20.0",
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
+    "@upstash/redis": "^1.36.3",
     "axios": "^1.13.5",
     "better-auth": "^1.4.18",
     "canvas-confetti": "^1.9.4",
@@ -49,6 +51,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@google/adk-devtools": "^0.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
