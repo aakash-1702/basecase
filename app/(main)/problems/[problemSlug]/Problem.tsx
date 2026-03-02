@@ -30,8 +30,9 @@ import {
   Zap,
   Trophy,
   Target,
-  FileText,
   StickyNote,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Problem, UserProblem } from "@/generated/prisma/client";
 import { toast } from "sonner";
@@ -41,6 +42,7 @@ import UnderlineExt from "@tiptap/extension-underline";
 import HighlightExt from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 
+// ── TYPES ──
 type ConfidenceV2 = "LOW" | "MEDIUM" | "HIGH";
 interface Message {
   role: "user" | "assistant";
@@ -78,6 +80,7 @@ const CONF: Record<
   },
 };
 
+// ── HELPERS ──
 function parseLines(raw?: string | null) {
   if (!raw) return [];
   return raw
@@ -91,8 +94,19 @@ function parseEditorial(raw?: string | null) {
   const [insight, ...points] = lines;
   return { insight, points };
 }
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/^[\*\-]\s+(.+)$/gm, "<li>$1</li>")
+    .replace(/^\d+\.\s+(.+)$/gm, "<li class='numbered'>$1</li>")
+    .replace(/(<li.*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`)
+    .replace(/\n(?!<)/g, "<br/>")
+    .replace(/(<br\/>){2,}/g, "<br/><br/>");
+}
 
-// ── RICH EDITOR (TipTap) ──
+// ── RICH EDITOR ──
 function RichEditor({
   initialValue,
   onChange,
@@ -102,16 +116,12 @@ function RichEditor({
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
-  // Track what WE last sent out so we don't fight with our own updates
   const lastEmittedRef = useRef(initialValue || "");
-
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [3] },
-      }),
+      StarterKit.configure({ heading: { levels: [3] } }),
       UnderlineExt,
       HighlightExt.configure({ multicolor: false }),
       Placeholder.configure({
@@ -125,23 +135,12 @@ function RichEditor({
       lastEmittedRef.current = html;
       onChange(html);
     },
-    editorProps: {
-      attributes: {
-        class: "re",
-        dir: "ltr",
-      },
-    },
+    editorProps: { attributes: { class: "re", dir: "ltr" } },
   });
 
-  // Sync editable state
   useEffect(() => {
-    if (editor) {
-      editor.setEditable(!disabled);
-    }
+    if (editor) editor.setEditable(!disabled);
   }, [disabled, editor]);
-
-  // Sync content ONLY when initialValue changes from EXTERNAL source (e.g., rollback)
-  // Skip if the change is from our own typing (lastEmittedRef matches initialValue)
   useEffect(() => {
     if (editor && initialValue !== lastEmittedRef.current) {
       editor.commands.setContent(initialValue || "");
@@ -273,7 +272,7 @@ function EditorialBlock({
           background: open ? "rgba(249,115,22,0.03)" : "none",
           border: "none",
           cursor: "pointer",
-          padding: open ? "12px 14px" : "12px 14px",
+          padding: "12px 14px",
           borderRadius: 8,
           marginBottom: open ? 12 : 0,
           transition: "background .2s",
@@ -314,7 +313,7 @@ function EditorialBlock({
             {open ? "hide" : "reveal"}
           </span>
           {open ? (
-            <ChevronUp size={14} color={open ? "#f97316" : "#6b7280"} />
+            <ChevronUp size={14} color="#f97316" />
           ) : (
             <ChevronDown size={14} color="#6b7280" />
           )}
@@ -464,18 +463,60 @@ function EditorialBlock({
   );
 }
 
-// ── SIMPLE TIPTAP INPUT (for AI chat) ──
-function TipTapInput({
+// ── COPY BUTTON ──
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="copy-btn" title="Copy message">
+      {copied ? <Check size={11} /> : <Copy size={11} />}
+    </button>
+  );
+}
+
+// ── MESSAGE BUBBLE ──
+function MessageBubble({ msg }: { msg: Message }) {
+  const isUser = msg.role === "user";
+  return (
+    <div
+      className={`bubble-row ${isUser ? "bubble-row--user" : "bubble-row--ai"}`}
+    >
+      {!isUser && (
+        <div className="bubble-avatar">
+          <Bot size={12} />
+        </div>
+      )}
+      <div className={`bubble ${isUser ? "bubble--user" : "bubble--ai"}`}>
+        {isUser ? (
+          <p className="bubble-text">{msg.content}</p>
+        ) : (
+          <div
+            className="bubble-text bubble-text--ai"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+          />
+        )}
+        <div className="bubble-footer">
+          <CopyButton text={msg.content} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CHAT TIPTAP INPUT ──
+function ChatInput({
   value,
   onChange,
   onSubmit,
-  placeholder = "Ask anything…",
   disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
-  placeholder?: string;
   disabled?: boolean;
 }) {
   const onSubmitRef = useRef(onSubmit);
@@ -494,18 +535,13 @@ function TipTapInput({
         horizontalRule: false,
         hardBreak: false,
       }),
-      Placeholder.configure({ placeholder }),
+      Placeholder.configure({ placeholder: "Ask about your approach…" }),
     ],
     content: "",
     editable: !disabled,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getText());
-    },
+    onUpdate: ({ editor }) => onChange(editor.getText()),
     editorProps: {
-      attributes: {
-        class: "ai-input",
-        dir: "ltr",
-      },
+      attributes: { class: "chat-input", dir: "ltr" },
       handleKeyDown: (_view, event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
@@ -517,129 +553,115 @@ function TipTapInput({
     },
   });
 
-  // Clear editor when value becomes empty (after submit)
   useEffect(() => {
-    if (editor && value === "" && editor.getText() !== "") {
+    if (editor && value === "" && editor.getText() !== "")
       editor.commands.clearContent();
-    }
   }, [value, editor]);
-
   useEffect(() => {
-    if (editor) {
-      editor.setEditable(!disabled);
-    }
+    if (editor) editor.setEditable(!disabled);
   }, [disabled, editor]);
 
   if (!editor) return null;
-
   return <EditorContent editor={editor} />;
 }
 
 // ── AI MENTOR ──
 function AIMentor({
+  problemId,
   title,
-  aiHintLines,
   isPremium,
 }: {
+  problemId: string;
   title: string;
-  aiHintLines: string[];
   isPremium: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [aiInput, setAiInput] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const chatEnd = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const handleAI = useCallback(async () => {
-    const msg = aiInput.trim();
-    if (!msg || aiLoading) return;
-    setAiInput("");
+  // fetch history on mount
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`/api/ai-agent?problemId=${problemId}`, {
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          const mapped = data.data.map((m: { role: string; text: string }) => ({
+            role: m.role === "model" ? "assistant" : "user",
+            content: m.text,
+          }));
+          setMessages(mapped);
+        }
+      } catch (err) {
+        console.log("Failed to fetch history:", err);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    fetchHistory();
+  }, [problemId]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const handleSend = useCallback(async () => {
+    const msg = input.trim();
+    if (!msg || loading) return;
+    setInput("");
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
-    setAiLoading(true);
+    setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 900));
-      const reply =
-        aiHintLines.length > 0
-          ? aiHintLines[Math.floor(Math.random() * aiHintLines.length)]
-          : `Consider the constraints for "${title}". What data structure gives O(1) lookup?`;
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      const res = await fetch("/api/ai-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ problemId, message: msg }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: data.data },
+        ]);
+      } else {
+        throw new Error(data.message || "Failed to get AI response");
+      }
+    } catch (err) {
+      console.log("Error fetching AI response:", err);
+      toast.error("Failed to get AI response. Please try again.");
+      // Remove the user message that failed
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
-      setAiLoading(false);
+      setLoading(false);
     }
-  }, [aiInput, aiLoading, title, aiHintLines]);
+  }, [input, loading, problemId]);
 
   const starters = [
+    "Is my approach correct?",
     "Give me a hint without spoiling",
     "What pattern does this follow?",
-    "How can I optimize my approach?",
+    "How can I optimize my solution?",
     "Walk me through the complexity",
   ];
 
   if (!isPremium)
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 20,
-            paddingBottom: 16,
-            borderBottom: "1px solid #1c1f26",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Bot size={15} color="#f97316" />
-            <span
-              style={{
-                fontFamily: "'IBM Plex Mono',monospace",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#9ca3b8",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              AI Mentor
-            </span>
+      <div className="mentor-wrap">
+        <div className="mentor-header">
+          <div className="mentor-header__left">
+            <Bot size={14} color="#f97316" />
+            <span className="mentor-title">AI Mentor</span>
           </div>
-          <span
-            style={{
-              fontFamily: "'IBM Plex Mono',monospace",
-              fontSize: 9,
-              color: "#f97316",
-              background: "rgba(249,115,22,0.1)",
-              border: "1px solid rgba(249,115,22,0.22)",
-              borderRadius: 4,
-              padding: "2px 8px",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            Plus
-          </span>
+          <span className="badge-plus">Plus</span>
         </div>
-        <div
-          style={{
-            flex: 1,
-            position: "relative",
-            overflow: "hidden",
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 2,
-              background:
-                "linear-gradient(to bottom, transparent 10%, #0d0f14 95%)",
-              pointerEvents: "none",
-            }}
-          />
+        <div className="paywall-preview">
+          <div className="paywall-fade" />
           {[
             { role: "user", text: "Any hint on optimizing brute force?" },
             {
@@ -652,35 +674,12 @@ function AIMentor({
               text: "Exactly. What should you store as the key vs. value?",
             },
           ].map((m, i) => (
-            <div
-              key={i}
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.65,
-                padding: "8px 12px",
-                marginBottom: 6,
-                borderRadius: 6,
-                color: m.role === "user" ? "#7a8496" : "#5a6478",
-                background:
-                  m.role === "user" ? "rgba(249,115,22,0.04)" : "transparent",
-                border:
-                  m.role === "user" ? "1px solid rgba(249,115,22,0.1)" : "none",
-                marginLeft: m.role === "user" ? 20 : 0,
-                marginRight: m.role === "ai" ? 20 : 0,
-              }}
-            >
+            <div key={i} className={`paywall-msg paywall-msg--${m.role}`}>
               {m.text}
             </div>
           ))}
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 5,
-            marginBottom: 16,
-          }}
-        >
+        <div className="paywall-features">
           {[
             { icon: <Lightbulb size={11} />, label: "Smart Hints" },
             { icon: <Code2 size={11} />, label: "Approach Review" },
@@ -689,197 +688,115 @@ function AIMentor({
             { icon: <Bug size={11} />, label: "Debug Assistant" },
             { icon: <Sparkles size={11} />, label: "Unlimited Chats" },
           ].map((f) => (
-            <div
-              key={f.label}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "7px 9px",
-                borderRadius: 6,
-                background: "rgba(249,115,22,0.03)",
-                border: "1px solid #1c1f26",
-              }}
-            >
-              <span style={{ color: "#f97316", opacity: 0.7 }}>{f.icon}</span>
-              <span style={{ fontSize: 11, color: "#9ca3b8" }}>{f.label}</span>
+            <div key={f.label} className="paywall-feature">
+              <span className="paywall-feature__icon">{f.icon}</span>
+              <span className="paywall-feature__label">{f.label}</span>
             </div>
           ))}
         </div>
-        <button
-          className="btn-og"
-          style={{
-            width: "100%",
-            padding: "11px 0",
-            borderRadius: 8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 7,
-          }}
-        >
+        <button className="btn-og paywall-cta">
           <Zap size={12} /> Unlock AI Mentor · Upgrade to Plus
         </button>
       </div>
     );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-          paddingBottom: 14,
-          borderBottom: "1px solid #1c1f26",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "#10b981",
-              boxShadow: "0 0 6px #10b981",
-            }}
-          />
+    <div className="mentor-wrap">
+      <div className="mentor-header">
+        <div className="mentor-header__left">
+          <span className="online-dot" />
           <Bot size={14} color="#f97316" />
-          <span
-            style={{
-              fontFamily: "'IBM Plex Mono',monospace",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#9ca3b8",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            AI Mentor
-          </span>
+          <span className="mentor-title">AI Mentor</span>
         </div>
         {messages.length > 0 && (
-          <button onClick={() => setMessages([])} className="btn-ghost-sm">
+          <button className="btn-ghost-sm" onClick={() => setMessages([])}>
             <RotateCcw size={10} /> Clear
           </button>
         )}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", marginBottom: 12 }}>
-        {messages.length === 0 ? (
-          <div>
-            <p
-              style={{
-                fontFamily: "'IBM Plex Mono',monospace",
-                fontSize: 11,
-                color: "#6b7280",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
+
+      <div className="chat-scroll">
+        {historyLoading ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "16px 0",
+              color: "#4b5563",
+            }}
+          >
+            <Loader2 size={13} className="spin" />
+            <span
+              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10 }}
             >
-              Suggested
-            </p>
+              Restoring session…
+            </span>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="starters">
+            <p className="starters__label">Suggested</p>
             {starters.map((s, i) => (
               <button
                 key={i}
-                onClick={() => setAiInput(s)}
                 className="starter-btn"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "8px 10px",
-                  marginBottom: 4,
-                  fontSize: 12.5,
-                  lineHeight: 1.5,
-                  borderRadius: 6,
-                }}
+                onClick={() => setInput(s)}
               >
                 {s}
               </button>
             ))}
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="messages">
             {messages.map((m, i) => (
-              <div
-                key={i}
-                style={{
-                  fontSize: 13,
-                  lineHeight: 1.65,
-                  padding: "9px 12px",
-                  borderRadius: 7,
-                  background:
-                    m.role === "user" ? "rgba(249,115,22,0.06)" : "transparent",
-                  color: m.role === "user" ? "#c9d1e0" : "#7a8496",
-                  marginLeft: m.role === "user" ? 16 : 0,
-                  marginRight: m.role === "assistant" ? 16 : 0,
-                  border:
-                    m.role === "user"
-                      ? "1px solid rgba(249,115,22,0.15)"
-                      : "none",
-                }}
-              >
-                {m.content}
-              </div>
+              <MessageBubble key={i} msg={m} />
             ))}
-            {aiLoading && (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#9ca3b8",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  padding: "8px 12px",
-                }}
-              >
-                <Loader2 size={12} className="spin" /> Thinking…
+            {loading && (
+              <div className="bubble-row bubble-row--ai">
+                <div className="bubble-avatar">
+                  <Bot size={12} />
+                </div>
+                <div className="bubble bubble--ai bubble--typing">
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </div>
               </div>
             )}
-            <div ref={chatEnd} />
+            <div ref={chatEndRef} />
           </div>
         )}
       </div>
-      <div style={{ borderTop: "1px solid #1c1f26", paddingTop: 12 }}>
-        <div style={{ position: "relative" }}>
-          <TipTapInput
-            value={aiInput}
-            onChange={setAiInput}
-            onSubmit={handleAI}
-            placeholder="Ask anything…"
-            disabled={aiLoading}
+
+      <div className="chat-composer">
+        <div className="chat-composer__inner">
+          <ChatInput
+            value={input}
+            onChange={setInput}
+            onSubmit={handleSend}
+            disabled={loading}
           />
           <button
-            onClick={handleAI}
-            disabled={!aiInput.trim() || aiLoading}
-            style={{
-              position: "absolute",
-              right: 8,
-              bottom: 8,
-              padding: "6px 7px",
-              borderRadius: 6,
-              background: aiInput.trim()
-                ? "linear-gradient(135deg,#f97316,#ea580c)"
-                : "#1c1f26",
-              border: "none",
-              cursor: aiInput.trim() ? "pointer" : "default",
-              color: aiInput.trim() ? "#000" : "#3f4756",
-              boxShadow: aiInput.trim()
-                ? "0 0 10px rgba(249,115,22,0.35)"
-                : "none",
-              transition: "all .2s",
-            }}
+            onClick={handleSend}
+            disabled={!input.trim() || loading}
+            className={`send-btn ${input.trim() ? "send-btn--active" : ""}`}
           >
-            <Send size={12} />
+            {loading ? (
+              <Loader2 size={13} className="spin" />
+            ) : (
+              <Send size={13} />
+            )}
           </button>
         </div>
+        <p className="composer-hint">
+          Enter to send · Shift+Enter for new line
+        </p>
       </div>
     </div>
   );
 }
 
+// ── PAGE ──
 export default function ProblemPage({
   problem: p,
   userProblem,
@@ -899,7 +816,6 @@ export default function ProblemPage({
     bookmark: up?.bookmark ?? false,
   });
 
-  // `progress` = local draft; `committed` = last DB-confirmed state
   const [progress, setProgress] = useState<ProgressState>(() =>
     toState(userProblem),
   );
@@ -909,7 +825,6 @@ export default function ProblemPage({
   const [saving, setSaving] = useState(false);
   const isDirty = JSON.stringify(progress) !== JSON.stringify(committed);
 
-  // per-field pending indicators
   const pendingBookmark = progress.bookmark !== committed.bookmark;
   const pendingSolved = progress.solved !== committed.solved;
   const pendingConfidence = progress.confidenceV2 !== committed.confidenceV2;
@@ -959,19 +874,14 @@ export default function ProblemPage({
           bookmark: snapshot.bookmark,
         }),
       });
-
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.message ?? "Save failed");
-
-      // Pessimistic commit: use server-returned state as source of truth
       const up = json?.data as UserProblem | undefined;
       const persisted = up ? toState(up) : snapshot;
       setProgress(persisted);
       setCommitted(persisted);
-
       toast.success("Progress saved", { id: TOAST_ID });
     } catch (err: any) {
-      // Rollback draft to last committed state
       setProgress({ ...committed });
       toast.error(err?.message ?? "Save failed — changes rolled back", {
         id: TOAST_ID,
@@ -990,349 +900,143 @@ export default function ProblemPage({
     }));
   }, [saving, progress.solved]);
 
+  const PendingDot = () => (
+    <span
+      style={{
+        fontFamily: "'IBM Plex Mono',monospace",
+        fontSize: 9,
+        color: "#f97316",
+        letterSpacing: "0.05em",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <span
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: "#f97316",
+          boxShadow: "0 0 5px #f97316",
+          display: "inline-block",
+        }}
+      />
+      pending
+    </span>
+  );
+
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #080a0e; }
-
-        .page {
-          font-family: 'IBM Plex Sans', sans-serif;
-          min-height: 100vh;
-          color: #7a8496;
-        }
-
+        .page { font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; color: #7a8496; }
         .mono { font-family: 'IBM Plex Mono', monospace; }
-
-        /* Card */
-        .card {
-          background: linear-gradient(180deg, #0d0f14 0%, #0a0c10 100%);
-          border: 1px solid #1c1f26;
-          position: relative;
-          transition: border-color .25s, box-shadow .25s;
-        }
-        .card:hover {
-          border-color: rgba(249,115,22,0.15);
-          box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-        }
-        /* Orange top line on every card */
-        .card::before {
-          content: '';
-          position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(249,115,22,0.35), transparent);
-          pointer-events: none;
-        }
-
-        /* Card title - prominent section header */
-        .card-title {
-          font-family: 'IBM Plex Sans', sans-serif;
-          font-size: 14px; font-weight: 600;
-          color: #f3f4f6;
-          display: flex; align-items: center; gap: 8px;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid rgba(249,115,22,0.12);
-        }
-        .card-title-icon {
-          color: #f97316;
-        }
-
-        /* Section label */
-        .slabel {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 11px; font-weight: 600;
-          letter-spacing: 0.1em; text-transform: uppercase;
-          color: #6b7280;
-          display: flex; align-items: center; gap: 6px;
-        }
-        .slabel-icon {
-          color: #f97316;
-          opacity: 0.7;
-        }
-
-        /* Section header - more prominent */
-        .section-header {
-          font-family: 'IBM Plex Sans', sans-serif;
-          font-size: 15px; font-weight: 600;
-          color: #e5e7eb;
-          margin-bottom: 14px;
-          display: flex; align-items: center; gap: 10px;
-        }
-        .section-header::before {
-          content: '';
-          width: 3px; height: 16px;
-          background: linear-gradient(180deg, #f97316, #ea580c);
-          border-radius: 2px;
-        }
-
-        /* Notice */
-        .notice {
-          background: rgba(249,115,22,0.04);
-          border-bottom: 1px solid rgba(249,115,22,0.1);
-        }
-
-        /* ── PRIMARY ORANGE BUTTON ── */
-        .btn-og {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 10px; font-weight: 700;
-          letter-spacing: 0.08em; text-transform: uppercase;
-          border: none; cursor: pointer; border-radius: 7px;
-          background: linear-gradient(135deg, #f97316, #ea580c);
-          color: #000;
-          box-shadow: 0 0 18px rgba(249,115,22,0.3);
-          transition: box-shadow .2s, transform .15s, filter .15s;
-        }
-        .btn-og:hover {
-          box-shadow: 0 0 30px rgba(249,115,22,0.55);
-          transform: translateY(-1px);
-          filter: brightness(1.07);
-        }
-        .btn-og:active { transform: translateY(0); box-shadow: 0 0 14px rgba(249,115,22,0.3); }
-
-        /* ── GHOST BUTTON ── */
-        .btn-ghost {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 10px; font-weight: 600;
-          letter-spacing: 0.06em; text-transform: uppercase;
-          background: transparent; border: 1px solid #1c1f26;
-          border-radius: 6px; color: #6b7280; cursor: pointer;
-          padding: 5px 11px;
-          display: flex; align-items: center; gap: 5px;
-          transition: border-color .18s, color .18s, background .18s;
-        }
-        .btn-ghost:hover {
-          border-color: rgba(249,115,22,0.35);
-          color: #f97316;
-          background: rgba(249,115,22,0.05);
-        }
-
-        /* ── GHOST SMALL ── */
-        .btn-ghost-sm {
-          font-family: 'IBM Plex Mono', monospace; font-size: 9px;
-          color: #6b7280; background: none; border: none; cursor: pointer;
-          display: flex; align-items: center; gap: 5px;
-          padding: 3px 6px; border-radius: 5px; transition: color .15s;
-        }
+        .card { background: linear-gradient(180deg, #0d0f14 0%, #0a0c10 100%); border: 1px solid #1c1f26; position: relative; transition: border-color .25s, box-shadow .25s; }
+        .card:hover { border-color: rgba(249,115,22,0.15); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+        .card::before { content: ''; position: absolute; top: 0; left: 8%; right: 8%; height: 1px; background: linear-gradient(90deg, transparent, rgba(249,115,22,0.35), transparent); pointer-events: none; }
+        .card-title { font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 600; color: #f3f4f6; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(249,115,22,0.12); }
+        .card-title-icon { color: #f97316; }
+        .slabel { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; display: flex; align-items: center; gap: 6px; }
+        .slabel-icon { color: #f97316; opacity: 0.7; }
+        .btn-og { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: none; cursor: pointer; border-radius: 7px; background: linear-gradient(135deg, #f97316, #ea580c); color: #000; box-shadow: 0 0 18px rgba(249,115,22,0.3); transition: box-shadow .2s, transform .15s, filter .15s; }
+        .btn-og:hover { box-shadow: 0 0 30px rgba(249,115,22,0.55); transform: translateY(-1px); filter: brightness(1.07); }
+        .btn-og:active { transform: translateY(0); }
+        .btn-ghost { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; border: 1px solid #1c1f26; border-radius: 6px; color: #6b7280; cursor: pointer; padding: 5px 11px; display: flex; align-items: center; gap: 5px; transition: border-color .18s, color .18s, background .18s; }
+        .btn-ghost:hover { border-color: rgba(249,115,22,0.35); color: #f97316; background: rgba(249,115,22,0.05); }
+        .btn-ghost-sm { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #6b7280; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 3px 6px; border-radius: 5px; transition: color .15s; }
         .btn-ghost-sm:hover { color: #f97316; }
-
-        /* ── MARK SOLVED ── */
-        .btn-solve {
-          width: 100%; padding: 11px 0; border-radius: 7px;
-          background: rgba(249,115,22,0.06);
-          border: 1px solid rgba(249,115,22,0.22);
-          color: #f97316;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700;
-          letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 7px;
-          transition: background .2s, border-color .2s, box-shadow .2s, transform .15s;
-        }
-        .btn-solve:hover {
-          background: rgba(249,115,22,0.13);
-          border-color: rgba(249,115,22,0.45);
-          box-shadow: 0 0 20px rgba(249,115,22,0.18);
-          transform: translateY(-1px);
-        }
-        .btn-solve:active { transform: translateY(0); }
-
-        /* ── SAVE PROGRESS ── */
-        .btn-save {
-          width: 100%; padding: 10px 0; border-radius: 7px;
-          background: rgba(249,115,22,0.07);
-          border: 1px solid rgba(249,115,22,0.22);
-          color: #f97316;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700;
-          letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 7px;
-          transition: background .2s, border-color .2s, box-shadow .2s, transform .15s;
-        }
-        .btn-save:hover {
-          background: rgba(249,115,22,0.14);
-          border-color: rgba(249,115,22,0.45);
-          box-shadow: 0 0 18px rgba(249,115,22,0.2);
-          transform: translateY(-1px);
-        }
-        .btn-save:active { transform: translateY(0); }
-
-        /* ── CONFIDENCE BUTTONS ── */
-        .conf-btn {
-          background: transparent; border: 1px solid #1c1f26; border-radius: 6px;
-          padding: 8px 0; cursor: pointer;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600;
-          letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280;
-          transition: border-color .18s, color .18s, background .18s, transform .12s, box-shadow .18s;
-        }
-        .conf-btn:hover:not(.conf-active) {
-          border-color: rgba(249,115,22,0.28);
-          color: rgba(249,115,22,0.7);
-          background: rgba(249,115,22,0.05);
-          transform: translateY(-1px);
-        }
-        .conf-btn:active { transform: translateY(0) !important; }
-
-        /* ── BOOKMARK ── */
-        .btn-bookmark {
-          display: flex; align-items: center; gap: 6px; padding: 5px 11px;
-          border-radius: 6px; background: transparent; border: 1px solid #1c1f26;
-          cursor: pointer;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600;
-          letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280;
-          transition: border-color .18s, color .18s, background .18s;
-        }
-        .btn-bookmark:hover, .btn-bookmark.active {
-          border-color: rgba(249,115,22,0.35);
-          color: #f97316;
-          background: rgba(249,115,22,0.07);
-        }
-
-        /* ── HEADER SAVE (compact) ── */
-        .btn-save-hdr {
-          display: flex; align-items: center; gap: 6px; padding: 5px 12px;
-          border-radius: 6px; border: 1px solid rgba(249,115,22,0.25);
-          background: rgba(249,115,22,0.07); color: #f97316; cursor: pointer;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700;
-          letter-spacing: 0.07em; text-transform: uppercase;
-          transition: background .2s, border-color .2s, box-shadow .2s, transform .15s;
-        }
-        .btn-save-hdr:hover {
-          background: rgba(249,115,22,0.14);
-          border-color: rgba(249,115,22,0.45);
-          box-shadow: 0 0 14px rgba(249,115,22,0.2);
-          transform: translateY(-1px);
-        }
-        .btn-save-hdr:active { transform: translateY(0); }
-
-        /* ── CODE BLOCK ── */
-        .code {
-          font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;
-          background: #0d0f14; border: 1px solid rgba(249,115,22,0.12); border-radius: 6px;
-          padding: 10px 14px; color: #9ca3b8; line-height: 1.6;
-        }
-
-        /* ── RICH EDITOR ── */
-        .re {
-          outline: none; min-height: 130px;
-          font-family: 'IBM Plex Sans', sans-serif;
-          font-size: 13.5px; color: #9ca3b8; line-height: 1.78;
-          caret-color: #f97316; padding: 12px 0;
-          border-top: 1px solid rgba(249,115,22,0.15);
-          transition: border-color .2s;
-          direction: ltr !important;
-          unicode-bidi: embed !important;
-          text-align: left !important;
-        }
-        .re * {
-          direction: ltr !important;
-          unicode-bidi: embed !important;
-          text-align: left !important;
-        }
+        .btn-solve { width: 100%; padding: 11px 0; border-radius: 7px; background: rgba(249,115,22,0.06); border: 1px solid rgba(249,115,22,0.22); color: #f97316; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background .2s, border-color .2s, box-shadow .2s, transform .15s; }
+        .btn-solve:hover { background: rgba(249,115,22,0.13); border-color: rgba(249,115,22,0.45); box-shadow: 0 0 20px rgba(249,115,22,0.18); transform: translateY(-1px); }
+        .btn-save { width: 100%; padding: 10px 0; border-radius: 7px; background: rgba(249,115,22,0.07); border: 1px solid rgba(249,115,22,0.22); color: #f97316; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background .2s, border-color .2s, box-shadow .2s, transform .15s; }
+        .btn-save:hover { background: rgba(249,115,22,0.14); border-color: rgba(249,115,22,0.45); box-shadow: 0 0 18px rgba(249,115,22,0.2); transform: translateY(-1px); }
+        .conf-btn { background: transparent; border: 1px solid #1c1f26; border-radius: 6px; padding: 8px 0; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; transition: border-color .18s, color .18s, background .18s, transform .12s; }
+        .conf-btn:hover:not(.conf-active) { border-color: rgba(249,115,22,0.28); color: rgba(249,115,22,0.7); background: rgba(249,115,22,0.05); transform: translateY(-1px); }
+        .btn-bookmark { display: flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 6px; background: transparent; border: 1px solid #1c1f26; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; transition: border-color .18s, color .18s, background .18s; }
+        .btn-bookmark:hover, .btn-bookmark.active { border-color: rgba(249,115,22,0.35); color: #f97316; background: rgba(249,115,22,0.07); }
+        .code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; background: #0d0f14; border: 1px solid rgba(249,115,22,0.12); border-radius: 6px; padding: 10px 14px; color: #9ca3b8; line-height: 1.6; }
+        .re { outline: none; min-height: 130px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13.5px; color: #9ca3b8; line-height: 1.78; caret-color: #f97316; padding: 12px 0; border-top: 1px solid rgba(249,115,22,0.15); transition: border-color .2s; direction: ltr !important; unicode-bidi: embed !important; text-align: left !important; }
+        .re * { direction: ltr !important; unicode-bidi: embed !important; text-align: left !important; }
         .re:focus { border-top-color: rgba(249,115,22,0.35); }
         .re h3 { font-size: .95rem; font-weight: 700; color: #e5e7eb; margin: .5rem 0 .25rem; }
-        .re p  { margin: .2rem 0; }
+        .re p { margin: .2rem 0; }
         .re ul { list-style: disc; padding-left: 1.25rem; margin: .25rem 0; }
         .re ol { list-style: decimal; padding-left: 1.25rem; margin: .25rem 0; }
         .re li { margin: .15rem 0; }
         .re b, .re strong { color: #e5e7eb; font-weight: 600; }
         .re mark { background: rgba(249,115,22,0.22); color: inherit; border-radius: 2px; padding: 0 2px; }
-        .re p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          color: #4b5563;
-          pointer-events: none;
-          font-style: italic;
-          float: left;
-          height: 0;
-        }
-
-        /* ── RE TOOL HOVER ── */
+        .re p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #4b5563; pointer-events: none; font-style: italic; float: left; height: 0; }
         .re-tool:hover { color: #f97316 !important; background: rgba(249,115,22,0.09) !important; }
-
-        /* ── AI TEXTAREA ── */
-        .ai-textarea {
-          font-family: 'IBM Plex Sans', sans-serif;
-          width: 100%; resize: none;
-          background: rgba(249,115,22,0.03); border: 1px solid #1c1f26;
-          border-radius: 7px; padding: 9px 42px 9px 12px;
-          font-size: 13px; color: #94a3b8; outline: none; line-height: 1.5;
-          transition: border-color .2s;
-        }
-        .ai-textarea:focus { border-color: rgba(249,115,22,0.3); }
-        .ai-textarea::placeholder { color: #4b5563; }
-
-        /* ── AI TIPTAP INPUT ── */
-        .ai-input {
-          font-family: 'IBM Plex Sans', sans-serif;
-          width: 100%; min-height: 44px;
-          background: rgba(249,115,22,0.03); border: 1px solid #1c1f26;
-          border-radius: 7px; padding: 9px 42px 9px 12px;
-          font-size: 13px; color: #94a3b8; outline: none; line-height: 1.5;
-          transition: border-color .2s;
-          direction: ltr !important;
-          text-align: left !important;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-        .ai-input:focus { border-color: rgba(249,115,22,0.3); }
-        .ai-input p { margin: 0; white-space: pre-wrap; }
-        .ai-input p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          color: #4b5563;
-          pointer-events: none;
-          float: left;
-          height: 0;
-        }
-
-        /* TipTap ProseMirror base styles */
-        .ProseMirror {
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-        .ProseMirror:focus {
-          outline: none;
-        }
-
-        /* ── STARTER BUTTONS ── */
-        .starter-btn {
-          font-family: 'IBM Plex Sans', sans-serif;
-          color: #5a6478; background: rgba(249,115,22,0.025);
-          border: 1px solid #1c1f26; cursor: pointer;
-          transition: color .15s, border-color .15s, background .15s, transform .12s;
-        }
-        .starter-btn:hover {
-          color: #f97316;
-          border-color: rgba(249,115,22,0.28);
-          background: rgba(249,115,22,0.06);
-          transform: translateX(2px);
-        }
-
-        /* ── EDITORIAL BUTTON HOVER ── */
-        .editorial-btn:hover .et-icon { color: #f97316 !important; }
-
-        /* ── STICKY SIDEBAR ── */
         .sticky-sidebar { position: sticky; top: 49px; }
-
-        /* ── DISCUSSION ── */
-        .disc-item { border-bottom: 1px solid #1c1f26; padding: 16px 0; }
-        .disc-item:last-child { border-bottom: none; }
-        .avatar {
-          width: 26px; height: 26px; border-radius: 50%;
-          background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.18);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 9px; color: rgba(249,115,22,0.7); font-weight: 700; flex-shrink: 0;
-          font-family: 'IBM Plex Mono', monospace;
-        }
-
-        /* ── SCROLLBAR ── */
+        .editorial-btn:hover .et-icon { color: #f97316 !important; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #1c1f26; border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.35); }
-
-        /* ── ANIMATIONS ── */
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 1s linear infinite; }
         @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
         @keyframes solvedPop { 0%{transform:scale(.9);opacity:0} 55%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
         .solved-pop { animation: solvedPop .32s ease-out; }
+
+        /* ── CHAT STYLES ── */
+        .mentor-wrap { display: flex; flex-direction: column; height: 100%; min-height: 520px; }
+        .mentor-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid #1c1f26; flex-shrink: 0; }
+        .mentor-header__left { display: flex; align-items: center; gap: 8px; }
+        .mentor-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: #9ca3b8; letter-spacing: 0.08em; text-transform: uppercase; }
+        .online-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981; }
+        .badge-plus { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #f97316; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.22); border-radius: 4px; padding: 2px 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 16px 0; display: flex; flex-direction: column; }
+        .messages { display: flex; flex-direction: column; gap: 14px; padding-bottom: 4px; }
+        .bubble-row { display: flex; align-items: flex-end; gap: 8px; }
+        .bubble-row--user { flex-direction: row-reverse; }
+        .bubble-avatar { width: 26px; height: 26px; border-radius: 50%; background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.18); display: flex; align-items: center; justify-content: center; color: rgba(249,115,22,0.7); flex-shrink: 0; margin-bottom: 20px; }
+        .bubble { max-width: 82%; border-radius: 14px; padding: 10px 14px 6px; position: relative; }
+        .bubble--user { background: rgba(249,115,22,0.09); border: 1px solid rgba(249,115,22,0.18); border-bottom-right-radius: 4px; }
+        .bubble--ai { background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); border-bottom-left-radius: 4px; }
+        .bubble--typing { padding: 14px 18px; display: flex; align-items: center; gap: 5px; }
+        .bubble-text { font-family: 'IBM Plex Sans', sans-serif; font-size: 13.5px; line-height: 1.72; color: #c9d1e0; margin: 0; }
+        .bubble-text--ai { color: #b0bac9; }
+        .bubble-text--ai strong { color: #e5e7eb; font-weight: 600; }
+        .bubble-text--ai em { color: #9ca3b8; font-style: italic; }
+        .bubble-text--ai code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.15); border-radius: 4px; padding: 1px 6px; color: #f97316; }
+        .bubble-text--ai ul { padding-left: 18px; margin: 8px 0; list-style: none; }
+        .bubble-text--ai ul li { position: relative; padding-left: 14px; margin: 5px 0; color: #b0bac9; font-size: 13.5px; line-height: 1.65; }
+        .bubble-text--ai ul li::before { content: '·'; position: absolute; left: 0; color: #f97316; font-size: 18px; line-height: 1.2; }
+        .bubble-footer { display: flex; justify-content: flex-end; margin-top: 5px; }
+        .copy-btn { display: flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 5px; border: none; cursor: pointer; background: rgba(255,255,255,0.04); color: #4b5563; font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.05em; transition: background .15s, color .15s; }
+        .copy-btn:hover { background: rgba(249,115,22,0.08); color: #f97316; }
+        .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #4b5563; animation: typingBounce 1.2s infinite ease-in-out; }
+        .typing-dot:nth-child(2) { animation-delay: .2s; }
+        .typing-dot:nth-child(3) { animation-delay: .4s; }
+        @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-5px); opacity: 1; } }
+        .starters { padding: 8px 0; }
+        .starters__label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #4b5563; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+        .starter-btn { display: block; width: 100%; text-align: left; padding: 9px 12px; margin-bottom: 5px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #5a6478; background: rgba(249,115,22,0.025); border: 1px solid #1c1f26; border-radius: 8px; cursor: pointer; transition: color .15s, border-color .15s, background .15s, transform .12s; }
+        .starter-btn:hover { color: #f97316; border-color: rgba(249,115,22,0.28); background: rgba(249,115,22,0.055); transform: translateX(3px); }
+        .chat-composer { flex-shrink: 0; border-top: 1px solid #1c1f26; padding-top: 12px; }
+        .chat-composer__inner { position: relative; }
+        .chat-input { font-family: 'IBM Plex Sans', sans-serif; width: 100%; min-height: 44px; max-height: 120px; overflow-y: auto; background: rgba(249,115,22,0.03); border: 1px solid #1c1f26; border-radius: 10px; padding: 11px 46px 11px 14px; font-size: 13.5px; color: #c9d1e0; outline: none; line-height: 1.55; transition: border-color .2s; direction: ltr !important; text-align: left !important; white-space: pre-wrap; word-wrap: break-word; }
+        .chat-input p { margin: 0; }
+        .chat-input p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #4b5563; pointer-events: none; float: left; height: 0; font-style: italic; }
+        .ProseMirror { white-space: pre-wrap; word-wrap: break-word; }
+        .ProseMirror:focus { outline: none; }
+        .send-btn { position: absolute; right: 9px; bottom: 9px; width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #1c1f26; color: #3f4756; transition: all .2s; }
+        .send-btn--active { background: linear-gradient(135deg, #f97316, #ea580c); color: #000; box-shadow: 0 0 12px rgba(249,115,22,0.4); }
+        .send-btn--active:hover { box-shadow: 0 0 20px rgba(249,115,22,0.55); transform: scale(1.05); }
+        .composer-hint { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #374151; margin-top: 6px; letter-spacing: 0.05em; }
+        .paywall-preview { position: relative; overflow: hidden; flex: 1; margin: 12px 0; min-height: 160px; }
+        .paywall-fade { position: absolute; inset: 0; z-index: 2; background: linear-gradient(to bottom, transparent 10%, #0d0f14 92%); pointer-events: none; }
+        .paywall-msg { font-size: 12.5px; line-height: 1.65; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; }
+        .paywall-msg--user { color: #6b7280; background: rgba(249,115,22,0.04); border: 1px solid rgba(249,115,22,0.1); margin-left: 20px; }
+        .paywall-msg--ai { color: #4b5563; margin-right: 20px; }
+        .paywall-features { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 14px; }
+        .paywall-feature { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 6px; background: rgba(249,115,22,0.03); border: 1px solid #1c1f26; }
+        .paywall-feature__icon { color: #f97316; opacity: .7; }
+        .paywall-feature__label { font-size: 11px; color: #9ca3b8; }
+        .paywall-cta { width: 100%; padding: 11px 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 7px; }
       `}</style>
 
       <div className="page">
@@ -1345,7 +1049,7 @@ export default function ProblemPage({
             zIndex: 1,
           }}
         >
-          {/* Problem Header */}
+          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -1436,9 +1140,7 @@ export default function ProblemPage({
             </div>
           </div>
 
-          {/* ════════════════════════════════════════════
-              LAYER 1 — INTAKE   75% / 25%
-          ════════════════════════════════════════════ */}
+          {/* Layer 1: Problem + Progress */}
           <div
             style={{
               display: "grid",
@@ -1447,7 +1149,6 @@ export default function ProblemPage({
               marginBottom: 14,
             }}
           >
-            {/* Problem */}
             <div
               className="card"
               style={{ borderRadius: 10, padding: "28px 32px" }}
@@ -1498,8 +1199,6 @@ export default function ProblemPage({
                   </span>
                 ))}
               </div>
-
-              {/* 60% constraint */}
               <div style={{ maxWidth: "65%" }}>
                 <p
                   style={{
@@ -1512,8 +1211,6 @@ export default function ProblemPage({
                   {p.description}
                 </p>
               </div>
-
-              {/* Examples */}
               <div
                 style={{
                   marginTop: 28,
@@ -1598,7 +1295,6 @@ export default function ProblemPage({
               </div>
             </div>
 
-            {/* Mastery HUD */}
             <div className="sticky-sidebar">
               <div
                 className="card"
@@ -1608,8 +1304,6 @@ export default function ProblemPage({
                   <Trophy size={16} className="card-title-icon" />
                   Your Progress
                 </div>
-
-                {/* Solve */}
                 <div
                   style={{
                     marginBottom: 18,
@@ -1657,33 +1351,7 @@ export default function ProblemPage({
                           </p>
                         )}
                       </div>
-                      {pendingSolved && (
-                        <span
-                          title="Pending — not yet saved to DB"
-                          style={{
-                            fontFamily: "'IBM Plex Mono',monospace",
-                            fontSize: 9,
-                            color: "#f97316",
-                            letterSpacing: "0.05em",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 5,
-                              height: 5,
-                              borderRadius: "50%",
-                              background: "#f97316",
-                              boxShadow: "0 0 5px #f97316",
-                              display: "inline-block",
-                            }}
-                          />
-                          pending
-                        </span>
-                      )}
+                      {pendingSolved && <PendingDot />}
                     </div>
                   ) : (
                     <button
@@ -1695,8 +1363,6 @@ export default function ProblemPage({
                     </button>
                   )}
                 </div>
-
-                {/* Confidence */}
                 <div
                   style={{
                     marginBottom: 18,
@@ -1716,32 +1382,7 @@ export default function ProblemPage({
                       <Target size={12} className="slabel-icon" />
                       Confidence
                     </p>
-                    {pendingConfidence && (
-                      <span
-                        title="Pending — not yet saved to DB"
-                        style={{
-                          fontFamily: "'IBM Plex Mono',monospace",
-                          fontSize: 9,
-                          color: "#f97316",
-                          letterSpacing: "0.05em",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 5,
-                            height: 5,
-                            borderRadius: "50%",
-                            background: "#f97316",
-                            boxShadow: "0 0 5px #f97316",
-                            display: "inline-block",
-                          }}
-                        />
-                        pending
-                      </span>
-                    )}
+                    {pendingConfidence && <PendingDot />}
                   </div>
                   <div
                     style={{
@@ -1784,8 +1425,6 @@ export default function ProblemPage({
                     )}
                   </div>
                 </div>
-
-                {/* Notes */}
                 <div>
                   <div
                     style={{
@@ -1800,30 +1439,7 @@ export default function ProblemPage({
                       Notes
                     </p>
                     {pendingNotes ? (
-                      <span
-                        title="Pending — not yet saved to DB"
-                        style={{
-                          fontFamily: "'IBM Plex Mono',monospace",
-                          fontSize: 9,
-                          color: "#f97316",
-                          letterSpacing: "0.05em",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 5,
-                            height: 5,
-                            borderRadius: "50%",
-                            background: "#f97316",
-                            boxShadow: "0 0 5px #f97316",
-                            display: "inline-block",
-                          }}
-                        />
-                        pending
-                      </span>
+                      <PendingDot />
                     ) : progress.notes ? (
                       <span
                         className="mono"
@@ -1845,7 +1461,6 @@ export default function ProblemPage({
                     }
                   />
                 </div>
-
                 {isDirty && (
                   <button
                     onClick={handleSave}
@@ -1868,9 +1483,7 @@ export default function ProblemPage({
             </div>
           </div>
 
-          {/* ════════════════════════════════════════════
-              LAYER 2 — INSIGHT   40% / 60%
-          ════════════════════════════════════════════ */}
+          {/* Layer 2: Editorial + AI Mentor */}
           <div
             style={{
               display: "grid",
@@ -1887,19 +1500,17 @@ export default function ProblemPage({
             </div>
             <div
               className="card"
-              style={{ borderRadius: 10, padding: "22px 24px", minHeight: 340 }}
+              style={{ borderRadius: 10, padding: "22px 24px", minHeight: 500 }}
             >
               <AIMentor
+                problemId={p.id}
                 title={p.title}
-                aiHintLines={aiHintLines}
                 isPremium={isPremium}
               />
             </div>
           </div>
 
-          {/* ════════════════════════════════════════════
-              LAYER 3 — SOCIAL
-          ════════════════════════════════════════════ */}
+          {/* Layer 3: Discussion */}
           <div style={{ paddingTop: 14 }}>
             <div
               style={{
@@ -1909,20 +1520,9 @@ export default function ProblemPage({
                 marginBottom: 22,
               }}
             />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 18,
-              }}
-            >
-              <p className="slabel">Discussion</p>
-              <span
-                className="mono"
-                style={{ fontSize: 10, color: "#6b7280" }}
-              ></span>
-            </div>
+            <p className="slabel" style={{ marginBottom: 18 }}>
+              Discussion
+            </p>
             <div
               style={{
                 maxWidth: 640,
