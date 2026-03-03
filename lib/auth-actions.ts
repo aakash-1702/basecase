@@ -24,6 +24,24 @@ export const signUp = async (name: string, email: string, password: string) => {
   }
 };
 
+export const signInWithGoogle = async () => {
+  try {
+    const data = await auth.api.signInSocial({
+      body: {
+        provider: "google",
+        callbackURL: "/dashboard",
+      },
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Signup failed",
+    };
+  }
+};
+
 export const signIn = async (email: string, password: string) => {
   try {
     const data = await auth.api.signInEmail({
@@ -52,5 +70,3 @@ export const signOut = async () => {
     };
   }
 };
-
-
