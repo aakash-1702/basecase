@@ -7,8 +7,7 @@ import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client"; // ✅
-import { signIn } from "@/lib/auth-client"; // ✅
+import { authClient } from "@/lib/auth-client";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -31,15 +30,20 @@ export default function SignIn() {
   async function onSubmit(values: FormValues) {
     const toastId = toast.loading("Signing in...");
     try {
-      const result = await signIn(values.email, values.password);
-      if (!result.success) {
-        toast.error(result.error || "Sign in failed", { id: toastId });
+      const { data, error } = await authClient.signIn.email({
+        email: values.email,
+        password: values.password,
+      });
+      
+      if (error) {
+        toast.error(error.message || "Sign in failed", { id: toastId });
         return;
       }
+      
       toast.success("Welcome back!", { id: toastId });
       router.refresh();
       router.push("/dashboard");
-    } catch {
+    } catch (err) {
       toast.error("Something went wrong", { id: toastId });
     }
   }
