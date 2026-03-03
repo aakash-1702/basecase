@@ -4,9 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client"; // ✅
-import { signUp } from "@/lib/auth-client"; // ✅
-
+import { authClient } from "@/lib/auth-client";
 
 export default function SignUp() {
   const router = useRouter();
@@ -24,14 +22,20 @@ export default function SignUp() {
     setLoading(true);
     const toastId = toast.loading("Creating your account...");
     try {
-      const result = await signUp(form.name.trim(), form.email, form.password);
-      if (!result?.success) {
-        toast.error(result?.error || "Sign up failed", { id: toastId });
+      const { data, error } = await authClient.signUp.email({
+        email: form.email,
+        password: form.password,
+        name: form.name.trim(),
+      });
+      
+      if (error) {
+        toast.error(error.message || "Sign up failed", { id: toastId });
         return;
       }
+      
       toast.success("Welcome to Basecase!", { id: toastId });
       setTimeout(() => router.push("/dashboard"), 800);
-    } catch {
+    } catch (err) {
       toast.error("Something went wrong", { id: toastId });
     } finally {
       setLoading(false);
