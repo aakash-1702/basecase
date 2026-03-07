@@ -36,9 +36,9 @@ model User {
   accounts      Account[]
   role          Role @default(USER)
   premium      Boolean @default(false)
-
   userProblems  UserProblem[] 
-  
+
+  Interview    Interview[]
   
 
   @@unique([email])
@@ -211,3 +211,63 @@ model Suggestion {
 
   createdAt DateTime @default(now())
 }
+
+
+
+
+model Interview {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  mode        String    // 'dsa' | 'technical' | 'hr'
+  status      String    @default("notStarted") // 'processing' | 'ready' | 'failed' \ 'notStarted
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  difficulty String?  // easy medium and hard 
+  turns       InterviewTurn[]   // structured Q&A pairs
+  feedback    InterviewFeedback?
+  company String @default("Generic")
+
+  questionLimit  Int?      // null for DSA, number for technical/hr
+  resumeKeywords String[]  // empty array for dsa/hr, populated for technical
+
+  @@index([userId])
+}
+
+model InterviewTurn {
+  id            String    @id @default(cuid())
+  interviewId   String
+  interview     Interview @relation(fields: [interviewId], references: [id])
+
+  index         Int       // order of the turn
+  question      String    // AI question
+  answer        String    // user transcript
+  isFollowUp    Boolean   @default(false)
+  turnScore     Int?      // 1-10 per turn
+
+  @@index([interviewId])
+}
+
+model InterviewFeedback {
+  id              String    @id @default(cuid())
+  interviewId     String    @unique
+  interview       Interview @relation(fields: [interviewId], references: [id])
+
+  overallScore    Float
+
+  // your feedback dimensions
+  confidence      Json      // { score: 7, summary: "..." }
+  depthReview     Json      // { score: 8, summary: "..." }
+  englishQuality  Json      // { score: 9, summary: "..." }
+  technicalAccuracy Json?   // only for dsa/technical modes
+  starStructure   Json?     // only for hr mode
+
+  strongAreas     String[]
+  weakAreas       String[]
+  recommendations String[]
+
+  createdAt       DateTime  @default(now())
+}
+
