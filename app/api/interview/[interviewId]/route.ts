@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 
 export async function GET(
   req: NextRequest,
-  params: Promise<{ interviewId: string }>,
+  { params }: { params: Promise<{ interviewId: string }> },
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -24,36 +24,21 @@ export async function GET(
     );
   }
 
-
   // gettting all the information about a particular interview
-  const {interviewId} = await params;
+  const { interviewId } = await params;
 
   const interview = await prisma.interview.findFirst({
-    where : {
-        id : interviewId,
-        userId : session.user.id,
+    where: {
+      id: interviewId,
+      userId: session.user.id,
     },
-    include : {
-        turns : {
-            orderBy : {
-                index : "asc",
-            }
+    include: {
+      turns: {
+        orderBy: {
+          index: "asc",
         },
-        feedback : true,
-    }
-  })
-
+      },
+      feedback: true,
+    },
+  });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
