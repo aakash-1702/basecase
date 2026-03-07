@@ -199,6 +199,207 @@
   }
 }
 
+/* ============================================
+   BASECASE INTERVIEW DESIGN SYSTEM
+   ============================================ */
+
+/* Interview-specific Animation Keyframes */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -600px 0;
+  }
+  100% {
+    background-position: 600px 0;
+  }
+}
+
+@keyframes recordPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes wavePulse {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fillBar {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--target-width);
+  }
+}
+
+@keyframes ringFill {
+  from {
+    stroke-dashoffset: 251;
+  }
+  to {
+    stroke-dashoffset: var(--target-offset);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes orb {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(8px, -8px) scale(1.05);
+  }
+  66% {
+    transform: translate(-6px, 4px) scale(0.97);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes stepCycle {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Interview Design Tokens */
+:root {
+  --bg-base: #080808;
+  --bg-card: #0f0f0f;
+  --bg-card-hover: #141414;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-active: rgba(245, 158, 11, 0.4);
+
+  --amber: #f59e0b;
+  --amber-dim: rgba(245, 158, 11, 0.08);
+  --amber-glow: rgba(245, 158, 11, 0.04);
+
+  --emerald: #10b981;
+  --rose: #f43f5e;
+  --cyan: #06b6d4;
+
+  --text-primary: #e8e8ed;
+  --text-secondary: #9a9aaa;
+  --text-muted: #555555;
+  --text-dim: #2a2a35;
+
+  --font-serif: var(--font-dm-serif);
+  --font-mono: var(--font-dm-mono);
+}
+
+/* Ambient Background — matches main app layout */
+.interview-ambient-bg {
+  background: #080808;
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(245, 158, 11, 0.05) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 80% 80%,
+      rgba(234, 88, 12, 0.03) 0%,
+      transparent 60%
+    );
+}
+
+/* Grid Overlay — matches main app */
+.interview-grid-overlay::before {
+  content: "";
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Glass Card */
+.glass-card {
+  background: rgba(15, 15, 15, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.glass-card-hover:hover {
+  background: rgba(20, 20, 20, 0.9);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Scrollbar variants */
+.interview-scrollbar::-webkit-scrollbar,
+.amber-scrollbar::-webkit-scrollbar {
+  width: 3px;
+}
+
+.interview-scrollbar::-webkit-scrollbar-track,
+.amber-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.interview-scrollbar::-webkit-scrollbar-thumb,
+.amber-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+.interview-scrollbar::-webkit-scrollbar-thumb:hover,
+.amber-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 @layer base {
   :root {
     --primary: 36 100% 50%; /* amber-500 */
