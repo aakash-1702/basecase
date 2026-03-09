@@ -9,6 +9,10 @@ import {
 } from "@/lib/session";
 import { success } from "zod";
 import { GoogleGenAI } from "@google/genai";
+import { SarvamAIClient } from "sarvamai";
+const client = new SarvamAIClient({
+  apiSubscriptionKey: `${process.env.SARVAMAI_API_KEY!}`,
+});
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -279,6 +283,20 @@ const interviewMentor = async (data: {
     throw new Error("AI returned invalid JSON");
   }
 };
+
+const TTS = async (text: string) => {
+  const audioResponse = await client.textToSpeech.convert({
+    text: text,
+    target_language_code: "en-IN",
+    model: "bulbul:v3",
+    pace: 1.25,
+    temperature: 0.6,
+  });
+
+  console.log(audioResponse);
+
+  return audioResponse.audios[0]; // This is the binary audio data
+};
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ interviewId: string }> },
@@ -344,12 +362,18 @@ export async function PATCH(
       );
     }
 
+    const audioData = await TTS(nextQuestion.message);
+
     await appendToTranscript(interviewId, nextQuestion.message);
 
     return NextResponse.json(
       {
         success: true,
-        data: nextQuestion.message,
+        data: {
+          nextQuestion: nextQuestion.message,
+          audioData,
+          isComplete: nextQuestion.isComplete || false,
+        },
         message: "User response recorded and next question generated",
       },
       { status: 200 },

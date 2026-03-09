@@ -45,6 +45,7 @@
     "react-hook-form": "^7.71.1",
     "react-resizable-panels": "^4.6.4",
     "recharts": "^2.15.4",
+    "sarvamai": "^1.1.5",
     "slug": "^11.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.1",

@@ -6,7 +6,7 @@ import { LobbyScreen } from "@/components/interview/room/LobbyScreen";
 import { PreparingScreen } from "@/components/interview/room/PreparingScreen";
 import { ActiveRoom } from "@/components/interview/room/ActiveRoom";
 import { BrowserGateScreen } from "@/components/interview/room/BrowserGateScreen";
-import { ExitConfirmModal } from "@/components/interview/room/ExitConfirmModal";
+import { EndSessionModal } from "@/components/interview/room/EndSessionModal";
 import type { InterviewConfig, PreparingStatus } from "@/types/interview-room";
 
 type View = "lobby" | "browser-gate" | "preparing" | "room";
@@ -38,6 +38,7 @@ export default function InterviewSessionPage() {
   const [preparingStatus, setPreparingStatus] =
     useState<PreparingStatus>("loading");
   const [greetingMessage, setGreetingMessage] = useState("");
+  const [greetingAudio, setGreetingAudio] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [showExitModal, setShowExitModal] = useState(false);
 
@@ -80,7 +81,9 @@ export default function InterviewSessionPage() {
         setPreparingStatus("error");
         return;
       }
-      setGreetingMessage(json.data);
+      const { greetingMessage: message, audio } = json.data;
+      setGreetingMessage(message);
+      setGreetingAudio(audio || null);
       setPreparingStatus("ready");
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
@@ -152,15 +155,15 @@ export default function InterviewSessionPage() {
     <>
       <ActiveRoom
         greetingMessage={greetingMessage}
+        greetingAudio={greetingAudio}
         interviewId={interviewId}
         config={config}
         onExitClick={handleExitClick}
       />
-      <ExitConfirmModal
+      <EndSessionModal
         isOpen={showExitModal}
         onClose={handleExitClose}
         onConfirm={handleExitConfirm}
-        interviewId={interviewId}
       />
     </>
   );
