@@ -1,148 +1,291 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AIPanel } from "./AIPanel";
 import { UserPanel } from "./UserPanel";
 import { RoomTopBar } from "./RoomTopBar";
-import { TranscriptDrawer } from "./TranscriptDrawer";
-import { EvaluationOverlay } from "./EvaluationOverlay";
-import { useRouter } from "next/navigation";
-
-const MOCK_QUESTIONS = [
-  "What is the difference between a process and a thread, and when would you use one over the other?",
-  "Explain how database indexing works and when you would use a composite index.",
-  "How does React's reconciliation algorithm work under the hood?",
-  "What is the CAP theorem? Give a real-world example of a trade-off.",
-  "Describe how you would design a URL shortener like bit.ly.",
-];
+import { TranscriptArea } from "./TranscriptArea";
+import { BottomControlBar } from "./BottomControlBar";
+import type {
+  InterviewConfig,
+  TranscriptMessage,
+  TurnState,
+} from "@/types/interview-room";
 
 interface ActiveRoomProps {
-  sessionId: string;
-  userName: string;
-  questionCount: number;
+  greetingMessage: string;
+  interviewId: string;
+  config: InterviewConfig;
+  onExitClick?: () => void;
 }
 
 export function ActiveRoom({
-  sessionId,
-  userName,
-  questionCount,
+  greetingMessage,
+  interviewId,
+  config,
+  onExitClick,
 }: ActiveRoomProps) {
-  const router = useRouter();
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [transcriptHistory, setTranscriptHistory] = useState<any[]>([]);
-  const [showEvaluation, setShowEvaluation] = useState(false);
-  const [currentEvaluation, setCurrentEvaluation] = useState<any>(null);
+  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
+  const [turnState, setTurnState] = useState<TurnState>("idle");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
 
-  const currentQuestion = MOCK_QUESTIONS[currentQuestionIndex];
-  const totalQuestions = Math.min(questionCount, MOCK_QUESTIONS.length);
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef("");
+  const isListeningRef = useRef(false);
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setTranscript("");
+  // ── Greeting display with 2s delay ──
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTranscript([
+        {
+          id: crypto.randomUUID(),
+          role: "ai",
+          text: greetingMessage,
+          timestamp: Date.now(),
+        },
+      ]);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [greetingMessage]);
 
-    // Simulate transcript updating
-    setTimeout(() => {
-      setTranscript("I think that processes and threads are both... ");
-    }, 1000);
-    setTimeout(() => {
-      setTranscript(
-        "I think that processes and threads are both execution units, but processes have separate memory space while threads share memory within the same process...",
-      );
-    }, 3000);
-  };
+  // ── Initialize Web Speech API ──
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  const handleStopRecording = async () => {
-    setIsRecording(false);
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
-    // Mock API call to evaluate
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    if (!SpeechRecognition) return;
 
-    const mockEval = {
-      evaluation:
-        "Solid answer on the core distinction. You mentioned memory isolation well but missed context-switching overhead.",
-      score: 7,
-      followUp:
-        currentQuestionIndex === 0
-          ? "You mentioned threads share memory space — what synchronization problems can arise from that?"
-          : null,
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      let interimText = "";
+      let finalText = "";
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalText += result[0].transcript;
+        } else {
+          interimText += result[0].transcript;
+        }
+      }
+      finalTranscriptRef.current = finalText;
+      setLiveTranscript(finalText + interimText);
     };
 
-    setCurrentEvaluation(mockEval);
-    setShowEvaluation(true);
+    recognition.onerror = (event: any) => {
+      // Only abort on fatal errors, not silence/no-speech
+      if (event.error === "no-speech" || event.error === "aborted") return;
+      isListeningRef.current = false;
+      setTurnState("idle");
+      setLiveTranscript("");
+    };
 
-    // Add to history
-    setTranscriptHistory((prev) => [
-      ...prev,
-      {
-        question: currentQuestion,
-        answer: transcript,
-        score: mockEval.score,
-      },
-    ]);
-  };
+    recognition.onend = () => {
+      // Browser kills recognition after silence even with continuous=true.
+      // Auto-restart if we're still supposed to be listening.
+      if (isListeningRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // Already started or other issue — ignore
+        }
+      }
+    };
 
-  const handleNextQuestion = () => {
-    setShowEvaluation(false);
-    setCurrentEvaluation(null);
-    setTranscript("");
+    recognitionRef.current = recognition;
+  }, []);
 
-    if (currentQuestionIndex + 1 >= totalQuestions) {
-      // Session complete
-      router.push(`/interview/${sessionId}/report`);
-    } else {
-      setCurrentQuestionIndex((prev) => prev + 1);
+  // ── Start listening ──
+  const startListening = useCallback(() => {
+    isListeningRef.current = true;
+    setTurnState("listening");
+    setLiveTranscript("");
+    finalTranscriptRef.current = "";
+    try {
+      recognitionRef.current?.start();
+    } catch {
+      // Already started, ignore
     }
-  };
+  }, []);
 
-  const handleEndSession = () => {
-    router.push(`/interview/${sessionId}/report`);
-  };
+  // ── Stop listening and send ──
+  const stopListening = useCallback(async () => {
+    isListeningRef.current = false;
+    recognitionRef.current?.stop();
+
+    const capturedText = finalTranscriptRef.current || liveTranscript;
+    setLiveTranscript("");
+
+    if (!capturedText.trim()) {
+      setTurnState("idle");
+      return;
+    }
+
+    // Append user message
+    const userMessage: TranscriptMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      text: capturedText.trim(),
+      timestamp: Date.now(),
+    };
+    setTranscript((prev) => [...prev, userMessage]);
+    setTurnState("processing");
+
+    // Send to API
+    try {
+      const res = await fetch(
+        `/api/interview/${interviewId}/join-interview/room`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userResponse: capturedText.trim() }),
+        },
+      );
+      const json = await res.json();
+
+      if (!json.success) {
+        setTurnState("idle");
+        return;
+      }
+
+      // Append AI response
+      const aiMessage: TranscriptMessage = {
+        id: crypto.randomUUID(),
+        role: "ai",
+        text: json.data,
+        timestamp: Date.now(),
+      };
+      setTranscript((prev) => [...prev, aiMessage]);
+
+      if (json.isComplete) {
+        setIsComplete(true);
+      }
+
+      setTurnState("idle");
+    } catch {
+      setTurnState("idle");
+    }
+  }, [interviewId, liveTranscript]);
+
+  // ── Derive AI panel state ──
+  const aiState =
+    turnState === "listening"
+      ? "waiting"
+      : turnState === "processing"
+        ? "processing"
+        : "asking";
 
   return (
-    <div className="h-screen flex flex-col interview-ambient-bg">
-      {/* Top Bar */}
-      <RoomTopBar
-        currentQuestion={currentQuestionIndex + 1}
-        totalQuestions={totalQuestions}
-        onEndSession={handleEndSession}
+    <>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes orbBreath {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50%       { opacity: 0.9; transform: scale(1.04); }
+        }
+
+        @keyframes recordPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.3); }
+          50%       { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
+        }
+
+        @keyframes wavePulse {
+          0%, 100% { transform: scaleY(0.2); opacity: 0.3; }
+          50%       { transform: scaleY(1);   opacity: 0.7; }
+        }
+
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shimmer {
+          0%   { background-position: -400px 0; }
+          100% { background-position: 400px 0; }
+        }
+
+        .interview-scrollbar::-webkit-scrollbar {
+          width: 2px;
+        }
+        .interview-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .interview-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.08);
+        }
+      `,
+        }}
       />
 
-      {/* Main Split Screen */}
-      <div className="flex-1 grid grid-cols-2">
-        {/* Left: AI Panel */}
-        <AIPanel
-          question={currentQuestion}
-          questionNumber={currentQuestionIndex + 1}
-          totalQuestions={totalQuestions}
-          state={isRecording ? "waiting" : "asking"}
-        />
+      <div className="h-screen w-full flex flex-col bg-[#0a0a0a] overflow-hidden">
+        {/* Top Bar */}
+        <RoomTopBar config={config} onExitClick={onExitClick} />
 
-        {/* Right: User Panel */}
-        <div className="relative">
-          <UserPanel
-            userName={userName}
-            isRecording={isRecording}
-            transcript={transcript}
-            onStartRecording={handleStartRecording}
-            onStopRecording={handleStopRecording}
-          />
+        {/* Main Split — 50/50 */}
+        <div className="flex-1 flex overflow-hidden max-w-[1700px] w-full mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-6 gap-4 md:gap-6 pb-24">
+          {/* Left 50%: AI + User stacked */}
+          <div className="hidden md:flex flex-col w-1/2 gap-4">
+            {/* AI Panel */}
+            <div
+              className="flex-1 rounded-[24px] overflow-hidden relative"
+              style={{
+                background: "#0c0c0c",
+                border: "1px solid rgba(255,255,255,0.04)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}
+            >
+              <AIPanel state={aiState} />
+            </div>
 
-          {/* Evaluation Overlay */}
-          {showEvaluation && currentEvaluation && (
-            <EvaluationOverlay
-              evaluation={currentEvaluation.evaluation}
-              score={currentEvaluation.score}
-              followUp={currentEvaluation.followUp}
-              onNext={handleNextQuestion}
+            {/* User Panel */}
+            <div
+              className="flex-1 rounded-[24px] overflow-hidden relative"
+              style={{
+                background: "#0c0c0c",
+                border: "1px solid rgba(255,255,255,0.04)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}
+            >
+              <UserPanel
+                userName="You"
+                liveTranscript={liveTranscript}
+                turnState={turnState}
+              />
+            </div>
+          </div>
+
+          {/* Right 50%: Transcript */}
+          <div
+            className="flex flex-col w-full md:w-1/2 h-full overflow-hidden rounded-[24px] relative"
+            style={{
+              background: "#0c0c0c",
+              border: "1px solid rgba(255,255,255,0.04)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            }}
+          >
+            <TranscriptArea
+              messages={transcript}
+              isProcessing={turnState === "processing"}
             />
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Transcript Drawer */}
-      <TranscriptDrawer entries={transcriptHistory} />
-    </div>
+        {/* Bottom Control Bar */}
+        <BottomControlBar
+          turnState={turnState}
+          onStart={startListening}
+          onStop={stopListening}
+          isComplete={isComplete}
+        />
+      </div>
+    </>
   );
 }

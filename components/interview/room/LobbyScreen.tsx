@@ -1,6 +1,14 @@
 "use client";
 
-import { Sparkles, Mic, Shield, ChevronRight } from "lucide-react";
+import {
+  Sparkles,
+  Mic,
+  Shield,
+  ChevronRight,
+  Target,
+  TrendingUp,
+  Brain,
+} from "lucide-react";
 
 interface LobbyScreenProps {
   config: {
@@ -8,7 +16,6 @@ interface LobbyScreenProps {
     mode: string;
     questions: number;
     difficulty: string;
-    stack: string[];
   };
   onJoin: () => void;
 }
@@ -16,31 +23,117 @@ interface LobbyScreenProps {
 export function LobbyScreen({ config, onJoin }: LobbyScreenProps) {
   return (
     <div className="min-h-screen interview-ambient-bg interview-grid-overlay flex items-center justify-center px-4">
-      <div className="relative z-10 w-full max-w-2xl">
-        {/* Company + Mode */}
+      <div className="relative z-10 w-full max-w-md">
+        {/* Value Proposition */}
         <div
-          className="text-[11px] tracking-[0.2em] uppercase mb-6 text-center"
-          style={{
-            fontFamily: "var(--font-dm-mono)",
-            animation: "fadeSlideUp 0.4s ease backwards",
-          }}
+          className="text-center mb-6"
+          style={{ animation: "fadeSlideUp 0.4s ease backwards" }}
         >
-          <span style={{ color: "var(--amber)" }}>{config.company}</span>
-          <span style={{ color: "var(--text-muted)" }}> · {config.mode} Interview</span>
+          <div
+            className="text-[10px] tracking-[0.2em] uppercase mb-3"
+            style={{
+              fontFamily: "var(--font-dm-mono)",
+              color: "var(--text-muted)",
+            }}
+          >
+            AI-POWERED MOCK INTERVIEW
+          </div>
+          <h1
+            className="text-2xl mb-2"
+            style={{
+              fontFamily: "var(--font-dm-serif)",
+              color: "var(--text-primary)",
+            }}
+          >
+            Practice Like It's Real
+          </h1>
+          <p
+            className="text-[11px] leading-relaxed max-w-xs mx-auto"
+            style={{
+              fontFamily: "var(--font-dm-mono)",
+              color: "var(--text-muted)",
+            }}
+          >
+            AI interviewer calibrated to{" "}
+            <span style={{ color: "var(--amber)" }}>{config.company}</span>'s
+            hiring bar — real questions, real-time feedback, real confidence.
+          </p>
         </div>
 
-        {/* ── CTA — top and center ── */}
-        <div className="text-center mb-12" style={{ animation: "fadeSlideUp 0.4s ease 0.06s backwards" }}>
-          <h1 className="text-4xl mb-4" style={{ fontFamily: "var(--font-dm-serif)", color: "var(--text-primary)" }}>
-            Ready to Begin?
-          </h1>
-          <p className="text-sm mb-8 max-w-md mx-auto" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-            Your AI interviewer is prepared. Click below to enter the room.
-          </p>
+        {/* Features — single line */}
+        <div
+          className="flex justify-center gap-5 mb-6"
+          style={{ animation: "fadeSlideUp 0.4s ease 0.05s backwards" }}
+        >
+          {[
+            { icon: <Target className="w-3 h-3" />, text: "Company prep" },
+            { icon: <Brain className="w-3 h-3" />, text: "Follow-ups" },
+            { icon: <TrendingUp className="w-3 h-3" />, text: "Scoring" },
+          ].map((item) => (
+            <div
+              key={item.text}
+              className="flex items-center gap-1 text-[9px]"
+              style={{
+                fontFamily: "var(--font-dm-mono)",
+                color: "var(--text-muted)",
+              }}
+            >
+              <span style={{ color: "var(--amber)" }}>{item.icon}</span>
+              {item.text}
+            </div>
+          ))}
+        </div>
 
+        {/* Session Config — tiny pills */}
+        <div
+          className="flex justify-center gap-1.5 mb-6"
+          style={{ animation: "fadeSlideUp 0.4s ease 0.08s backwards" }}
+        >
+          {[
+            { label: "Mode", value: config.mode },
+            { label: "Qs", value: config.questions.toString() },
+            { label: "Company", value: config.company },
+            { label: "Level", value: config.difficulty },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="px-2.5 py-1.5 border text-center"
+              style={{
+                background: "var(--bg-card)",
+                borderColor: "var(--border-subtle)",
+                borderRadius: "4px",
+              }}
+            >
+              <div
+                className="text-[7px] tracking-[0.12em] uppercase"
+                style={{
+                  fontFamily: "var(--font-dm-mono)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                {stat.label}
+              </div>
+              <div
+                className="text-[11px] capitalize"
+                style={{
+                  fontFamily: "var(--font-dm-serif)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                {stat.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div
+          className="text-center mb-6"
+          style={{ animation: "fadeSlideUp 0.4s ease 0.1s backwards" }}
+        >
           <button
             onClick={onJoin}
-            className="inline-flex items-center gap-2.5 px-8 py-4 text-sm font-medium tracking-wide transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+            className="inline-flex items-center gap-2 px-7 py-3 text-sm font-medium tracking-wide transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
             style={{
               background: "var(--amber)",
               color: "#000",
@@ -53,54 +146,37 @@ export function LobbyScreen({ config, onJoin }: LobbyScreenProps) {
           </button>
         </div>
 
-        {/* Session details */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8" style={{ animation: "fadeSlideUp 0.4s ease 0.12s backwards" }}>
-          {[
-            { label: "Mode", value: config.mode },
-            { label: "Questions", value: config.questions.toString() },
-            { label: "Company", value: config.company },
-            { label: "Difficulty", value: config.difficulty },
-          ].map((stat) => (
-            <div key={stat.label} className="p-4 border text-center" style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)", borderRadius: "6px" }}>
-              <div className="text-[9px] tracking-[0.15em] uppercase mb-1.5" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-                {stat.label}
-              </div>
-              <div className="text-sm capitalize" style={{ fontFamily: "var(--font-dm-serif)", color: "var(--text-primary)" }}>
-                {stat.value}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Stack tags */}
-        {config.stack?.length > 0 && (
-          <div className="mb-8 text-center" style={{ animation: "fadeSlideUp 0.4s ease 0.18s backwards" }}>
-            <div className="text-[10px] tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--amber)" }}>
-              Your Stack
-            </div>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {config.stack.map((tech) => (
-                <span key={tech} className="px-3 py-1.5 text-xs" style={{ fontFamily: "var(--font-dm-mono)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", borderRadius: "4px" }}>
-                  {tech}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tips */}
-        <div className="p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)", borderRadius: "6px", animation: "fadeSlideUp 0.4s ease 0.24s backwards" }}>
-          <div className="text-[10px] tracking-[0.15em] uppercase mb-3" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-            Before You Begin
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+        {/* Tips — ultra compact */}
+        <div
+          className="px-3 py-2.5 border"
+          style={{
+            background: "var(--bg-card)",
+            borderColor: "var(--border-subtle)",
+            borderRadius: "6px",
+            animation: "fadeSlideUp 0.4s ease 0.12s backwards",
+          }}
+        >
+          <div className="flex justify-between">
             {[
-              { icon: <Mic className="w-3 h-3" />, text: "Test your microphone" },
-              { icon: <Shield className="w-3 h-3" />, text: "Find a quiet space" },
-              { icon: <Sparkles className="w-3 h-3" />, text: "Speak clearly" },
-              { icon: <ChevronRight className="w-3 h-3" />, text: "End session anytime" },
+              { icon: <Mic className="w-2.5 h-2.5" />, text: "Test mic" },
+              { icon: <Shield className="w-2.5 h-2.5" />, text: "Quiet space" },
+              {
+                icon: <Sparkles className="w-2.5 h-2.5" />,
+                text: "Speak clearly",
+              },
+              {
+                icon: <ChevronRight className="w-2.5 h-2.5" />,
+                text: "End anytime",
+              },
             ].map((tip) => (
-              <div key={tip.text} className="flex items-center gap-2 text-[11px]" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
+              <div
+                key={tip.text}
+                className="flex items-center gap-1 text-[9px]"
+                style={{
+                  fontFamily: "var(--font-dm-mono)",
+                  color: "var(--text-muted)",
+                }}
+              >
                 <span style={{ color: "var(--emerald)" }}>{tip.icon}</span>
                 {tip.text}
               </div>

@@ -18,6 +18,14 @@ const interviewSchema = z.object({
   noOfQuestions: z.coerce.number().int().max(10).min(1),
 });
 
+/**
+ * Creates a new interview.
+ * @throws {Error} - If there is an error creating the interview.
+ * @returns {NextResponse} - A response object with the created interview's ID.
+ * @throws {NextResponse} - A 401 response if the user is not authorized.
+ * @throws {NextResponse} - A 400 response if the request body is invalid.
+ * @throws {NextResponse} - A 500 response if there is an internal server error.
+ */
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
