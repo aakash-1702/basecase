@@ -7,5 +7,5 @@ export default async function InterviewDashboard() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/auth/sign-in");
 
-  return <InterviewLanding />;
+  return <InterviewLanding isPremium={session.user.premium ?? false} />;
 }

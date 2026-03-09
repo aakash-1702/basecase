@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   CheckCircle,
   Cloud,
@@ -694,9 +695,9 @@ function AIMentor({
             </div>
           ))}
         </div>
-        <button className="btn-og paywall-cta">
+        <Link href="/subscription" className="btn-og paywall-cta">
           <Zap size={12} /> Unlock AI Mentor · Upgrade to Plus
-        </button>
+        </Link>
       </div>
     );
 

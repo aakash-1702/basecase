@@ -258,7 +258,10 @@ export function InterviewRoom({
         }}
       />
 
-      <div className="h-screen w-full flex flex-col bg-[#0a0a0a] overflow-hidden">
+      <div
+        data-interview-room="active"
+        className="h-screen w-full flex flex-col bg-[#0a0a0a] overflow-hidden"
+      >
         {/* Loading state */}
         {phase === "loading" && (
           <div className="flex-1 flex flex-col items-center justify-center">
