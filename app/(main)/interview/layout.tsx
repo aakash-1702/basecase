@@ -5,13 +5,14 @@ export default function InterviewLayout({
 }) {
   return (
     <>
+      {/* Hide nav/footer only when [data-interview-room="active"] is present */}
       <style>{`
-        body:has([data-interview-room]) footer,
-        body:has([data-interview-room]) nav {
+        body:has([data-interview-room="active"]) footer,
+        body:has([data-interview-room="active"]) nav {
           display: none !important;
         }
       `}</style>
-      <div data-interview-room="true">{children}</div>
+      <div>{children}</div>
     </>
   );
 }
