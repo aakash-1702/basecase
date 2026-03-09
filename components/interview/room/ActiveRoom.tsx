@@ -14,6 +14,7 @@ import type {
 
 interface ActiveRoomProps {
   greetingMessage: string;
+  greetingAudio?: string | null;
   interviewId: string;
   config: InterviewConfig;
   onExitClick?: () => void;
@@ -21,6 +22,7 @@ interface ActiveRoomProps {
 
 export function ActiveRoom({
   greetingMessage,
+  greetingAudio,
   interviewId,
   config,
   onExitClick,
@@ -33,8 +35,48 @@ export function ActiveRoom({
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef("");
   const isListeningRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // ── Greeting display with 2s delay ──
+  // ── Play greeting audio helper ──
+  const playAudio = useCallback((base64: string) => {
+    try {
+      // Cleanup previous audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+      }
+
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "audio/wav" });
+      const url = URL.createObjectURL(blob);
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+      };
+
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+      };
+
+      audio.play().catch(() => {
+        // Autoplay blocked - user can still see the message
+        URL.revokeObjectURL(url);
+      });
+    } catch {
+      // Silently fail - message is still visible
+    }
+  }, []);
+
+  // ── Greeting display with 2s delay + audio ──
   useEffect(() => {
     const timer = setTimeout(() => {
       setTranscript([
@@ -45,9 +87,26 @@ export function ActiveRoom({
           timestamp: Date.now(),
         },
       ]);
+
+      // Play greeting audio if available
+      if (greetingAudio) {
+        playAudio(greetingAudio);
+      }
     }, 2000);
     return () => clearTimeout(timer);
-  }, [greetingMessage]);
+  }, [greetingMessage, greetingAudio, playAudio]);
+
+  // ── Cleanup audio on unmount ──
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+      }
+    };
+  }, []);
 
   // ── Initialize Web Speech API ──
   useEffect(() => {
@@ -159,12 +218,17 @@ export function ActiveRoom({
       const aiMessage: TranscriptMessage = {
         id: crypto.randomUUID(),
         role: "ai",
-        text: json.data,
+        text: json.data.nextQuestion,
         timestamp: Date.now(),
       };
       setTranscript((prev) => [...prev, aiMessage]);
 
-      if (json.isComplete) {
+      // Play audio if available
+      if (json.data.audioData) {
+        playAudio(json.data.audioData);
+      }
+
+      if (json.data.isComplete) {
         setIsComplete(true);
       }
 

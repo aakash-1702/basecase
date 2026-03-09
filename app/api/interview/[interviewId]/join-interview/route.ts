@@ -5,6 +5,26 @@ import { headers } from "next/headers";
 import { Agent, run } from "@openai/agents";
 import { getInterviewSession, saveInterviewSession } from "@/lib/session";
 
+import { SarvamAIClient } from "sarvamai";
+
+const client = new SarvamAIClient({
+  apiSubscriptionKey: `${process.env.SARVAMAI_API_KEY!}`,
+});
+
+const TTS = async (text: string) => {
+  const audioResponse = await client.textToSpeech.convert({
+    text: text,
+    target_language_code: "en-IN",
+    model: "bulbul:v3",
+    pace: 1.25,
+    
+  });
+
+  console.log(audioResponse);
+
+  return audioResponse.audios[0]; // This is the binary audio data
+};
+
 /**
  * Returns a structured plan for an interview based on the given configuration.
  *
@@ -246,10 +266,12 @@ how are you feeling?`;
       },
     });
 
+    const audioResponse = await TTS(greetingMessage);
+
     return NextResponse.json(
       {
         success: true,
-        data: greetingMessage,
+        data: { greetingMessage, audio: audioResponse },
         message: "Interview started successfully",
       },
       {
