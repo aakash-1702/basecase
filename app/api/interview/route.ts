@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import {auth} from "@/lib/auth";
 import { headers } from "next/headers";
 
+/**
+ * Fetches all the previous interviews of a user.
+ * @returns {NextResponse} - A response object with the previous interviews' data.
+ * @throws {NextResponse} - A 401 response if the user is not authorized.
+ */
 export async function GET() {
     // verifying the user
     const session = await auth.api.getSession({

@@ -225,8 +225,8 @@ model Interview {
 
   startedAt   DateTime  @default(now())
   completedAt DateTime?
-  difficulty String?  // easy medium and hard 
-  turns       InterviewTurn[]   // structured Q&A pairs
+  difficulty String?  // 
+  
   feedback    InterviewFeedback?
   company String @default("Generic")
 
@@ -236,24 +236,12 @@ model Interview {
   @@index([userId])
 }
 
-model InterviewTurn {
-  id            String    @id @default(cuid())
-  interviewId   String
-  interview     Interview @relation(fields: [interviewId], references: [id])
 
-  index         Int       // order of the turn
-  question      String    // AI question
-  answer        String    // user transcript
-  isFollowUp    Boolean   @default(false)
-  turnScore     Int?      // 1-10 per turn
-
-  @@index([interviewId])
-}
 
 model InterviewFeedback {
   id              String    @id @default(cuid())
   interviewId     String    @unique
-  interview       Interview @relation(fields: [interviewId], references: [id])
+  interview       Interview @relation(fields: [interviewId], references: [id] , onDelete: Cascade)
 
   overallScore    Float
 

@@ -1,47 +1,167 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { LobbyScreen } from "@/components/interview/room/LobbyScreen";
 import { PreparingScreen } from "@/components/interview/room/PreparingScreen";
 import { ActiveRoom } from "@/components/interview/room/ActiveRoom";
+import { BrowserGateScreen } from "@/components/interview/room/BrowserGateScreen";
+import { ExitConfirmModal } from "@/components/interview/room/ExitConfirmModal";
+import type { InterviewConfig, PreparingStatus } from "@/types/interview-room";
 
-type Stage = "lobby" | "preparing" | "active";
+type View = "lobby" | "browser-gate" | "preparing" | "room";
+
+/**
+ * Check if browser supports Web Speech API using feature detection.
+ * Does NOT use user agent sniffing.
+ */
+function checkSpeechRecognitionSupport(): boolean {
+  if (typeof window === "undefined") return false;
+  return "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+}
 
 export default function InterviewSessionPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [stage, setStage] = useState<Stage>("lobby");
 
-  // Get config from search params
-  const config = {
+  const interviewId = searchParams.get("interviewId") || "";
+  const questions = parseInt(searchParams.get("questions") || "8");
+  const config: InterviewConfig = {
     company: searchParams.get("company") || "Google",
-    mode: searchParams.get("mode") || "technical",
-    questions: parseInt(searchParams.get("questions") || "8"),
-    difficulty: searchParams.get("difficulty") || "senior",
-    stack: ["React", "Node.js", "Redis", "PostgreSQL"], // Mock stack
+    mode: (searchParams.get("mode") || "technical") as InterviewConfig["mode"],
+    difficulty: (searchParams.get("difficulty") ||
+      "senior") as InterviewConfig["difficulty"],
   };
+  const lobbyConfig = { ...config, questions };
+
+  const [view, setView] = useState<View>("lobby");
+  const [preparingStatus, setPreparingStatus] =
+    useState<PreparingStatus>("loading");
+  const [greetingMessage, setGreetingMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showExitModal, setShowExitModal] = useState(false);
+
+  // ── Navigation guards (active only when in "room" view) ──
+  useEffect(() => {
+    if (view !== "room") return;
+
+    // Prevent tab close / refresh with native browser dialog
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // Required for Chrome
+    };
+
+    // Capture browser back button
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      setShowExitModal(true);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [view]);
+
+  const fireJoinRequest = useCallback(async () => {
+    setPreparingStatus("loading");
+    setErrorMessage("");
+    try {
+      const res = await fetch(`/api/interview/${interviewId}/join-interview`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setErrorMessage(json.message || "Failed to join interview");
+        setPreparingStatus("error");
+        return;
+      }
+      setGreetingMessage(json.data);
+      setPreparingStatus("ready");
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
+      setPreparingStatus("error");
+    }
+  }, [interviewId]);
 
   const handleJoin = () => {
-    setStage("preparing");
+    // Browser gate check FIRST — before anything else
+    if (!checkSpeechRecognitionSupport()) {
+      setView("browser-gate");
+      return;
+    }
+
+    setView("preparing");
+    fireJoinRequest();
   };
 
   const handleReady = () => {
-    setStage("active");
+    setView("room");
   };
 
-  if (stage === "lobby") {
-    return <LobbyScreen config={config} onJoin={handleJoin} />;
+  const handleRetry = () => {
+    fireJoinRequest();
+  };
+
+  const handleExitClick = () => {
+    setShowExitModal(true);
+  };
+
+  const handleExitConfirm = async () => {
+    try {
+      // Call end session API
+      await fetch(`/api/interview/${interviewId}/end`, {
+        method: "PATCH",
+      });
+    } catch {
+      // Continue with navigation even if API fails
+    }
+
+    // Navigate to report page
+    router.push(`/interview/${interviewId}/report`);
+  };
+
+  const handleExitClose = () => {
+    setShowExitModal(false);
+  };
+
+  if (view === "lobby") {
+    return <LobbyScreen config={lobbyConfig} onJoin={handleJoin} />;
   }
 
-  if (stage === "preparing") {
-    return <PreparingScreen onReady={handleReady} />;
+  if (view === "browser-gate") {
+    return <BrowserGateScreen />;
+  }
+
+  if (view === "preparing") {
+    return (
+      <PreparingScreen
+        status={preparingStatus}
+        onReady={handleReady}
+        onRetry={handleRetry}
+        errorMessage={errorMessage}
+      />
+    );
   }
 
   return (
-    <ActiveRoom
-      sessionId="demo-session"
-      userName="Akash"
-      questionCount={config.questions}
-    />
+    <>
+      <ActiveRoom
+        greetingMessage={greetingMessage}
+        interviewId={interviewId}
+        config={config}
+        onExitClick={handleExitClick}
+      />
+      <ExitConfirmModal
+        isOpen={showExitModal}
+        onClose={handleExitClose}
+        onConfirm={handleExitConfirm}
+        interviewId={interviewId}
+      />
+    </>
   );
 }

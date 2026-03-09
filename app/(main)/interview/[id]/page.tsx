@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { interviews, transcripts } from "@/lib/mockData";
+import prisma from "@/lib/prisma";
 import InterviewDetail from "../../../../components/interview/InterviewDetail";
 
 export default async function InterviewDetailPage({
@@ -14,10 +14,31 @@ export default async function InterviewDetailPage({
   if (!session?.user) redirect("/auth/sign-in");
 
   const { id } = await params;
-  const interview = interviews.find((i) => i.id === id);
+
+  const interview = await prisma.interview.findFirst({
+    where: {
+      id,
+      userId: session.user.id,
+    },
+    include: {
+      feedback: true,
+    },
+  });
+
   if (!interview) notFound();
 
-  const transcript = transcripts[id] || transcripts["1"] || [];
+  // If interview hasn't started yet, redirect to the lobby
+  if (interview.status === "notStarted") {
+    const params = new URLSearchParams({
+      interviewId: interview.id,
+      mode: interview.mode,
+      company: interview.company,
+      difficulty: interview.difficulty || "senior",
+      questions: (interview.questionLimit || 8).toString(),
+    });
+    redirect(`/interview/new-session?${params.toString()}`);
+  }
 
-  return <InterviewDetail interview={interview} transcript={transcript} />;
+  // Otherwise redirect to the report page
+  redirect(`/interview/${id}/report`);
 }

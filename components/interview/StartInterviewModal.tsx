@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, AlertCircle, Upload, Minus, Plus } from "lucide-react";
+import { X, AlertCircle, Upload, Minus, Plus, Loader2 } from "lucide-react";
 
 interface StartInterviewModalProps {
   onClose: () => void;
@@ -10,6 +10,19 @@ interface StartInterviewModalProps {
 
 type InterviewMode = "dsa" | "technical" | "hr";
 type Difficulty = "entry" | "mid" | "senior" | "staff";
+
+const modeMap: Record<InterviewMode, string> = {
+  dsa: "DSA",
+  technical: "Technical",
+  hr: "HR",
+};
+
+const difficultyMap: Record<Difficulty, string> = {
+  entry: "Entry",
+  mid: "Mid",
+  senior: "Senior",
+  staff: "Staff",
+};
 
 const companies = [
   "Google", "Amazon", "Microsoft", "Flipkart",
@@ -23,15 +36,42 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>("senior");
   const [questionCount, setQuestionCount] = useState(8);
   const [resume, setResume] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleStart = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const params = new URLSearchParams({
-      mode, company, difficulty,
-      questions: questionCount.toString(),
-    });
-    router.push(`/interview/new-session?${params.toString()}`);
-    onClose();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/interview/new-interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: modeMap[mode],
+          company,
+          difficulty: difficultyMap[difficulty],
+          noOfQuestions: questionCount,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.message || "Failed to create interview");
+        setIsLoading(false);
+        return;
+      }
+      const interviewId = json.data;
+      const params = new URLSearchParams({
+        interviewId,
+        mode, company, difficulty,
+        questions: questionCount.toString(),
+      });
+      router.push(`/interview/new-session?${params.toString()}`);
+      // Don't call onClose() — keep modal open with loading state
+      // until the route change unmounts the page naturally
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const handleFileUpload = useCallback(
@@ -209,9 +249,16 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
           className="sticky bottom-0 px-7 py-5"
           style={{ background: "#0c0c0c", borderTop: "1px solid rgba(255,255,255,0.06)" }}
         >
+          {error && (
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 text-xs" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--rose, #f43f5e)", background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.15)", borderRadius: "6px" }}>
+              <AlertCircle size={14} />
+              {error}
+            </div>
+          )}
           <button
             onClick={handleStart}
-            className="w-full py-4 text-sm font-medium tracking-wide transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+            disabled={isLoading}
+            className="w-full py-4 text-sm font-medium tracking-wide transition-all duration-200 hover:brightness-110 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             style={{
               background: "var(--amber)",
               color: "#000",
@@ -219,7 +266,11 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
               fontFamily: "var(--font-dm-mono)",
             }}
           >
-            → Start {mode === "dsa" ? "DSA" : mode === "technical" ? "Technical" : "HR"} Interview
+            {isLoading ? (
+              <><Loader2 size={16} className="animate-spin" /> Creating Session...</>
+            ) : (
+              <>→ Start {mode === "dsa" ? "DSA" : mode === "technical" ? "Technical" : "HR"} Interview</>
+            )}
           </button>
         </div>
       </div>
