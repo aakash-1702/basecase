@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AIPanel } from "./AIPanel";
 import { UserPanel } from "./UserPanel";
 import { RoomTopBar } from "./RoomTopBar";
@@ -31,11 +33,13 @@ export function ActiveRoom({
   const [turnState, setTurnState] = useState<TurnState>("idle");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [isComplete, setIsComplete] = useState(false);
+  const router = useRouter();
 
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef("");
   const isListeningRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasEndedRef = useRef(false);
 
   // ── Play greeting audio helper ──
   const playAudio = useCallback((base64: string) => {
@@ -210,11 +214,12 @@ export function ActiveRoom({
       const json = await res.json();
 
       if (!json.success) {
+        toast.error(json.message || "Something went wrong. Please try again.");
         setTurnState("idle");
         return;
       }
 
-      // Append AI response
+      // Append AI response (farewell or next question)
       const aiMessage: TranscriptMessage = {
         id: crypto.randomUUID(),
         role: "ai",
@@ -223,17 +228,82 @@ export function ActiveRoom({
       };
       setTranscript((prev) => [...prev, aiMessage]);
 
-      // Play audio if available
-      if (json.data.audioData) {
-        playAudio(json.data.audioData);
-      }
-
-      if (json.data.isComplete) {
+      // ── Ending / Complete ──
+      if (json.data.isEnding || json.data.isComplete) {
         setIsComplete(true);
+
+        // Fire end-interview exactly once
+        if (!hasEndedRef.current) {
+          hasEndedRef.current = true;
+
+          toast.loading("Processing your interview...", {
+            id: "end-interview",
+          });
+
+          try {
+            const endRes = await fetch(
+              `/api/interview/${interviewId}/exit-interview`,
+              { method: "PATCH" },
+            );
+            const endJson = await endRes.json();
+
+            if (endRes.ok && endJson.success) {
+              toast.success(
+                "Interview ended successfully. Your report will be generated shortly.",
+                { id: "end-interview" },
+              );
+              router.push("/interview");
+            } else {
+              toast.error(
+                "Failed to end interview. Please try again.",
+                { id: "end-interview" },
+              );
+            }
+          } catch {
+            toast.error(
+              "Failed to end interview. Please try again.",
+              { id: "end-interview" },
+            );
+          }
+        }
+
+        setTurnState("idle");
+        return;
       }
 
-      setTurnState("idle");
+      // ── Normal turn — play audio, show mic only after it ends ──
+      if (json.data.audioData) {
+        try {
+          // Cleanup previous audio
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+          }
+
+          const audio = new Audio(
+            `data:audio/wav;base64,${json.data.audioData}`,
+          );
+          audioRef.current = audio;
+
+          // Keep turnState as "processing" — mic stays hidden
+          audio.onended = () => {
+            setTurnState("idle");
+          };
+
+          audio.onerror = () => {
+            setTurnState("idle");
+          };
+
+          await audio.play();
+        } catch {
+          // Autoplay blocked or other error — still allow mic
+          setTurnState("idle");
+        }
+      } else {
+        setTurnState("idle");
+      }
     } catch {
+      toast.error("Something went wrong. Please try again.");
       setTurnState("idle");
     }
   }, [interviewId, liveTranscript]);
