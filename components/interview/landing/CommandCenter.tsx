@@ -139,20 +139,23 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    async function fetchInterviews() {
-      try {
-        const res = await fetch("/api/interview");
-        const json = await res.json();
-        if (json.success && json.data) {
-          setInterviews(json.data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch interviews:", err);
-      } finally {
-        setIsLoading(false);
+  // Fetch interviews function (extracted for reuse in polling)
+  const fetchInterviews = async () => {
+    try {
+      const res = await fetch("/api/interview");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setInterviews(json.data);
       }
+    } catch (err) {
+      console.error("Failed to fetch interviews:", err);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Initial fetch
+  useEffect(() => {
     fetchInterviews();
   }, []);
 
@@ -185,11 +188,14 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
   };
 
   const pendingInterviews = interviews.filter((i) => i.status === "notStarted");
-  const completedInterviews = interviews.filter(
-    (i) => i.status !== "notStarted",
+  const processingInterviews = interviews.filter(
+    (i) => i.status === "processing",
+  );
+  const pastInterviews = interviews.filter(
+    (i) => i.status !== "notStarted" && i.status !== "processing",
   );
 
-  const completedWithScores = completedInterviews.filter(
+  const completedWithScores = pastInterviews.filter(
     (i) => i.feedback?.overallScore != null,
   );
   const avgScore =
@@ -200,6 +206,15 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
         ) / completedWithScores.length
       : 0;
   const sessionCount = interviews.length;
+
+  // Auto-refresh when processing interviews exist (poll every 15s)
+  useEffect(() => {
+    if (processingInterviews.length === 0) return;
+    const interval = setInterval(() => {
+      fetchInterviews();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [processingInterviews.length]);
 
   // For free users, show a promotional landing page
   if (!isPremium) {
@@ -757,8 +772,134 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
             </div>
           </div>
         )}
+        {/* ── PROCESSING INTERVIEWS ── */}
+        {processingInterviews.length > 0 && (
+          <div className="max-w-5xl mx-auto px-6 pb-16">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: "var(--amber)" }}
+                />
+                <div
+                  className="text-[10px] tracking-[0.2em] uppercase"
+                  style={{
+                    fontFamily: "var(--font-dm-mono)",
+                    color: "var(--amber)",
+                  }}
+                >
+                  Processing
+                </div>
+              </div>
+              <span
+                className="text-[11px]"
+                style={{
+                  fontFamily: "var(--font-dm-mono)",
+                  color: "var(--text-dim)",
+                }}
+              >
+                {processingInterviews.length} generating report{processingInterviews.length > 1 ? "s" : ""}
+              </span>
+            </div>
 
-        {/* ── PAST SESSIONS (completed/processing) ── */}
+            <div
+              className="h-px mb-6"
+              style={{ background: "var(--border-subtle)" }}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {processingInterviews.map((interview, idx) => (
+                <div
+                  key={interview.id}
+                  className="relative p-6 border overflow-hidden"
+                  style={{
+                    background: "var(--bg-card)",
+                    borderColor: "rgba(245,158,11,0.15)",
+                    borderRadius: "8px",
+                    animation: "fadeSlideUp 0.4s ease forwards",
+                    animationDelay: `${idx * 70}ms`,
+                    opacity: 0,
+                  }}
+                >
+                  {/* Shimmer overlay */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, transparent, rgba(245,158,11,0.04), transparent)",
+                      backgroundSize: "400px 100%",
+                      animation: "shimmer 2.5s ease-in-out infinite",
+                    }}
+                  />
+
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div
+                        className="text-sm font-medium mb-0.5"
+                        style={{
+                          fontFamily: "var(--font-dm-mono)",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        {interview.company}
+                      </div>
+                      <div
+                        className="text-[11px]"
+                        style={{
+                          fontFamily: "var(--font-dm-mono)",
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        {interview.mode}
+                        {interview.difficulty && (
+                          <>
+                            <span style={{ margin: "0 6px", opacity: 0.3 }}>·</span>
+                            {interview.difficulty}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pulsing processing indicator */}
+                    <div
+                      className="flex items-center gap-1.5 px-2 py-1 rounded"
+                      style={{
+                        background: "rgba(245,158,11,0.08)",
+                        border: "1px solid rgba(245,158,11,0.15)",
+                      }}
+                    >
+                      <span
+                        className="w-1 h-1 rounded-full animate-pulse"
+                        style={{ background: "var(--amber)" }}
+                      />
+                      <span
+                        className="text-[10px] tracking-wide uppercase"
+                        style={{
+                          fontFamily: "var(--font-dm-mono)",
+                          color: "var(--amber)",
+                        }}
+                      >
+                        Processing
+                      </span>
+                    </div>
+                  </div>
+
+                  <p
+                    className="text-xs mt-3"
+                    style={{
+                      fontFamily: "var(--font-dm-mono)",
+                      color: "var(--text-dim)",
+                    }}
+                  >
+                    Your feedback report is being generated…
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── PAST SESSIONS (completed only) ── */}
         <div className="max-w-5xl mx-auto px-6 pb-24">
           <div className="flex items-center justify-between mb-5">
             <div
@@ -777,7 +918,7 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
                 color: "var(--text-dim)",
               }}
             >
-              {isLoading ? "..." : `${completedInterviews.length} total`}
+              {isLoading ? "..." : `${pastInterviews.length} total`}
             </span>
           </div>
 
@@ -792,9 +933,9 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
               <CardSkeleton />
               <CardSkeleton />
             </div>
-          ) : completedInterviews.length > 0 ? (
+          ) : pastInterviews.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {completedInterviews.map((interview, idx) => (
+              {pastInterviews.map((interview, idx) => (
                 <CompletedInterviewCard
                   key={interview.id}
                   interview={interview}

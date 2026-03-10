@@ -255,6 +255,7 @@ model InterviewFeedback {
   strongAreas     String[]
   weakAreas       String[]
   recommendations String[]
+  transcript     String[]
 
   createdAt       DateTime  @default(now())
 }

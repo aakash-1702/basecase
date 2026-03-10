@@ -124,8 +124,8 @@ export default function InterviewSessionPage() {
       // Continue with navigation even if API fails
     }
 
-    // Navigate to report page
-    router.push(`/interview/${interviewId}/report`);
+    // Navigate to interview landing page
+    router.push(`/interview`);
   };
 
   const handleExitClose = () => {
@@ -133,26 +133,36 @@ export default function InterviewSessionPage() {
   };
 
   if (view === "lobby") {
-    return <LobbyScreen config={lobbyConfig} onJoin={handleJoin} />;
+    return (
+      <div data-interview-room="active">
+        <LobbyScreen config={lobbyConfig} onJoin={handleJoin} />
+      </div>
+    );
   }
 
   if (view === "browser-gate") {
-    return <BrowserGateScreen />;
+    return (
+      <div data-interview-room="active">
+        <BrowserGateScreen />
+      </div>
+    );
   }
 
   if (view === "preparing") {
     return (
-      <PreparingScreen
-        status={preparingStatus}
-        onReady={handleReady}
-        onRetry={handleRetry}
-        errorMessage={errorMessage}
-      />
+      <div data-interview-room="active">
+        <PreparingScreen
+          status={preparingStatus}
+          onReady={handleReady}
+          onRetry={handleRetry}
+          errorMessage={errorMessage}
+        />
+      </div>
     );
   }
 
   return (
-    <>
+    <div data-interview-room="active">
       <ActiveRoom
         greetingMessage={greetingMessage}
         greetingAudio={greetingAudio}
@@ -165,6 +175,6 @@ export default function InterviewSessionPage() {
         onClose={handleExitClose}
         onConfirm={handleExitConfirm}
       />
-    </>
+    </div>
   );
 }

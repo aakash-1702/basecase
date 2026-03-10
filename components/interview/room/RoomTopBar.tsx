@@ -34,68 +34,64 @@ export function RoomTopBar(props: RoomTopBarProps) {
     <div
       className="shrink-0 flex items-center justify-between px-6 relative"
       style={{
-        height: "44px",
-        background: "#0a0a0a",
-        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        height: "48px",
+        background: "#111111",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      {/* Left: BaseCase branding */}
-      <div
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          fontSize: "13px",
-          color: "#2a2a2a",
-        }}
-      >
-        BaseCase
-      </div>
+      {/* Left: empty spacer for layout balance */}
+      <div />
 
       {/* Center: Interview config */}
       <div
         className="absolute left-1/2 -translate-x-1/2"
         style={{
           fontFamily: "var(--font-dm-mono)",
-          fontSize: "11px",
-          color: "#3a3a3a",
+          fontSize: "12px",
+          fontWeight: 500,
+          color: "#a0a0a0",
+          letterSpacing: "0.02em",
         }}
       >
         {config.company}
-        <span style={{ margin: "0 8px", opacity: 0.5 }}>·</span>
+        <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
         {config.mode}
-        <span style={{ margin: "0 8px", opacity: 0.5 }}>·</span>
+        <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
         {config.difficulty}
       </div>
 
-      {/* Right: End Session button */}
+      {/* Right: End Session button — solid destructive */}
       <button
         onClick={handleClick}
         disabled={isDisabled}
-        className="transition-colors duration-200"
+        className="transition-all duration-200"
         style={{
           fontFamily: "var(--font-dm-mono)",
           fontSize: "12px",
-          color: isDisabled ? "#2a2a2a" : "#3f3f3f",
-          background: "transparent",
-          border: `1px solid ${isDisabled ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.06)"}`,
-          borderRadius: "4px",
-          padding: "6px 12px",
+          fontWeight: 500,
+          color: isDisabled ? "#555" : "#fff",
+          background: isDisabled
+            ? "rgba(239,68,68,0.1)"
+            : "rgba(239,68,68,0.8)",
+          border: "1px solid rgba(239,68,68,0.4)",
+          borderRadius: "6px",
+          padding: "7px 18px",
           cursor: isDisabled ? "not-allowed" : "pointer",
           opacity: isDisabled ? 0.5 : 1,
+          letterSpacing: "0.02em",
         }}
         onMouseEnter={(e) => {
           if (!isDisabled) {
-            e.currentTarget.style.color = "#f87171";
-            e.currentTarget.style.borderColor = "rgba(244,63,94,0.3)";
+            e.currentTarget.style.background = "rgba(239,68,68,1)";
           }
         }}
         onMouseLeave={(e) => {
           if (!isDisabled) {
-            e.currentTarget.style.color = "#3f3f3f";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+            e.currentTarget.style.background = "rgba(239,68,68,0.8)";
           }
         }}
       >
-        End Session
+        End Interview
       </button>
     </div>
   );
