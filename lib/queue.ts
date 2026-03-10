@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { Queue, Worker } from "bullmq";
 
-console.log(process.env.UPSTASH_CONNECTION_BULLMQ_URL);
+
 
 const url = new URL(process.env.UPSTASH_CONNECTION_BULLMQ_URL!);
 
