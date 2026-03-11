@@ -576,7 +576,6 @@ export default function Dashboard({ data }: DashboardProps) {
                   >
                     <div className="sheet-name">{s.title}</div>
                     <div className="sheet-prog-bar">
-                      console.log("sheet-slug",s.slug);
                       <div
                         className="sheet-prog-fill"
                         style={{ width: `${pct}%`, background: color }}

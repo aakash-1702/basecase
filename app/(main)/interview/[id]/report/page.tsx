@@ -1,9 +1,15 @@
 import React from "react";
+import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { InterviewReport } from "@/components/interview/report/InterviewReport";
+
+export const metadata: Metadata = {
+  title: "Interview Report — BaseCase",
+  description: "Detailed feedback and scores from your mock interview session.",
+};
 
 export default async function InterviewReportPage({
   params,

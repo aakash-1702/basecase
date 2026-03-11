@@ -69,7 +69,6 @@ export default function SheetsSection() {
         }
       } catch (error) {
         // Use demo sheets as fallback
-        console.log("Using demo sheets");
       }
     }
 

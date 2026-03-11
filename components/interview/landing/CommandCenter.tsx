@@ -7,6 +7,7 @@ import {
   BlurredReportPreview,
 } from "../PremiumGateOverlay";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowUpRight,
   Clock,
@@ -314,13 +315,16 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
           >
             {/* Main screenshot */}
             <div className="relative">
-              <img
+              <Image
                 src="/interview/Screenshot 2026-03-09 194317.png"
                 alt="Interview Room"
+                width={1200}
+                height={675}
                 className="w-full rounded-t-xl"
                 style={{
                   boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
                 }}
+                priority
               />
               {/* Gradient overlay at bottom */}
               <div
@@ -429,9 +433,11 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
                 animation: "fadeSlideUp 0.5s ease 0.4s backwards",
               }}
             >
-              <img
+              <Image
                 src="/interview/Screenshot 2026-03-09 194328.png"
                 alt="AI Interviewer"
+                width={600}
+                height={400}
                 className="w-full"
                 style={{ opacity: 0.9 }}
               />
@@ -443,9 +449,11 @@ export function InterviewLanding({ isPremium = false }: InterviewLandingProps) {
                 animation: "fadeSlideUp 0.5s ease 0.45s backwards",
               }}
             >
-              <img
+              <Image
                 src="/interview/Screenshot 2026-03-09 194431.png"
                 alt="Feedback Report"
+                width={600}
+                height={400}
                 className="w-full"
                 style={{ opacity: 0.9 }}
               />
