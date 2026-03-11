@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, DM_Serif_Display, DM_Mono } from "next/font/google";
 import "./globals.css";
