@@ -77,7 +77,6 @@ export default function ProblemsSection() {
         }
       } catch (error) {
         // Use demo problems as fallback
-        console.log("Using demo problems");
       }
     }
 

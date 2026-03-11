@@ -1,8 +1,14 @@
 import React from "react";
+import type { Metadata } from "next";
 import DashBoard from "./DashBoard";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Dashboard — BaseCase",
+  description: "Track your coding progress, revision schedule, and sheet completion.",
+};
 
 const page = async () => {
   const session = await auth.api.getSession({
@@ -12,8 +18,6 @@ const page = async () => {
   if (!session) {
     redirect("/auth/sign-in");
   }
-
-  console.log(session);
 
   const dashBoardData = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL}/api/dashboard`,
@@ -28,16 +32,12 @@ const page = async () => {
   );
 
   if (!dashBoardData.ok) {
-    const error = await dashBoardData.json();
-    console.log("Failed to fetch dashboard data:", error);
     redirect("/");
   }
 
   const data = await dashBoardData.json();
 
   data.data.name = session.user.name;
-
-  console.log(data);
 
   return (
     <div>
@@ -47,3 +47,4 @@ const page = async () => {
 };
 
 export default page;
+

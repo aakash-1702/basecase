@@ -599,7 +599,7 @@ function AIMentor({
           setMessages(mapped);
         }
       } catch (err) {
-        console.log("Failed to fetch history:", err);
+        console.error("Failed to fetch history:", err);
       } finally {
         setHistoryLoading(false);
       }
@@ -634,7 +634,7 @@ function AIMentor({
         throw new Error(data.message || "Failed to get AI response");
       }
     } catch (err) {
-      console.log("Error fetching AI response:", err);
+      console.error("Error fetching AI response:", err);
       toast.error("Failed to get AI response. Please try again.");
       // Remove the user message that failed
       setMessages((prev) => prev.slice(0, -1));
