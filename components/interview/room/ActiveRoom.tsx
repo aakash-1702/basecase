@@ -178,6 +178,74 @@ export function ActiveRoom({
     }
   }, []);
 
+  // ── Ordered SSE queue: stores { text, audio } keyed by seq ──
+  const chunkQueueRef = useRef<Map<number, { text: string; audio: string | null }>>(new Map());
+  const nextSeqRef = useRef(0);
+  const isPlayingQueueRef = useRef(false);
+  const queueDoneRef = useRef(false);
+  const onQueueDrainRef = useRef<(() => void) | null>(null);
+
+  const drainAudioQueue = useCallback(() => {
+    if (isPlayingQueueRef.current) return;
+
+    const chunk = chunkQueueRef.current.get(nextSeqRef.current);
+    // undefined means this seq hasn't arrived yet — wait
+    if (chunk === undefined) {
+      if (queueDoneRef.current) {
+        onQueueDrainRef.current?.();
+        onQueueDrainRef.current = null;
+      }
+      return;
+    }
+
+    chunkQueueRef.current.delete(nextSeqRef.current);
+    nextSeqRef.current += 1;
+
+    // Emit text in seq order — right before playing its audio
+    setTranscript((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "ai" as const,
+        text: chunk.text,
+        timestamp: Date.now(),
+      },
+    ]);
+
+    // If TTS failed for this chunk, skip audio and move on
+    if (!chunk.audio) {
+      drainAudioQueue();
+      return;
+    }
+
+    isPlayingQueueRef.current = true;
+
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      const el = new Audio(`data:audio/wav;base64,${chunk.audio}`);
+      audioRef.current = el;
+
+      el.onended = () => {
+        isPlayingQueueRef.current = false;
+        drainAudioQueue();
+      };
+      el.onerror = () => {
+        isPlayingQueueRef.current = false;
+        drainAudioQueue();
+      };
+      el.play().catch(() => {
+        isPlayingQueueRef.current = false;
+        drainAudioQueue();
+      });
+    } catch {
+      isPlayingQueueRef.current = false;
+      drainAudioQueue();
+    }
+  }, []);
+
   // ── Stop listening and send ──
   const stopListening = useCallback(async () => {
     isListeningRef.current = false;
@@ -191,7 +259,7 @@ export function ActiveRoom({
       return;
     }
 
-    // Append user message
+    // Append user message immediately
     const userMessage: TranscriptMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -201,7 +269,13 @@ export function ActiveRoom({
     setTranscript((prev) => [...prev, userMessage]);
     setTurnState("processing");
 
-    // Send to API
+    // Reset queue state for this turn
+    chunkQueueRef.current = new Map();
+    nextSeqRef.current = 0;
+    isPlayingQueueRef.current = false;
+    queueDoneRef.current = false;
+    onQueueDrainRef.current = null;
+
     try {
       const res = await fetch(
         `/api/interview/${interviewId}/join-interview/room`,
@@ -211,28 +285,92 @@ export function ActiveRoom({
           body: JSON.stringify({ userResponse: capturedText.trim() }),
         },
       );
-      const json = await res.json();
 
-      if (!json.success) {
-        toast.error(json.message || "Something went wrong. Please try again.");
+      if (!res.ok || !res.body) {
+        toast.error("Something went wrong. Please try again.");
         setTurnState("idle");
         return;
       }
 
-      // Append AI response (farewell or next question)
-      const aiMessage: TranscriptMessage = {
-        id: crypto.randomUUID(),
-        role: "ai",
-        text: json.data.nextQuestion,
-        timestamp: Date.now(),
-      };
-      setTranscript((prev) => [...prev, aiMessage]);
+      // ── SSE stream reader ──
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      // ── Ending / Complete ──
-      if (json.data.isEnding || json.data.isComplete) {
+      // Metadata collected from the `done` event
+      let streamIsComplete = false;
+      let streamIsEnding = false;
+
+
+
+      const processLine = (line: string) => {
+        if (!line.startsWith("data: ")) return;
+        try {
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.type === "chunk") {
+            // Buffer text + audio together, keyed by seq — drain emits text in order
+            chunkQueueRef.current.set(payload.seq, {
+              text: payload.text,
+              audio: payload.audio ?? null,
+            });
+            drainAudioQueue();
+          } else if (payload.type === "done") {
+            streamIsComplete = payload.isComplete ?? false;
+            streamIsEnding = payload.isEnding ?? false;
+            queueDoneRef.current = true;
+            // Try drain in case all audio already arrived
+            drainAudioQueue();
+          } else if (payload.type === "error") {
+            toast.error(payload.message || "Stream error. Please try again.");
+          }
+        } catch {
+          // Malformed SSE line — ignore
+        }
+      };
+
+      // Read the stream
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE events are separated by double newline
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          for (const line of part.split("\n")) {
+            processLine(line.trim());
+          }
+        }
+      }
+
+      // Flush any remaining buffer
+      if (buffer.trim()) {
+        for (const line of buffer.split("\n")) {
+          processLine(line.trim());
+        }
+      }
+
+      // ── Wait for queue to drain before changing state ──
+      await new Promise<void>((resolve) => {
+        if (
+          !isPlayingQueueRef.current &&
+          chunkQueueRef.current.size === 0 &&
+          queueDoneRef.current
+        ) {
+          resolve();
+        } else {
+          onQueueDrainRef.current = resolve;
+          drainAudioQueue();
+          setTimeout(resolve, 30_000);
+        }
+      });
+
+      // ── Handle completion ──
+      if (streamIsEnding || streamIsComplete) {
         setIsComplete(true);
 
-        // Fire end-interview exactly once
         if (!hasEndedRef.current) {
           hasEndedRef.current = true;
 
@@ -254,16 +392,14 @@ export function ActiveRoom({
               );
               router.push("/interview");
             } else {
-              toast.error(
-                "Failed to end interview. Please try again.",
-                { id: "end-interview" },
-              );
+              toast.error("Failed to end interview. Please try again.", {
+                id: "end-interview",
+              });
             }
           } catch {
-            toast.error(
-              "Failed to end interview. Please try again.",
-              { id: "end-interview" },
-            );
+            toast.error("Failed to end interview. Please try again.", {
+              id: "end-interview",
+            });
           }
         }
 
@@ -271,42 +407,12 @@ export function ActiveRoom({
         return;
       }
 
-      // ── Normal turn — play audio, show mic only after it ends ──
-      if (json.data.audioData) {
-        try {
-          // Cleanup previous audio
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-          }
-
-          const audio = new Audio(
-            `data:audio/wav;base64,${json.data.audioData}`,
-          );
-          audioRef.current = audio;
-
-          // Keep turnState as "processing" — mic stays hidden
-          audio.onended = () => {
-            setTurnState("idle");
-          };
-
-          audio.onerror = () => {
-            setTurnState("idle");
-          };
-
-          await audio.play();
-        } catch {
-          // Autoplay blocked or other error — still allow mic
-          setTurnState("idle");
-        }
-      } else {
-        setTurnState("idle");
-      }
+      setTurnState("idle");
     } catch {
       toast.error("Something went wrong. Please try again.");
       setTurnState("idle");
     }
-  }, [interviewId, liveTranscript]);
+  }, [interviewId, liveTranscript, drainAudioQueue]);
 
   // ── Derive AI panel state ──
   const aiState =
