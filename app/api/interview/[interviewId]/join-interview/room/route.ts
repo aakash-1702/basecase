@@ -204,44 +204,76 @@ async function* interviewMentor(data: {
     contents: conversationHistory,
   });
 
-  let sentenceBuffer = "";
   let fullResponse = "";
+  let sentenceBuffer = "";
+  let insideMessage = false;
+  let messageDone = false; // ← tracks when message value is fully consumed
 
   for await (const chunk of stream) {
     const token = chunk.text ?? "";
     if (!token) continue;
 
-    sentenceBuffer += token;
     fullResponse += token;
 
-    while (true) {
-      // FIX 1: regex now matches sentence end + (whitespace OR end of string)
-      const match = sentenceBuffer.match(/^(.*?[^.][.!?])(?:\s|$)/);
-      if (!match) break;
+    // once message is fully extracted, just collect fullResponse for meta — skip all processing
+    if (messageDone) continue;
 
-      const sentence = match[1].trim();
-      if (sentence && !sentence.startsWith("{") && !sentence.startsWith('"')) {
-        yield { text: sentence, isMeta: false };
+    if (!insideMessage) {
+      sentenceBuffer += token;
+      const startIdx = sentenceBuffer.indexOf('"message"');
+      if (startIdx !== -1) {
+        const afterKey = sentenceBuffer.indexOf('"', startIdx + 10);
+        if (afterKey !== -1) {
+          insideMessage = true;
+          // only keep what's AFTER the opening quote of message value
+          sentenceBuffer = sentenceBuffer.slice(afterKey + 1);
+          // check if closing quote already exists in this same slice
+          const earlyClose = sentenceBuffer.search(/(?<!\\)"/);
+          if (earlyClose !== -1) {
+            const finalContent = sentenceBuffer.slice(0, earlyClose);
+            sentenceBuffer = finalContent;
+            insideMessage = false;
+            messageDone = true;
+            // fall through to sentence yielding below
+          }
+        }
+      }
+      if (!insideMessage) continue; // still searching for message start
+    } else {
+      // inside message — process new token only
+      const closingQuote = token.search(/(?<!\\)"/);
+      let activeToken = token;
+
+      if (closingQuote !== -1) {
+        activeToken = token.slice(0, closingQuote);
+        insideMessage = false;
+        messageDone = true; // ← mark done so trailing JSON is ignored
       }
 
+      sentenceBuffer += activeToken;
+    }
+
+    // yield complete sentences from buffer
+    while (true) {
+      const match = sentenceBuffer.match(/^(.*?[.!?])(?:\s|$)/s);
+      if (!match) break;
+      const sentence = match[1].trim();
+      if (sentence) yield { text: sentence, isMeta: false };
       sentenceBuffer = sentenceBuffer.slice(match[0].length);
     }
   }
 
-  // flush remainder
-  const remaining = sentenceBuffer.trim();
-  if (remaining) {
-    const clean = remaining.replace(/[\{\}":\[\]]/g, "").trim();
-    if (
-      clean &&
-      !clean.startsWith("isComplete") &&
-      !clean.startsWith("isEnding")
-    ) {
-      yield { text: clean, isMeta: false };
+  // flush remaining sentence buffer — only if it's clean message content
+  // messageDone ensures this is never JSON tail
+  if (messageDone || insideMessage) {
+    const remaining = sentenceBuffer.trim();
+    // extra safety: reject if it looks like JSON leakage
+    if (remaining && !remaining.includes('"') && !remaining.includes('{')) {
+      yield { text: remaining, isMeta: false };
     }
   }
 
-  // FIX 2: simplified JSON cleaning — no control char mangling
+  // parse full response for meta
   try {
     const cleaned = fullResponse.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);

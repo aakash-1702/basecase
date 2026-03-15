@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 interface EndSessionModalProps {
   isOpen: boolean;
@@ -13,16 +14,27 @@ export function EndSessionModal({
   onClose,
   onConfirm,
 }: EndSessionModalProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape" && isOpen && !isLoading) {
         onClose();
       }
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLoading]);
+
+  const handleConfirmClick = async () => {
+    setIsLoading(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -35,7 +47,7 @@ export function EndSessionModal({
           background: "rgba(0,0,0,0.7)",
           backdropFilter: "blur(4px)",
         }}
-        onClick={onClose}
+        onClick={isLoading ? undefined : onClose}
       />
 
       {/* Modal */}
@@ -61,7 +73,7 @@ export function EndSessionModal({
               marginBottom: "16px",
             }}
           >
-            End this session?
+            Exit Interview?
           </h2>
 
           {/* Body */}
@@ -69,46 +81,52 @@ export function EndSessionModal({
             style={{
               fontFamily: "var(--font-dm-mono)",
               fontSize: "13px",
-              color: "#525252",
+              color: "#a8a8a8",
               lineHeight: 1.7,
               marginBottom: "28px",
             }}
           >
-            Your progress so far will not be saved.
-            <br />
-            You won't receive a feedback report for an incomplete session.
+            Your progress will be saved and your report will be generated.
           </p>
 
           {/* Buttons */}
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
+              disabled={isLoading}
               style={{
                 fontFamily: "var(--font-dm-mono)",
                 fontSize: "12px",
-                color: "#525252",
+                color: isLoading ? "#525252" : "#a8a8a8",
                 background: "transparent",
                 border: "none",
                 padding: "8px 16px",
-                cursor: "pointer",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.5 : 1,
               }}
             >
               Cancel
             </button>
             <button
-              onClick={onConfirm}
+              onClick={handleConfirmClick}
+              disabled={isLoading}
+              className="flex items-center gap-2"
               style={{
                 fontFamily: "var(--font-dm-mono)",
                 fontSize: "12px",
-                color: "#f87171",
+                color: isLoading ? "#a8a8a8" : "#f59e0b",
                 background: "transparent",
-                border: "1px solid rgba(244,63,94,0.3)",
+                border: isLoading
+                  ? "1px solid rgba(168,168,168,0.2)"
+                  : "1px solid rgba(245,158,11,0.3)",
                 borderRadius: "4px",
                 padding: "8px 16px",
-                cursor: "pointer",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
               }}
             >
-              End Session
+              {isLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+              {isLoading ? "Ending..." : "Exit & Generate Report"}
             </button>
           </div>
         </div>

@@ -36,14 +36,17 @@ model User {
   accounts      Account[]
   role          Role @default(USER)
   premium      Boolean @default(false)
+  interviewCredits Int @default(0)
   userProblems  UserProblem[] 
-
-  Interview    Interview[]
-  
-
+  roadmapCredits Int @default(0)
+  Interview    Interview[] 
+  expiresAt DateTime?
   @@unique([email])
   @@map("user")
 }
+
+
+
 model Session {
   id        String   @id
   expiresAt DateTime
