@@ -179,7 +179,9 @@ export function ActiveRoom({
   }, []);
 
   // ── Ordered SSE queue: stores { text, audio } keyed by seq ──
-  const chunkQueueRef = useRef<Map<number, { text: string; audio: string | null }>>(new Map());
+  const chunkQueueRef = useRef<
+    Map<number, { text: string; audio: string | null }>
+  >(new Map());
   const nextSeqRef = useRef(0);
   const isPlayingQueueRef = useRef(false);
   const queueDoneRef = useRef(false);
@@ -301,8 +303,6 @@ export function ActiveRoom({
       let streamIsComplete = false;
       let streamIsEnding = false;
 
-
-
       const processLine = (line: string) => {
         if (!line.startsWith("data: ")) return;
         try {
@@ -374,7 +374,7 @@ export function ActiveRoom({
         if (!hasEndedRef.current) {
           hasEndedRef.current = true;
 
-          toast.loading("Processing your interview...", {
+          toast.loading("Generating your report...", {
             id: "end-interview",
           });
 
@@ -387,10 +387,10 @@ export function ActiveRoom({
 
             if (endRes.ok && endJson.success) {
               toast.success(
-                "Interview ended successfully. Your report will be generated shortly.",
+                "Interview complete! Your report is being generated.",
                 { id: "end-interview" },
               );
-              router.push("/interview");
+              router.push(`/interview`);
             } else {
               toast.error("Failed to end interview. Please try again.", {
                 id: "end-interview",

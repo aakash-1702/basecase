@@ -32,6 +32,13 @@ export async function GET() {
                 select : {
                     overallScore : true,
                 }
+            },
+            user : {
+                select : {
+                    interviewCredits : true,
+                    premium : true,
+                    id : true,
+                }
             }
         },
         orderBy : {

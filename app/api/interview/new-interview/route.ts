@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse, NextRequest } from "next/server";
 
+
 enum Difficulty {
   Easy = "Easy",
   Medium = "Medium",
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // seeing if the user has enough credits to start an interview
+
   const { type, company, difficulty, noOfQuestions } = await req.json();
 
   try {
@@ -65,23 +68,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const interview = await prisma.interview.create({
-      data: {
-        userId: session.user.id,
-        mode: parsedData.data.type,
-        company: parsedData.data.company,
-        difficulty: parsedData.data.difficulty,
-        questionLimit: parsedData.data.noOfQuestions,
-        startedAt: new Date(),
-      },
-    });
+    const [updatedUser, interview] = await prisma.$transaction([
+      prisma.user.update({
+        where: {
+          id: session.user.id,
+          interviewCredits: { gt: 0 },
+        },
+        data: {
+          interviewCredits: {
+            decrement: 1,
+          },
+        },
+      }),
 
-    if (!interview) {
-      return NextResponse.json(
-        { success: false, data: null, message: "Failed to create interview" },
-        { status: 500 },
-      );
-    }
+      prisma.interview.create({
+        data: {
+          userId: session.user.id,
+          mode: parsedData.data.type,
+          company: parsedData.data.company,
+          difficulty: parsedData.data.difficulty,
+          questionLimit: parsedData.data.noOfQuestions,
+          startedAt: new Date(),
+        },
+      }),
+    ]);
+
+
+
+
+
+
 
     return NextResponse.json(
       {
@@ -93,8 +109,18 @@ export async function POST(req: NextRequest) {
         status: 201,
       },
     );
-  } catch (error) {
+  } catch (error : any) {
     console.log(error);
+
+    if(error.code === "P2025") {
+      return NextResponse.json({
+        success : false,
+        data : null,
+        message : "Not enough credits to start an interview"
+      },{
+        status : 400
+      });
+    }
     return NextResponse.json(
       {
         success: false,

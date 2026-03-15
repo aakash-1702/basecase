@@ -7,6 +7,7 @@ import { PreparingScreen } from "@/components/interview/room/PreparingScreen";
 import { ActiveRoom } from "@/components/interview/room/ActiveRoom";
 import { BrowserGateScreen } from "@/components/interview/room/BrowserGateScreen";
 import { EndSessionModal } from "@/components/interview/room/EndSessionModal";
+import { toast } from "sonner";
 import type { InterviewConfig, PreparingStatus } from "@/types/interview-room";
 
 type View = "lobby" | "browser-gate" | "preparing" | "room";
@@ -116,16 +117,38 @@ export default function InterviewSessionPage() {
 
   const handleExitConfirm = async () => {
     try {
+      toast.loading("Ending interview...", { id: "exit-interview" });
+
       // Call end session API
-      await fetch(`/api/interview/${interviewId}/end`, {
+      const res = await fetch(`/api/interview/${interviewId}/exit-interview`, {
         method: "PATCH",
       });
-    } catch {
-      // Continue with navigation even if API fails
-    }
 
-    // Navigate to interview landing page
-    router.push(`/interview`);
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        toast.error(
+          json.message || "Failed to end interview. Please try again.",
+          {
+            id: "exit-interview",
+          },
+        );
+        setShowExitModal(false);
+        return;
+      }
+
+      toast.success("Interview ended. Your report is being generated.", {
+        id: "exit-interview",
+      });
+
+      // Navigate back to interview landing — processing card will show there
+      router.push(`/interview`);
+    } catch (error) {
+      toast.error("Failed to end interview. Please try again.", {
+        id: "exit-interview",
+      });
+      setShowExitModal(false);
+    }
   };
 
   const handleExitClose = () => {
