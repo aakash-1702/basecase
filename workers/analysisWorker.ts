@@ -1,4 +1,10 @@
 import { Agent, run } from "@openai/agents";
+import express from 'express';
+const app = express();
+
+
+
+
 import { connection } from "@/lib/queue";
 import { Worker, Job } from "bullmq";
 import prisma from "@/lib/prisma";
@@ -255,3 +261,11 @@ worker.on("failed", (job, error) => {
 });
 
 console.log("Worker started — listening for jobs...");
+
+
+app.listen(process.env.PORT, () => {
+  console.log(`Express server running on port ${process.env.PORT}`);
+});
+
+
+
