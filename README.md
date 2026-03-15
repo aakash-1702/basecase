@@ -7,71 +7,112 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-Deploy-000000?logo=vercel&logoColor=white)
 
-BaseCase is a **Take U Forward–style DSA practice platform** where users can explore structured sheets (Arrays, DP, Trees, Graphs, etc.), solve curated problems, track progress, and monitor consistency with streak-oriented learning.
-
-Built with **Next.js App Router + Prisma + PostgreSQL**, it is production-ready, scalable, and designed for both learners and maintainers.
+BaseCase is a **Take U Forward–style DSA practice platform** designed to help users transition from random problem-solving to a structured, goal-oriented learning experience. With a focus on **data structures and algorithms (DSA)**, BaseCase offers curated problem sheets, progress tracking, and analytics to ensure learners stay consistent and motivated.
 
 ---
 
 ## 1) Project Overview
 
-BaseCase helps users move from random problem solving to a **systematic DSA roadmap**:
+BaseCase is a comprehensive platform for mastering DSA through:
 
-- Browse topic-wise sheets and sections
-- Solve problems with confidence and notes
-- Track solved/unsolved progress across sheets
-- View dashboard analytics by difficulty and sheet
-- Stay consistent using streak/POTD style workflows
-- Sign up/sign in securely using an auth system
+- **Structured Learning**: Topic-wise sheets covering Arrays, Dynamic Programming, Trees, Graphs, and more.
+- **Progress Tracking**: Monitor solved problems, confidence levels, and notes.
+- **Analytics**: Gain insights into your learning journey with difficulty-based and sheet-specific dashboards.
+- **Consistency Tools**: Stay on track with streak-based workflows and Problem of the Day (POTD).
+- **Secure Authentication**: Sign up and sign in with robust session management.
 
 ---
 
 ## 2) Feature List
 
-### Learning & Progress
+### Platform Features
 
-- Structured DSA sheets and nested sections
-- Problem-level tracking (`solved`, `confidence`, `notes`, `solvedAt`)
-- Difficulty-based analytics (`easy`, `medium`, `hard`)
-- Recent submissions and recommendation-oriented signals
+1. **Structured DSA Sheets**:
+   - Curated sheets with nested sections for systematic learning.
+   - Includes popular sheets like "Blind 75", "NeetCode 150", and "Striver's SDE Sheet".
+   - Sheets are difficulty-ramped and concept-ordered.
 
-### Platform Capabilities
+2. **Problem Tracking**:
+   - Tracks problem-level progress (`solved`, `confidence`, `notes`, `solvedAt`).
+   - Provides analytics based on difficulty levels (`easy`, `medium`, `hard`).
 
-- Full CRUD flows for sheets, sections, and problem assignment
-- Relational data modeling via Prisma ORM
-- Auth-protected API routes and pages
-- Server-rendered dashboard with user session context
+3. **Custom Sheet Builder**:
+   - Allows users to create, reorder, and share custom sheets.
+   - Public and private sheet options with ownership permissions.
 
-### Engineering
+4. **AI Mentor**:
+   - Offers features like:
+     - Smart Hints.
+     - Complexity Coaching.
+     - Debug Assistance.
+     - Pattern Matching.
+   - Provides unlimited chats for premium users.
 
-- Next.js App Router architecture (RSC + route handlers)
-- Type-safe backend and frontend with TypeScript
-- Tailwind-based UI with reusable component system
-- Ready for Vercel deployment
+5. **Mock Interviews**:
+   - Simulates real technical and behavioral interviews.
+   - Includes voice-first design and adaptive follow-ups.
+   - Provides detailed feedback on confidence, depth, clarity, and technical accuracy.
+
+6. **Instant Feedback**:
+   - Real-time code analysis and results submission.
+
+7. **Radar Chart Analytics**:
+   - Visualizes strengths and weaknesses across topics.
+   - Highlights areas needing improvement.
+
+8. **Subscription Plans**:
+   - Offers premium features like unlimited mock interviews, AI feedback reports, and company-specific interview patterns.
+
+9. **Interview Modes**:
+   - Covers DSA, Technical, HR, and Behavioral interviews.
+   - Includes company-specific patterns (e.g., Amazon's leadership principles).
+
+10. **Progress Syncing**:
+    - Automatically syncs progress across sheets and problems.
+
+### Engineering Features
+
+1. **Next.js App Router**:
+   - Utilizes server-rendered pages and route handlers.
+   - Type-safe backend and frontend with TypeScript.
+
+2. **Reusable UI Components**:
+   - Built with Tailwind CSS.
+   - Includes components like buttons, cards, modals, and tooltips.
+
+3. **Prisma ORM**:
+   - Manages relational data modeling for sheets, sections, and problems.
+
+4. **Authentication**:
+   - Supports email/password and Google OAuth.
+   - Includes premium user roles and session management.
+
+5. **API Routes**:
+   - Auth-protected routes for CRUD operations on sheets and problems.
+   - Public API for accessing shared sheets.
+
+6. **AI Integration**:
+   - AI-driven code reviews and interview simulations.
+   - Uses structured JSON prompts for generating responses.
 
 ---
 
-## 3) Tech Stack
+## 3) Planned Features (Future Roadmap)
 
-### Frontend + Backend
+1. **Daily Streak Engine**:
+   - Tracks user activity with timezone-safe resets.
 
-- **Next.js 14+ (currently Next.js 16 in this repo)**
-- **React + TypeScript**
-- **App Router, Route Handlers, Server Components**
+2. **Problem of the Day (POTD)**:
+   - Persistent archive for daily challenges.
 
-### Database
+3. **Advanced Analytics**:
+   - Heatmaps and topic-wise consistency tracking.
 
-- **PostgreSQL**
-- **Prisma ORM**
+4. **Contest Mode**:
+   - Enables custom sheet sharing and competitive practice.
 
-### Auth & Styling
-
-- **better-auth** (custom auth flow)
-- **Tailwind CSS**
-
-### Deployment
-
-- **Vercel**
+5. **Admin Tools**:
+   - Bulk imports and moderation capabilities.
 
 ---
 
@@ -104,7 +145,7 @@ cd basecase
 npm install
 ```
 
-Create a `.env` file in project root (see variables below), then run:
+Create a `.env` file in the project root (see variables below), then run:
 
 ```bash
 npx prisma generate
@@ -398,17 +439,3 @@ Please keep PRs small and include screenshots for UI changes.
 ## 16) License
 
 This repository currently has no `LICENSE` file committed.
-
-For open-source usage, add an MIT license file:
-
-```text
-MIT License
-```
-
----
-
-### Maintainer Notes
-
-- Keep schema and API docs in sync when adding new models/routes.
-- Do not commit real secrets in `.env`.
-- If authentication strategy changes, update env docs and API examples accordingly.
