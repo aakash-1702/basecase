@@ -17,14 +17,13 @@ export async function GET(
   { params }: { params: Promise<{ problemSlug: string }> },
 ) {
   const seedKey = req.headers.get("x-seed-key");
-
   let session = null;
 
   if (
     process.env.NODE_ENV === "development" &&
     seedKey === process.env.SEED_KEY
   ) {
-    // skip auth — allow seeding
+    // bypass auth for seeding
   } else {
     session = await auth.api.getSession({
       headers: await headers(),
@@ -36,6 +35,31 @@ export async function GET(
 
     const problem = await prisma.problem.findUnique({
       where: { slug: problemSlug },
+      include: {
+        // Only send PUBLIC test cases to frontend
+        testCases: {
+          where: { visibility: "PUBLIC" },
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            input: true,
+            displayInput: true,
+            displayOutput: true,
+            expectedOutput: true,
+            order: true,
+            // never send visibility field — unnecessary
+          },
+        },
+        // Only include user progress if user is logged in
+        ...(session?.user?.id
+          ? {
+              userProblems: {
+                where: { userId: session.user.id },
+                take: 1,
+              },
+            }
+          : {}),
+      },
     });
 
     if (!problem) {
@@ -45,22 +69,13 @@ export async function GET(
       );
     }
 
-    // Also fetch user's progress for this problem
-    const userProgress = session?.user?.id
-      ? await prisma.userProblem.findUnique({
-          where: {
-            userId_problemId: {
-              userId: session.user.id,
-              problemId: problem.id,
-            },
-          },
-        })
-      : null;
-
     return NextResponse.json(
       {
         success: true,
-        data: { problem, userProgress },
+        data: {
+          problem,
+          userProgress: problem.userProblems?.[0] ?? null,
+        },
         message: "Problem fetched successfully",
       },
       { status: 200 },
