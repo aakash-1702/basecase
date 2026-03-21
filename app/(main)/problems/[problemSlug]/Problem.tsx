@@ -8,7 +8,6 @@ import {
   Loader2,
   Bookmark,
   BookmarkCheck,
-  ExternalLink,
   Bot,
   Send,
   RotateCcw,
@@ -27,13 +26,13 @@ import {
   Underline,
   Type,
   ChevronDown,
-  ChevronUp,
   Zap,
-  Trophy,
-  Target,
   StickyNote,
   Copy,
   Check,
+  Play,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
 import { Problem, UserProblem } from "@/generated/prisma/client";
 import { toast } from "sonner";
@@ -42,6 +41,11 @@ import StarterKit from "@tiptap/starter-kit";
 import UnderlineExt from "@tiptap/extension-underline";
 import HighlightExt from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
+import dynamic from "next/dynamic";
+const MonacoEditor = dynamic(
+  () => import("@monaco-editor/react").then((m) => m.default),
+  { ssr: false },
+);
 
 // ── TYPES ──
 type ConfidenceV2 = "LOW" | "MEDIUM" | "HIGH";
@@ -59,25 +63,49 @@ interface ProgressState {
 
 const CONF: Record<
   ConfidenceV2,
-  { label: string; color: string; bg: string; border: string }
+  { label: string; color: string; bg: string; border: string; glow: string }
 > = {
   LOW: {
     label: "Low",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.09)",
-    border: "rgba(239,68,68,0.28)",
+    color: "#f87171",
+    bg: "rgba(248,113,113,0.08)",
+    border: "rgba(248,113,113,0.2)",
+    glow: "rgba(248,113,113,0.15)",
   },
   MEDIUM: {
     label: "Med",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.09)",
-    border: "rgba(245,158,11,0.28)",
+    color: "#fbbf24",
+    bg: "rgba(251,191,36,0.08)",
+    border: "rgba(251,191,36,0.2)",
+    glow: "rgba(251,191,36,0.15)",
   },
   HIGH: {
     label: "High",
     color: "#10b981",
-    bg: "rgba(16,185,129,0.09)",
-    border: "rgba(16,185,129,0.28)",
+    bg: "rgba(16,185,129,0.08)",
+    border: "rgba(16,185,129,0.2)",
+    glow: "rgba(16,185,129,0.15)",
+  },
+};
+
+const DIFF_STYLES: Record<
+  string,
+  { color: string; bg: string; border: string }
+> = {
+  easy: {
+    color: "#10b981",
+    bg: "rgba(16,185,129,0.1)",
+    border: "rgba(16,185,129,0.25)",
+  },
+  medium: {
+    color: "#fbbf24",
+    bg: "rgba(251,191,36,0.1)",
+    border: "rgba(251,191,36,0.25)",
+  },
+  hard: {
+    color: "#f87171",
+    bg: "rgba(248,113,113,0.1)",
+    border: "rgba(248,113,113,0.25)",
   },
 };
 
@@ -102,10 +130,17 @@ function renderMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/^[\*\-]\s+(.+)$/gm, "<li>$1</li>")
     .replace(/^\d+\.\s+(.+)$/gm, "<li class='numbered'>$1</li>")
-    .replace(/(<li.*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`)
+    .replace(/((<li.*<\/li>\n?)+)/g, (match) => `<ul>${match}</ul>`)
     .replace(/\n(?!<)/g, "<br/>")
     .replace(/(<br\/>){2,}/g, "<br/><br/>");
 }
+const parseStdin = (example: string): string => {
+  let s = example;
+  s = s.replace(/input:/i, "");
+  const cutAt = s.search(/→|output:/i);
+  if (cutAt !== -1) s = s.substring(0, cutAt);
+  return s.trim().replace(/\\n/g, "\n");
+};
 
 // ── RICH EDITOR ──
 function RichEditor({
@@ -138,7 +173,6 @@ function RichEditor({
     },
     editorProps: { attributes: { class: "re", dir: "ltr" } },
   });
-
   useEffect(() => {
     if (editor) editor.setEditable(!disabled);
   }, [disabled, editor]);
@@ -148,9 +182,7 @@ function RichEditor({
       lastEmittedRef.current = initialValue || "";
     }
   }, [initialValue, editor]);
-
   if (!editor) return null;
-
   const tools = [
     {
       icon: <Type size={12} />,
@@ -197,7 +229,6 @@ function RichEditor({
       active: editor.isActive("orderedList"),
     },
   ];
-
   return (
     <div style={{ opacity: disabled ? 0.5 : 1 }}>
       <div
@@ -215,8 +246,8 @@ function RichEditor({
                 style={{
                   width: 1,
                   height: 13,
-                  background: "#1c1f26",
-                  margin: "0 3px",
+                  background: "rgba(255,255,255,0.06)",
+                  margin: "0 4px",
                 }}
               />
             )}
@@ -229,13 +260,13 @@ function RichEditor({
               }}
               className="re-tool"
               style={{
-                padding: "5px 7px",
-                borderRadius: 5,
+                padding: "6px 8px",
+                borderRadius: 6,
                 border: "none",
                 cursor: disabled ? "default" : "pointer",
-                color: t.active ? "#f97316" : "#6b7280",
-                background: t.active ? "rgba(249,115,22,0.1)" : "transparent",
-                transition: "color .15s, background .15s",
+                color: t.active ? "#f59e0b" : "#6b7280",
+                background: t.active ? "rgba(245,158,11,0.1)" : "transparent",
+                transition: "all .2s ease",
               }}
               disabled={disabled}
             >
@@ -245,221 +276,6 @@ function RichEditor({
         ))}
       </div>
       <EditorContent editor={editor} />
-    </div>
-  );
-}
-
-// ── EDITORIAL ──
-function EditorialBlock({
-  editorial,
-  aiHintLines,
-}: {
-  editorial: { insight: string | null; points: string[] };
-  aiHintLines: string[];
-}) {
-  const [open, setOpen] = useState(false);
-  if (!editorial.insight && !editorial.points.length && !aiHintLines.length)
-    return null;
-  return (
-    <div>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="editorial-btn"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          background: open ? "rgba(249,115,22,0.03)" : "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "12px 14px",
-          borderRadius: 8,
-          marginBottom: open ? 12 : 0,
-          transition: "background .2s",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Terminal
-            size={15}
-            className="et-icon"
-            style={{
-              color: open ? "#f97316" : "#6b7280",
-              transition: "color .2s",
-            }}
-          />
-          <span
-            style={{
-              fontFamily: "'IBM Plex Mono',monospace",
-              fontSize: 11,
-              fontWeight: 600,
-              color: open ? "#f97316" : "#9ca3b8",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              transition: "color .2s",
-            }}
-          >
-            Editorial &amp; Approach
-          </span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              fontFamily: "'IBM Plex Mono',monospace",
-              fontSize: 10,
-              color: open ? "#f97316" : "#6b7280",
-              transition: "color .2s",
-            }}
-          >
-            {open ? "hide" : "reveal"}
-          </span>
-          {open ? (
-            <ChevronUp size={14} color="#f97316" />
-          ) : (
-            <ChevronDown size={14} color="#6b7280" />
-          )}
-        </div>
-      </button>
-      {open && (
-        <div
-          style={{
-            borderTop: "1px solid #1c1f26",
-            paddingTop: 20,
-            animation: "fadeSlideIn .22s ease-out",
-          }}
-        >
-          {editorial.insight && (
-            <div
-              style={{
-                marginBottom: 20,
-                paddingLeft: 14,
-                borderLeft: "2px solid rgba(249,115,22,0.4)",
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: "'IBM Plex Mono',monospace",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "#f97316",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  marginBottom: 8,
-                }}
-              >
-                Key Insight
-              </p>
-              <p
-                style={{
-                  fontSize: 13.5,
-                  color: "#c9d1e0",
-                  lineHeight: 1.78,
-                  fontWeight: 500,
-                }}
-              >
-                {editorial.insight}
-              </p>
-            </div>
-          )}
-          {editorial.points.length > 0 && (
-            <div style={{ marginBottom: 18 }}>
-              <p
-                style={{
-                  fontFamily: "'IBM Plex Mono',monospace",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#9ca3b8",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  marginBottom: 12,
-                }}
-              >
-                Approach
-              </p>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 10 }}
-              >
-                {editorial.points.map((pt, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "'IBM Plex Mono',monospace",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#f97316",
-                        minWidth: 18,
-                        paddingTop: 3,
-                      }}
-                    >
-                      {i + 1}.
-                    </span>
-                    <p
-                      style={{
-                        fontSize: 13.5,
-                        color: "#c9d1e0",
-                        lineHeight: 1.78,
-                      }}
-                    >
-                      {pt}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {aiHintLines.length > 0 && (
-            <div>
-              <p
-                style={{
-                  fontFamily: "'IBM Plex Mono',monospace",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#9ca3b8",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  marginBottom: 10,
-                }}
-              >
-                Hints
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {aiHintLines.map((hint, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <Lightbulb
-                      size={13}
-                      color="#fbbf24"
-                      style={{ marginTop: 3, flexShrink: 0 }}
-                    />
-                    <p
-                      style={{
-                        fontSize: 13.5,
-                        color: "#c9d1e0",
-                        lineHeight: 1.75,
-                      }}
-                    >
-                      {hint}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -508,7 +324,7 @@ function MessageBubble({ msg }: { msg: Message }) {
   );
 }
 
-// ── CHAT TIPTAP INPUT ──
+// ── CHAT INPUT ──
 function ChatInput({
   value,
   onChange,
@@ -522,7 +338,6 @@ function ChatInput({
 }) {
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
-
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
@@ -553,7 +368,6 @@ function ChatInput({
       },
     },
   });
-
   useEffect(() => {
     if (editor && value === "" && editor.getText() !== "")
       editor.commands.clearContent();
@@ -561,7 +375,6 @@ function ChatInput({
   useEffect(() => {
     if (editor) editor.setEditable(!disabled);
   }, [disabled, editor]);
-
   if (!editor) return null;
   return <EditorContent editor={editor} />;
 }
@@ -580,8 +393,6 @@ function AIMentor({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // fetch history on mount
   const [historyLoading, setHistoryLoading] = useState(true);
 
   useEffect(() => {
@@ -592,11 +403,12 @@ function AIMentor({
         });
         const data = await res.json();
         if (data.success && data.data.length > 0) {
-          const mapped = data.data.map((m: { role: string; text: string }) => ({
-            role: m.role === "model" ? "assistant" : "user",
-            content: m.text,
-          }));
-          setMessages(mapped);
+          setMessages(
+            data.data.map((m: { role: string; text: string }) => ({
+              role: m.role === "model" ? "assistant" : "user",
+              content: m.text,
+            })),
+          );
         }
       } catch (err) {
         console.error("Failed to fetch history:", err);
@@ -636,7 +448,6 @@ function AIMentor({
     } catch (err) {
       console.error("Error fetching AI response:", err);
       toast.error("Failed to get AI response. Please try again.");
-      // Remove the user message that failed
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setLoading(false);
@@ -656,7 +467,7 @@ function AIMentor({
       <div className="mentor-wrap">
         <div className="mentor-header">
           <div className="mentor-header__left">
-            <Bot size={14} color="#f97316" />
+            <Bot size={14} color="#f59e0b" />
             <span className="mentor-title">AI Mentor</span>
           </div>
           <span className="badge-plus">Plus</span>
@@ -695,7 +506,7 @@ function AIMentor({
             </div>
           ))}
         </div>
-        <Link href="/subscription" className="btn-og paywall-cta">
+        <Link href="/subscription" className="paywall-cta">
           <Zap size={12} /> Unlock AI Mentor · Upgrade to Plus
         </Link>
       </div>
@@ -706,7 +517,7 @@ function AIMentor({
       <div className="mentor-header">
         <div className="mentor-header__left">
           <span className="online-dot" />
-          <Bot size={14} color="#f97316" />
+          <Bot size={14} color="#f59e0b" />
           <span className="mentor-title">AI Mentor</span>
         </div>
         {messages.length > 0 && (
@@ -715,7 +526,6 @@ function AIMentor({
           </button>
         )}
       </div>
-
       <div className="chat-scroll">
         {historyLoading ? (
           <div
@@ -728,9 +538,7 @@ function AIMentor({
             }}
           >
             <Loader2 size={13} className="spin" />
-            <span
-              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10 }}
-            >
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10 }}>
               Restoring session…
             </span>
           </div>
@@ -768,7 +576,6 @@ function AIMentor({
           </div>
         )}
       </div>
-
       <div className="chat-composer">
         <div className="chat-composer__inner">
           <ChatInput
@@ -797,6 +604,78 @@ function AIMentor({
   );
 }
 
+// ── COLLAPSIBLE SECTION ──
+function CollapsibleSection({
+  id,
+  icon,
+  title,
+  rightExtra,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  rightExtra?: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setHeight(contentRef.current.scrollHeight);
+    }
+  }, [isOpen, children]);
+
+  return (
+    <div id={id} className="collapsible-card">
+      <button onClick={onToggle} className="collapsible-header">
+        <div className="collapsible-header__left">
+          <span
+            className={`collapsible-icon ${isOpen ? "collapsible-icon--active" : ""}`}
+          >
+            {icon}
+          </span>
+          <span
+            className={`collapsible-title ${isOpen ? "collapsible-title--active" : ""}`}
+          >
+            {title}
+          </span>
+        </div>
+        <div className="collapsible-header__right">
+          {rightExtra}
+          <span
+            className={`collapsible-toggle ${isOpen ? "collapsible-toggle--active" : ""}`}
+          >
+            <ChevronDown
+              size={14}
+              style={{
+                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            />
+          </span>
+        </div>
+      </button>
+      <div
+        className="collapsible-content-wrapper"
+        style={{
+          height: isOpen ? (height ?? "auto") : 0,
+          opacity: isOpen ? 1 : 0,
+        }}
+      >
+        <div ref={contentRef} className="collapsible-content">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── PAGE ──
 export default function ProblemPage({
   problem: p,
@@ -809,6 +688,10 @@ export default function ProblemPage({
 }) {
   const editorial = parseEditorial(p.editorial);
   const aiHintLines = parseLines(p.aiHints);
+  const examples = (Array.isArray(p.examples) ? p.examples : []) as string[];
+  const companies = (Array.isArray(p.companies) ? p.companies : []) as string[];
+  const tags = (Array.isArray(p.tags) ? p.tags : []) as string[];
+  const defaultStdin = examples[0] ? parseStdin(examples[0]) : "";
 
   const toState = (up?: UserProblem | null): ProgressState => ({
     solved: up?.solved ?? false,
@@ -817,7 +700,6 @@ export default function ProblemPage({
     notes: up?.notes ?? "",
     bookmark: up?.bookmark ?? false,
   });
-
   const [progress, setProgress] = useState<ProgressState>(() =>
     toState(userProblem),
   );
@@ -827,10 +709,136 @@ export default function ProblemPage({
   const [saving, setSaving] = useState(false);
   const isDirty = JSON.stringify(progress) !== JSON.stringify(committed);
 
-  const pendingBookmark = progress.bookmark !== committed.bookmark;
-  const pendingSolved = progress.solved !== committed.solved;
-  const pendingConfidence = progress.confidenceV2 !== committed.confidenceV2;
-  const pendingNotes = progress.notes !== committed.notes;
+  // Editor state
+  const [language, setLanguage] = useState("cpp");
+  const [codeData, setCodeData] = useState("// Start coding here");
+  const [stdin, setStdin] = useState(defaultStdin);
+  const [stdout, setStdout] = useState<string | null>(null);
+  const [outputType, setOutputType] = useState<"success" | "error">("success");
+  const [errorType, setErrorType] = useState<
+    "Compile Error" | "Runtime Error" | null
+  >(null);
+  const [running, setRunning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [stdinExpanded, setStdinExpanded] = useState(true);
+
+  // Drag-resizable IO strip
+  const [ioHeight, setIoHeight] = useState(220);
+  const ioStripRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStartY = useRef(0);
+  const dragStartH = useRef(0);
+  const MIN_IO = 100;
+  const MAX_IO_RATIO = 0.6;
+
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault();
+      isDragging.current = true;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      dragStartY.current = clientY;
+      dragStartH.current = ioStripRef.current?.offsetHeight ?? ioHeight;
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+    },
+    [ioHeight],
+  );
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging.current) return;
+      const container = ioStripRef.current?.parentElement;
+      if (!container || !ioStripRef.current) return;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      const maxIO = container.offsetHeight * MAX_IO_RATIO;
+      const delta = dragStartY.current - clientY;
+      const h = Math.min(maxIO, Math.max(MIN_IO, dragStartH.current + delta));
+      ioStripRef.current.style.height = h + "px";
+    };
+    const onEnd = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      if (ioStripRef.current) setIoHeight(ioStripRef.current.offsetHeight);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onEnd);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onEnd);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onEnd);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
+  // Refs to always read latest values (avoids stale closures)
+  const codeRef = useRef(codeData);
+  codeRef.current = codeData;
+  const langRef = useRef(language);
+  langRef.current = language;
+  const stdinRef = useRef(stdin);
+  stdinRef.current = stdin;
+
+  const handleRun = useCallback(async () => {
+    const currentCode = codeRef.current;
+    const currentLang = langRef.current;
+    const currentStdin = stdinRef.current;
+
+    setRunning(true);
+    setStdout(null);
+    setErrorType(null);
+    try {
+      const res = await fetch(`/api/problems/${p.slug}/problem/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: currentCode,
+          language: currentLang,
+          stdin: currentStdin,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setStdout(data.error);
+        setOutputType("error");
+        setErrorType("Runtime Error");
+        return;
+      }
+      const status = (data.status || "").toLowerCase();
+      if (status.includes("compilation error")) {
+        setStdout(data.compile_output || "Compilation failed");
+        setOutputType("error");
+        setErrorType("Compile Error");
+      } else if (
+        status.includes("error") ||
+        status.includes("time limit") ||
+        status.includes("memory limit")
+      ) {
+        setStdout(data.stderr || data.stdout || status);
+        setOutputType("error");
+        setErrorType("Runtime Error");
+      } else {
+        setStdout(data.stdout ?? "");
+        setOutputType("success");
+        setErrorType(null);
+      }
+    } catch {
+      setStdout("Something went wrong. Try again.");
+      setOutputType("error");
+      setErrorType("Runtime Error");
+    } finally {
+      setRunning(false);
+    }
+  }, [p.slug]); // eslint-disable-line
+
+  // Collapsible states
+  const [editorialOpen, setEditorialOpen] = useState(false);
+  const [hintsOpen, setHintsOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [aiMentorOpen, setAiMentorOpen] = useState(false);
 
   useEffect(() => {
     const s = toState(userProblem);
@@ -838,25 +846,7 @@ export default function ProblemPage({
     setCommitted(s);
   }, [userProblem]); // eslint-disable-line
 
-  const diffColor =
-    p.difficulty === "easy"
-      ? "#10b981"
-      : p.difficulty === "hard"
-        ? "#ef4444"
-        : "#f59e0b";
-  const examples = [
-    {
-      input: "nums = [2,7,11,15], target = 9",
-      output: "[0,1]",
-      explanation: "nums[0] + nums[1] == 9",
-    },
-    {
-      input: "nums = [3,2,4], target = 6",
-      output: "[1,2]",
-      explanation: "nums[1] + nums[2] == 6",
-    },
-  ];
-
+  const diffStyle = DIFF_STYLES[p.difficulty] || DIFF_STYLES.medium;
   const TOAST_ID = `save-progress-${p.slug}`;
 
   const handleSave = useCallback(async () => {
@@ -902,573 +892,1892 @@ export default function ProblemPage({
     }));
   }, [saving, progress.solved]);
 
-  const PendingDot = () => (
-    <span
-      style={{
-        fontFamily: "'IBM Plex Mono',monospace",
-        fontSize: 9,
-        color: "#f97316",
-        letterSpacing: "0.05em",
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-      }}
-    >
-      <span
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: "#f97316",
-          boxShadow: "0 0 5px #f97316",
-          display: "inline-block",
-        }}
-      />
-      pending
-    </span>
-  );
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Generate placeholder based on examples
+  const stdinPlaceholder = defaultStdin || "5\n1 2 3 4 5";
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #080a0e; }
-        .page { font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; color: #7a8496; }
-        .mono { font-family: 'IBM Plex Mono', monospace; }
-        .card { background: linear-gradient(180deg, #0d0f14 0%, #0a0c10 100%); border: 1px solid #1c1f26; position: relative; transition: border-color .25s, box-shadow .25s; }
-        .card:hover { border-color: rgba(249,115,22,0.15); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
-        .card::before { content: ''; position: absolute; top: 0; left: 8%; right: 8%; height: 1px; background: linear-gradient(90deg, transparent, rgba(249,115,22,0.35), transparent); pointer-events: none; }
-        .card-title { font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 600; color: #f3f4f6; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(249,115,22,0.12); }
-        .card-title-icon { color: #f97316; }
-        .slabel { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; display: flex; align-items: center; gap: 6px; }
-        .slabel-icon { color: #f97316; opacity: 0.7; }
-        .btn-og { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: none; cursor: pointer; border-radius: 7px; background: linear-gradient(135deg, #f97316, #ea580c); color: #000; box-shadow: 0 0 18px rgba(249,115,22,0.3); transition: box-shadow .2s, transform .15s, filter .15s; }
-        .btn-og:hover { box-shadow: 0 0 30px rgba(249,115,22,0.55); transform: translateY(-1px); filter: brightness(1.07); }
-        .btn-og:active { transform: translateY(0); }
-        .btn-ghost { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; border: 1px solid #1c1f26; border-radius: 6px; color: #6b7280; cursor: pointer; padding: 5px 11px; display: flex; align-items: center; gap: 5px; transition: border-color .18s, color .18s, background .18s; }
-        .btn-ghost:hover { border-color: rgba(249,115,22,0.35); color: #f97316; background: rgba(249,115,22,0.05); }
-        .btn-ghost-sm { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #6b7280; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 3px 6px; border-radius: 5px; transition: color .15s; }
-        .btn-ghost-sm:hover { color: #f97316; }
-        .btn-solve { width: 100%; padding: 11px 0; border-radius: 7px; background: rgba(249,115,22,0.06); border: 1px solid rgba(249,115,22,0.22); color: #f97316; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background .2s, border-color .2s, box-shadow .2s, transform .15s; }
-        .btn-solve:hover { background: rgba(249,115,22,0.13); border-color: rgba(249,115,22,0.45); box-shadow: 0 0 20px rgba(249,115,22,0.18); transform: translateY(-1px); }
-        .btn-save { width: 100%; padding: 10px 0; border-radius: 7px; background: rgba(249,115,22,0.07); border: 1px solid rgba(249,115,22,0.22); color: #f97316; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background .2s, border-color .2s, box-shadow .2s, transform .15s; }
-        .btn-save:hover { background: rgba(249,115,22,0.14); border-color: rgba(249,115,22,0.45); box-shadow: 0 0 18px rgba(249,115,22,0.2); transform: translateY(-1px); }
-        .conf-btn { background: transparent; border: 1px solid #1c1f26; border-radius: 6px; padding: 8px 0; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; transition: border-color .18s, color .18s, background .18s, transform .12s; }
-        .conf-btn:hover:not(.conf-active) { border-color: rgba(249,115,22,0.28); color: rgba(249,115,22,0.7); background: rgba(249,115,22,0.05); transform: translateY(-1px); }
-        .btn-bookmark { display: flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 6px; background: transparent; border: 1px solid #1c1f26; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; transition: border-color .18s, color .18s, background .18s; }
-        .btn-bookmark:hover, .btn-bookmark.active { border-color: rgba(249,115,22,0.35); color: #f97316; background: rgba(249,115,22,0.07); }
-        .code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; background: #0d0f14; border: 1px solid rgba(249,115,22,0.12); border-radius: 6px; padding: 10px 14px; color: #9ca3b8; line-height: 1.6; }
-        .re { outline: none; min-height: 130px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13.5px; color: #9ca3b8; line-height: 1.78; caret-color: #f97316; padding: 12px 0; border-top: 1px solid rgba(249,115,22,0.15); transition: border-color .2s; direction: ltr !important; unicode-bidi: embed !important; text-align: left !important; }
-        .re * { direction: ltr !important; unicode-bidi: embed !important; text-align: left !important; }
-        .re:focus { border-top-color: rgba(249,115,22,0.35); }
-        .re h3 { font-size: .95rem; font-weight: 700; color: #e5e7eb; margin: .5rem 0 .25rem; }
-        .re p { margin: .2rem 0; }
-        .re ul { list-style: disc; padding-left: 1.25rem; margin: .25rem 0; }
-        .re ol { list-style: decimal; padding-left: 1.25rem; margin: .25rem 0; }
-        .re li { margin: .15rem 0; }
-        .re b, .re strong { color: #e5e7eb; font-weight: 600; }
-        .re mark { background: rgba(249,115,22,0.22); color: inherit; border-radius: 2px; padding: 0 2px; }
-        .re p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #4b5563; pointer-events: none; font-style: italic; float: left; height: 0; }
-        .re-tool:hover { color: #f97316 !important; background: rgba(249,115,22,0.09) !important; }
-        .sticky-sidebar { position: sticky; top: 49px; }
-        .editorial-btn:hover .et-icon { color: #f97316 !important; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #1c1f26; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.35); }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes solvedPop { 0%{transform:scale(.9);opacity:0} 55%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
-        .solved-pop { animation: solvedPop .32s ease-out; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-        /* ── CHAT STYLES ── */
-        .mentor-wrap { display: flex; flex-direction: column; height: 100%; min-height: 520px; }
-        .mentor-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid #1c1f26; flex-shrink: 0; }
-        .mentor-header__left { display: flex; align-items: center; gap: 8px; }
-        .mentor-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: #9ca3b8; letter-spacing: 0.08em; text-transform: uppercase; }
-        .online-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981; }
-        .badge-plus { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #f97316; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.22); border-radius: 4px; padding: 2px 8px; letter-spacing: 0.06em; text-transform: uppercase; }
-        .chat-scroll { flex: 1; overflow-y: auto; padding: 16px 0; display: flex; flex-direction: column; }
-        .messages { display: flex; flex-direction: column; gap: 14px; padding-bottom: 4px; }
-        .bubble-row { display: flex; align-items: flex-end; gap: 8px; }
+        :root {
+          --bg-base: #080808;
+          --bg-elevated: #0f0f0f;
+          --bg-card: #141414;
+          --bg-hover: #1a1a1a;
+          --border-subtle: rgba(255,255,255,0.06);
+          --border-medium: rgba(255,255,255,0.1);
+          --text-primary: #e8e8ed;
+          --text-secondary: #9a9aaa;
+          --text-muted: #555555;
+          --accent-primary: #f59e0b;
+          --accent-secondary: #ea580c;
+          --accent-glow: rgba(245,158,11,0.15);
+          --success: #10b981;
+          --warning: #fbbf24;
+          --error: #f87171;
+          --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body { background: var(--bg-base); }
+
+        /* ── PAGE LAYOUT ── */
+        .pp-page {
+          font-family: var(--font-sans);
+          height: 100vh;
+          color: var(--text-secondary);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          animation: pageIn 0.5s ease-out;
+        }
+
+        @keyframes pageIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        /* ── TOP BAR ── */
+        .pp-topbar {
+          height: 52px;
+          background: transparent;
+          padding: 0 28px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+          position: relative;
+          z-index: 10;
+          border-bottom: 1px solid rgba(120, 53, 15, 0.3);
+        }
+
+        .pp-topbar-left {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          min-width: 0;
+          flex: 1;
+        }
+
+        .pp-title {
+          font-family: var(--font-sans);
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          margin: 0;
+          letter-spacing: -0.01em;
+        }
+
+        .pp-diff-badge {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          padding: 4px 12px;
+          border-radius: 6px;
+          flex-shrink: 0;
+          transition: all 0.2s ease;
+        }
+
+        .pp-tag {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          padding: 3px 10px;
+          border-radius: 5px;
+          background: rgba(245,158,11,0.08);
+          border: 1px solid rgba(245,158,11,0.15);
+          color: rgba(245,158,11,0.8);
+          flex-shrink: 0;
+          transition: all 0.2s ease;
+        }
+
+        .pp-tag:hover {
+          background: rgba(245,158,11,0.12);
+          border-color: rgba(245,158,11,0.25);
+        }
+
+        .pp-topbar-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        /* ── BOOKMARK BUTTON ── */
+        .pp-bookmark-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid var(--border-subtle);
+          background: rgba(255,255,255,0.02);
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          color: var(--text-muted);
+        }
+
+        .pp-bookmark-btn:hover {
+          background: rgba(245,158,11,0.06);
+          border-color: rgba(245,158,11,0.2);
+          color: var(--accent-primary);
+          transform: translateY(-1px);
+        }
+
+        .pp-bookmark-btn--active {
+          background: rgba(245,158,11,0.1);
+          border-color: rgba(245,158,11,0.3);
+          color: var(--accent-primary);
+        }
+
+        .pp-bookmark-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 500;
+          letter-spacing: 0.02em;
+        }
+
+        /* ── SAVE BUTTON ── */
+        .pp-save-btn {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(234,88,12,0.15) 100%);
+          border: 1px solid rgba(245,158,11,0.3);
+          color: var(--accent-primary);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: slideInRight 0.3s ease-out;
+        }
+
+        .pp-save-btn:hover {
+          background: linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(234,88,12,0.2) 100%);
+          box-shadow: 0 4px 20px rgba(245,158,11,0.2);
+          transform: translateY(-1px);
+        }
+
+        /* ── STATUS BADGE ── */
+        .pp-status-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 8px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          transition: all 0.2s ease;
+        }
+
+        .pp-status-badge--solved {
+          background: rgba(16,185,129,0.1);
+          border: 1px solid rgba(16,185,129,0.25);
+          color: var(--success);
+        }
+
+        .pp-status-badge--unsolved {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-muted);
+        }
+
+        .pp-status-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--text-muted);
+        }
+
+        /* ── NOTES SAVE BUTTON ── */
+        .pp-notes-save-row {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid var(--border-subtle);
+        }
+
+        .pp-notes-save-btn {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          padding: 10px 20px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(234,88,12,0.15) 100%);
+          border: 1px solid rgba(245,158,11,0.3);
+          color: var(--accent-primary);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pp-notes-save-btn:hover:not(:disabled) {
+          background: linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(234,88,12,0.2) 100%);
+          box-shadow: 0 4px 20px rgba(245,158,11,0.2);
+          transform: translateY(-1px);
+        }
+
+        .pp-notes-save-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* ── SECTION NAVIGATION ── */
+        .pp-section-nav {
+          background: linear-gradient(180deg, rgba(17,17,20,0.98) 0%, rgba(14,14,17,0.95) 100%);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border-bottom: 1px solid var(--border-subtle);
+          padding: 0 28px;
+          flex-shrink: 0;
+          position: relative;
+          z-index: 9;
+        }
+
+        .pp-section-nav::before {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.15) 50%, transparent 100%);
+        }
+
+        .pp-section-nav-inner {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 0;
+        }
+
+        .pp-section-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          border-radius: 10px;
+          border: 1px solid transparent;
+          background: rgba(255,255,255,0.02);
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          color: var(--text-muted);
+          font-family: var(--font-sans);
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .pp-section-btn:hover {
+          background: rgba(245,158,11,0.06);
+          border-color: rgba(245,158,11,0.15);
+          color: var(--text-secondary);
+          transform: translateY(-1px);
+        }
+
+        .pp-section-btn--active {
+          background: rgba(245,158,11,0.1);
+          border-color: rgba(245,158,11,0.25);
+          color: var(--accent-primary);
+          box-shadow: 0 2px 12px rgba(245,158,11,0.15);
+        }
+
+        .pp-section-btn--active:hover {
+          background: rgba(245,158,11,0.12);
+          color: var(--accent-primary);
+        }
+
+        .pp-section-badge {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: rgba(245,158,11,0.15);
+          color: var(--accent-primary);
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+        }
+
+        /* ── MAIN CONTENT ── */
+        .pp-main-scroll {
+          flex: 1;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+
+        .pp-main-scroll::-webkit-scrollbar { width: 6px; }
+        .pp-main-scroll::-webkit-scrollbar-track { background: transparent; }
+        .pp-main-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .pp-main-scroll::-webkit-scrollbar-thumb:hover { background: rgba(245,158,11,0.3); }
+
+        /* ── BIG CARD ── */
+        .pp-big-card {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 16px;
+          margin: 20px 28px;
+          height: calc(100vh - 60px - 56px - 49px - 40px);
+          display: grid;
+          grid-template-columns: 40% 1fr;
+          overflow: hidden;
+          position: relative;
+          box-shadow: 0 4px 40px rgba(0,0,0,0.3);
+          animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes cardIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.99);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .pp-big-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 10%;
+          right: 10%;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(245,158,11,0.3), transparent);
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        /* ── LEFT PANEL ── */
+        .pp-left {
+          border-right: 1px solid var(--border-subtle);
+          padding: 28px;
+          overflow-y: auto;
+          height: 100%;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.08) transparent;
+        }
+
+        .pp-left::-webkit-scrollbar { width: 4px; }
+        .pp-left::-webkit-scrollbar-track { background: transparent; }
+        .pp-left::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+        .pp-company-badge {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          padding: 4px 10px;
+          border-radius: 5px;
+          background: rgba(139,92,246,0.08);
+          border: 1px solid rgba(139,92,246,0.18);
+          color: rgba(139,92,246,0.8);
+          transition: all 0.2s ease;
+        }
+
+        .pp-company-badge:hover {
+          background: rgba(139,92,246,0.12);
+          transform: translateY(-1px);
+        }
+
+        .pp-description {
+          font-size: 14.5px;
+          color: var(--text-secondary);
+          line-height: 1.85;
+          white-space: pre-line;
+          font-family: var(--font-sans);
+          margin-bottom: 32px;
+        }
+
+        .pp-examples-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .pp-examples-title {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+
+        .pp-example-card {
+          background: rgba(245,158,11,0.03);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          padding: 16px 18px;
+          margin-bottom: 12px;
+          transition: all 0.2s ease;
+        }
+
+        .pp-example-card:hover {
+          border-color: rgba(245,158,11,0.15);
+          background: rgba(245,158,11,0.05);
+        }
+
+        .pp-example-label {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--text-muted);
+          letter-spacing: 0.08em;
+          margin-bottom: 10px;
+        }
+
+        .pp-example-pre {
+          font-family: var(--font-mono);
+          font-size: 12.5px;
+          color: var(--text-secondary);
+          line-height: 1.7;
+          margin: 0;
+          white-space: pre-wrap;
+        }
+
+        /* ── RIGHT PANEL ── */
+        .pp-right {
+          padding: 0;
+          overflow: hidden;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          background: var(--bg-card);
+        }
+
+        .pp-toolbar {
+          height: 48px;
+          padding: 0 18px;
+          border-bottom: 1px solid var(--border-subtle);
+          background: rgba(0,0,0,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+        }
+
+        .pp-file-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pp-file-name {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--text-muted);
+        }
+
+        .pp-lang-select {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid var(--border-subtle);
+          border-radius: 6px;
+          color: var(--text-secondary);
+          font-family: var(--font-mono);
+          font-size: 11px;
+          padding: 5px 12px;
+          cursor: pointer;
+          outline: none;
+          transition: all 0.2s ease;
+        }
+
+        .pp-lang-select:hover {
+          border-color: rgba(245,158,11,0.3);
+          background: rgba(245,158,11,0.05);
+        }
+
+        .pp-lang-select:focus {
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 0 2px rgba(245,158,11,0.15);
+        }
+
+        .pp-toolbar-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pp-run-btn {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          padding: 7px 16px;
+          border-radius: 7px;
+          background: rgba(16,185,129,0.1);
+          border: 1px solid rgba(16,185,129,0.25);
+          color: var(--success);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pp-run-btn:hover:not(:disabled) {
+          background: rgba(16,185,129,0.15);
+          border-color: rgba(16,185,129,0.4);
+          box-shadow: 0 4px 16px rgba(16,185,129,0.15);
+          transform: translateY(-1px);
+        }
+
+        .pp-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .pp-submit-btn {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          padding: 7px 16px;
+          border-radius: 7px;
+          background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(234,88,12,0.15) 100%);
+          border: 1px solid rgba(245,158,11,0.3);
+          color: var(--accent-primary);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pp-submit-btn:hover:not(:disabled) {
+          background: linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(234,88,12,0.2) 100%);
+          box-shadow: 0 4px 20px rgba(245,158,11,0.2);
+          transform: translateY(-1px);
+        }
+
+        .pp-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .pp-kbd {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--text-muted);
+          margin-left: 10px;
+          opacity: 0.6;
+        }
+
+        /* ── EDITOR ── */
+        .pp-editor-wrap {
+          flex: 1;
+          min-height: 0;
+        }
+
+        /* ── DRAG HANDLE ── */
+        .drag-handle {
+          height: 8px;
+          cursor: row-resize;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border-top: 1px solid var(--border-subtle);
+          transition: all 0.2s ease;
+          position: relative;
+        }
+
+        .drag-handle:hover {
+          background: rgba(245,158,11,0.04);
+        }
+
+        .drag-handle:hover .drag-dot {
+          background: rgba(245,158,11,0.5) !important;
+        }
+
+        .drag-dot {
+          width: 3px;
+          height: 3px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.15);
+          transition: all 0.2s ease;
+        }
+
+        /* ── IO STRIP ── */
+        .pp-io-strip {
+          flex-shrink: 0;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          overflow: hidden;
+          background: rgba(0,0,0,0.15);
+        }
+
+        .pp-stdin {
+          border-right: 1px solid var(--border-subtle);
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .pp-stdin-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-subtle);
+          background: rgba(0,0,0,0.1);
+        }
+
+        .pp-stdin-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pp-stdin-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+
+        .pp-stdin-toggle {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          color: var(--text-muted);
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+        }
+
+        .pp-stdin-toggle:hover {
+          color: var(--accent-primary);
+          background: rgba(245,158,11,0.1);
+        }
+
+        .pp-stdin-content {
+          flex: 1;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pp-stdin-content--collapsed {
+          height: 0 !important;
+          opacity: 0;
+        }
+
+        .pp-stdin-format {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--text-muted);
+          padding: 8px 16px 0;
+          opacity: 0.7;
+        }
+
+        .pp-stdin textarea {
+          width: 100%;
+          height: 100%;
+          background: transparent;
+          border: none;
+          outline: none;
+          resize: none;
+          font-family: var(--font-mono);
+          font-size: 12px;
+          color: var(--text-secondary);
+          line-height: 1.65;
+          padding: 10px 16px;
+        }
+
+        .pp-stdin textarea::placeholder {
+          color: rgba(255,255,255,0.2);
+          font-style: italic;
+        }
+
+        .pp-stdout {
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .pp-stdout-header {
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-subtle);
+          background: rgba(0,0,0,0.1);
+        }
+
+        .pp-stdout-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pp-stdout-content {
+          flex: 1;
+          padding: 14px 16px;
+          overflow-y: auto;
+        }
+
+        .pp-output-empty {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-muted);
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-style: italic;
+        }
+
+        .pp-output-running {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          color: var(--text-muted);
+          font-family: var(--font-mono);
+          font-size: 11px;
+        }
+
+        .pp-error-badge {
+          display: inline-block;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          font-weight: 600;
+          text-transform: uppercase;
+          padding: 3px 10px;
+          border-radius: 5px;
+          margin-bottom: 10px;
+          background: rgba(248,113,113,0.1);
+          border: 1px solid rgba(248,113,113,0.2);
+          color: var(--error);
+        }
+
+        .pp-output-pre {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          line-height: 1.65;
+          white-space: pre-wrap;
+          margin: 0;
+        }
+
+        /* ── BOTTOM SECTIONS ── */
+        .pp-bottom {
+          padding: 0 28px 40px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        /* ── CONFIDENCE ROW ── */
+        .pp-conf-row {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 12px;
+          padding: 14px 20px;
+          animation: fadeSlideUp 0.4s ease-out;
+        }
+
+        .pp-conf-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          margin-right: 6px;
+        }
+
+        .pp-conf-btn {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          padding: 6px 16px;
+          border-radius: 7px;
+          border: 1px solid var(--border-subtle);
+          background: transparent;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          color: var(--text-muted);
+        }
+
+        .pp-conf-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+
+        .pp-solved-badge {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          animation: solvedPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .pp-solved-badge span {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--success);
+        }
+
+        /* ── COLLAPSIBLE CARDS ── */
+        .collapsible-card {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 12px;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: fadeSlideUp 0.4s ease-out;
+        }
+
+        .collapsible-card:hover {
+          border-color: rgba(245,158,11,0.15);
+        }
+
+        .collapsible-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 18px 22px;
+          transition: all 0.2s ease;
+        }
+
+        .collapsible-header:hover {
+          background: rgba(245,158,11,0.03);
+        }
+
+        .collapsible-header__left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .collapsible-icon {
+          color: var(--text-muted);
+          transition: all 0.25s ease;
+          display: flex;
+        }
+
+        .collapsible-icon--active {
+          color: var(--accent-primary);
+        }
+
+        .collapsible-title {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          transition: all 0.25s ease;
+        }
+
+        .collapsible-title--active {
+          color: var(--text-secondary);
+        }
+
+        .collapsible-header__right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .collapsible-toggle {
+          color: var(--text-muted);
+          transition: all 0.25s ease;
+          display: flex;
+        }
+
+        .collapsible-toggle--active {
+          color: var(--accent-primary);
+        }
+
+        .collapsible-content-wrapper {
+          overflow: hidden;
+          transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+        }
+
+        .collapsible-content {
+          padding: 0 22px 22px;
+          border-top: 1px solid var(--border-subtle);
+          padding-top: 20px;
+        }
+
+        /* ── EDITORIAL CONTENT ── */
+        .editorial-insight {
+          margin-bottom: 24px;
+          padding-left: 16px;
+          border-left: 3px solid rgba(245,158,11,0.4);
+          background: linear-gradient(90deg, rgba(245,158,11,0.03) 0%, transparent 100%);
+          padding: 16px 20px;
+          border-radius: 0 10px 10px 0;
+        }
+
+        .editorial-insight-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          color: var(--accent-primary);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          margin-bottom: 10px;
+        }
+
+        .editorial-insight-text {
+          font-size: 14px;
+          color: var(--text-primary);
+          line-height: 1.75;
+          font-weight: 500;
+        }
+
+        .editorial-point {
+          display: flex;
+          gap: 14px;
+          align-items: flex-start;
+          padding: 12px 0;
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .editorial-point:last-child {
+          border-bottom: none;
+        }
+
+        .editorial-point-num {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--accent-primary);
+          min-width: 22px;
+          padding-top: 2px;
+        }
+
+        .editorial-point-text {
+          font-size: 14px;
+          color: var(--text-secondary);
+          line-height: 1.75;
+        }
+
+        /* ── HINTS CONTENT ── */
+        .hint-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 14px 16px;
+          background: rgba(251,191,36,0.03);
+          border: 1px solid rgba(251,191,36,0.1);
+          border-radius: 10px;
+          margin-bottom: 10px;
+          transition: all 0.2s ease;
+        }
+
+        .hint-item:last-child {
+          margin-bottom: 0;
+        }
+
+        .hint-item:hover {
+          background: rgba(251,191,36,0.05);
+          border-color: rgba(251,191,36,0.2);
+          transform: translateX(3px);
+        }
+
+        .hint-icon {
+          color: var(--warning);
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .hint-text {
+          font-size: 14px;
+          color: var(--text-secondary);
+          line-height: 1.7;
+        }
+
+        /* ── RICH EDITOR STYLES ── */
+        .re {
+          outline: none;
+          min-height: 140px;
+          font-family: var(--font-sans);
+          font-size: 14px;
+          color: var(--text-secondary);
+          line-height: 1.75;
+          caret-color: var(--accent-primary);
+          padding: 14px 0;
+          border-top: 1px solid var(--border-subtle);
+          transition: border-color .25s ease;
+          direction: ltr !important;
+          unicode-bidi: embed !important;
+          text-align: left !important;
+        }
+
+        .re * { direction: ltr !important; unicode-bidi: embed !important; text-align: left !important; }
+        .re:focus { border-top-color: rgba(245,158,11,0.3); }
+        .re h3 { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0.6rem 0 0.3rem; }
+        .re p { margin: .25rem 0; }
+        .re ul { list-style: disc; padding-left: 1.5rem; margin: .3rem 0; }
+        .re ol { list-style: decimal; padding-left: 1.5rem; margin: .3rem 0; }
+        .re li { margin: .2rem 0; }
+        .re b, .re strong { color: var(--text-primary); font-weight: 600; }
+        .re mark { background: rgba(245,158,11,0.2); color: inherit; border-radius: 3px; padding: 0 3px; }
+        .re p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-muted); pointer-events: none; font-style: italic; float: left; height: 0; }
+        .re-tool:hover { color: var(--accent-primary) !important; background: rgba(245,158,11,0.1) !important; }
+
+        /* ── AI MENTOR ── */
+        .mentor-wrap { display: flex; flex-direction: column; height: 100%; min-height: 420px; }
+
+        .mentor-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--border-subtle);
+          flex-shrink: 0;
+        }
+
+        .mentor-header__left { display: flex; align-items: center; gap: 10px; }
+
+        .mentor-title {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+
+        .online-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--success);
+          box-shadow: 0 0 8px var(--success);
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success); }
+          50% { opacity: 0.7; box-shadow: 0 0 12px var(--success); }
+        }
+
+        .badge-plus {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--accent-primary);
+          background: rgba(245,158,11,0.1);
+          border: 1px solid rgba(245,158,11,0.2);
+          border-radius: 5px;
+          padding: 3px 10px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+        }
+
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 18px 0; display: flex; flex-direction: column; }
+        .messages { display: flex; flex-direction: column; gap: 16px; padding-bottom: 4px; }
+        .bubble-row { display: flex; align-items: flex-end; gap: 10px; }
         .bubble-row--user { flex-direction: row-reverse; }
-        .bubble-avatar { width: 26px; height: 26px; border-radius: 50%; background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.18); display: flex; align-items: center; justify-content: center; color: rgba(249,115,22,0.7); flex-shrink: 0; margin-bottom: 20px; }
-        .bubble { max-width: 82%; border-radius: 14px; padding: 10px 14px 6px; position: relative; }
-        .bubble--user { background: rgba(249,115,22,0.09); border: 1px solid rgba(249,115,22,0.18); border-bottom-right-radius: 4px; }
-        .bubble--ai { background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); border-bottom-left-radius: 4px; }
-        .bubble--typing { padding: 14px 18px; display: flex; align-items: center; gap: 5px; }
-        .bubble-text { font-family: 'IBM Plex Sans', sans-serif; font-size: 13.5px; line-height: 1.72; color: #c9d1e0; margin: 0; }
-        .bubble-text--ai { color: #b0bac9; }
-        .bubble-text--ai strong { color: #e5e7eb; font-weight: 600; }
-        .bubble-text--ai em { color: #9ca3b8; font-style: italic; }
-        .bubble-text--ai code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.15); border-radius: 4px; padding: 1px 6px; color: #f97316; }
-        .bubble-text--ai ul { padding-left: 18px; margin: 8px 0; list-style: none; }
-        .bubble-text--ai ul li { position: relative; padding-left: 14px; margin: 5px 0; color: #b0bac9; font-size: 13.5px; line-height: 1.65; }
-        .bubble-text--ai ul li::before { content: '·'; position: absolute; left: 0; color: #f97316; font-size: 18px; line-height: 1.2; }
-        .bubble-footer { display: flex; justify-content: flex-end; margin-top: 5px; }
-        .copy-btn { display: flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 5px; border: none; cursor: pointer; background: rgba(255,255,255,0.04); color: #4b5563; font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.05em; transition: background .15s, color .15s; }
-        .copy-btn:hover { background: rgba(249,115,22,0.08); color: #f97316; }
-        .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #4b5563; animation: typingBounce 1.2s infinite ease-in-out; }
+
+        .bubble-avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: rgba(245,158,11,0.1);
+          border: 1px solid rgba(245,158,11,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--accent-primary);
+          flex-shrink: 0;
+          margin-bottom: 22px;
+        }
+
+        .bubble {
+          max-width: 80%;
+          border-radius: 16px;
+          padding: 12px 16px 8px;
+          position: relative;
+          animation: bubbleIn 0.3s ease-out;
+        }
+
+        @keyframes bubbleIn {
+          from { opacity: 0; transform: translateY(8px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .bubble--user {
+          background: rgba(245,158,11,0.1);
+          border: 1px solid rgba(245,158,11,0.2);
+          border-bottom-right-radius: 6px;
+        }
+
+        .bubble--ai {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid var(--border-subtle);
+          border-bottom-left-radius: 6px;
+        }
+
+        .bubble--typing { padding: 16px 20px; display: flex; align-items: center; gap: 6px; }
+
+        .bubble-text {
+          font-family: var(--font-sans);
+          font-size: 14px;
+          line-height: 1.7;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .bubble-text--ai { color: var(--text-secondary); }
+        .bubble-text--ai strong { color: var(--text-primary); font-weight: 600; }
+        .bubble-text--ai em { color: var(--text-muted); font-style: italic; }
+        .bubble-text--ai code {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          background: rgba(245,158,11,0.1);
+          border: 1px solid rgba(245,158,11,0.15);
+          border-radius: 5px;
+          padding: 2px 7px;
+          color: var(--accent-primary);
+        }
+        .bubble-text--ai ul { padding-left: 20px; margin: 10px 0; list-style: none; }
+        .bubble-text--ai ul li { position: relative; padding-left: 16px; margin: 6px 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+        .bubble-text--ai ul li::before { content: '·'; position: absolute; left: 0; color: var(--accent-primary); font-size: 20px; line-height: 1.1; }
+
+        .bubble-footer { display: flex; justify-content: flex-end; margin-top: 6px; }
+
+        .copy-btn {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          border: none;
+          cursor: pointer;
+          background: rgba(255,255,255,0.04);
+          color: var(--text-muted);
+          font-family: var(--font-mono);
+          font-size: 9px;
+          transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover { background: rgba(245,158,11,0.1); color: var(--accent-primary); }
+
+        .typing-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--text-muted);
+          animation: typingBounce 1.2s infinite ease-in-out;
+        }
+
         .typing-dot:nth-child(2) { animation-delay: .2s; }
         .typing-dot:nth-child(3) { animation-delay: .4s; }
-        @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-5px); opacity: 1; } }
-        .starters { padding: 8px 0; }
-        .starters__label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #4b5563; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
-        .starter-btn { display: block; width: 100%; text-align: left; padding: 9px 12px; margin-bottom: 5px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #5a6478; background: rgba(249,115,22,0.025); border: 1px solid #1c1f26; border-radius: 8px; cursor: pointer; transition: color .15s, border-color .15s, background .15s, transform .12s; }
-        .starter-btn:hover { color: #f97316; border-color: rgba(249,115,22,0.28); background: rgba(249,115,22,0.055); transform: translateX(3px); }
-        .chat-composer { flex-shrink: 0; border-top: 1px solid #1c1f26; padding-top: 12px; }
+
+        @keyframes typingBounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: .4; }
+          30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        .starters { padding: 10px 0; }
+
+        .starters__label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--text-muted);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          margin-bottom: 12px;
+        }
+
+        .starter-btn {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 11px 14px;
+          margin-bottom: 6px;
+          font-family: var(--font-sans);
+          font-size: 13.5px;
+          color: var(--text-muted);
+          background: rgba(245,158,11,0.03);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .starter-btn:hover {
+          color: var(--accent-primary);
+          border-color: rgba(245,158,11,0.25);
+          background: rgba(245,158,11,0.06);
+          transform: translateX(4px);
+        }
+
+        .chat-composer { flex-shrink: 0; border-top: 1px solid var(--border-subtle); padding-top: 14px; }
         .chat-composer__inner { position: relative; }
-        .chat-input { font-family: 'IBM Plex Sans', sans-serif; width: 100%; min-height: 44px; max-height: 120px; overflow-y: auto; background: rgba(249,115,22,0.03); border: 1px solid #1c1f26; border-radius: 10px; padding: 11px 46px 11px 14px; font-size: 13.5px; color: #c9d1e0; outline: none; line-height: 1.55; transition: border-color .2s; direction: ltr !important; text-align: left !important; white-space: pre-wrap; word-wrap: break-word; }
+
+        .chat-input {
+          font-family: var(--font-sans);
+          width: 100%;
+          min-height: 48px;
+          max-height: 130px;
+          overflow-y: auto;
+          background: rgba(245,158,11,0.03);
+          border: 1px solid var(--border-subtle);
+          border-radius: 12px;
+          padding: 13px 50px 13px 16px;
+          font-size: 14px;
+          color: var(--text-primary);
+          outline: none;
+          line-height: 1.55;
+          transition: all 0.25s ease;
+          direction: ltr !important;
+          text-align: left !important;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        .chat-input:focus { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.05); }
         .chat-input p { margin: 0; }
-        .chat-input p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #4b5563; pointer-events: none; float: left; height: 0; font-style: italic; }
+        .chat-input p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-muted); pointer-events: none; float: left; height: 0; font-style: italic; }
         .ProseMirror { white-space: pre-wrap; word-wrap: break-word; }
         .ProseMirror:focus { outline: none; }
-        .send-btn { position: absolute; right: 9px; bottom: 9px; width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #1c1f26; color: #3f4756; transition: all .2s; }
-        .send-btn--active { background: linear-gradient(135deg, #f97316, #ea580c); color: #000; box-shadow: 0 0 12px rgba(249,115,22,0.4); }
-        .send-btn--active:hover { box-shadow: 0 0 20px rgba(249,115,22,0.55); transform: scale(1.05); }
-        .composer-hint { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #374151; margin-top: 6px; letter-spacing: 0.05em; }
-        .paywall-preview { position: relative; overflow: hidden; flex: 1; margin: 12px 0; min-height: 160px; }
-        .paywall-fade { position: absolute; inset: 0; z-index: 2; background: linear-gradient(to bottom, transparent 10%, #0d0f14 92%); pointer-events: none; }
-        .paywall-msg { font-size: 12.5px; line-height: 1.65; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; }
-        .paywall-msg--user { color: #6b7280; background: rgba(249,115,22,0.04); border: 1px solid rgba(249,115,22,0.1); margin-left: 20px; }
-        .paywall-msg--ai { color: #4b5563; margin-right: 20px; }
-        .paywall-features { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 14px; }
-        .paywall-feature { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 6px; background: rgba(249,115,22,0.03); border: 1px solid #1c1f26; }
-        .paywall-feature__icon { color: #f97316; opacity: .7; }
-        .paywall-feature__label { font-size: 11px; color: #9ca3b8; }
-        .paywall-cta { width: 100%; padding: 11px 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 7px; }
+
+        .send-btn {
+          position: absolute;
+          right: 10px;
+          bottom: 10px;
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-hover);
+          color: var(--text-muted);
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .send-btn--active {
+          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+          color: #000;
+          box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+        }
+
+        .send-btn--active:hover {
+          box-shadow: 0 6px 24px rgba(245,158,11,0.5);
+          transform: scale(1.05);
+        }
+
+        .composer-hint {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--text-muted);
+          margin-top: 8px;
+          letter-spacing: 0.04em;
+          opacity: 0.7;
+        }
+
+        /* ── PAYWALL ── */
+        .paywall-preview { position: relative; overflow: hidden; flex: 1; margin: 14px 0; min-height: 170px; }
+        .paywall-fade { position: absolute; inset: 0; z-index: 2; background: linear-gradient(to bottom, transparent 10%, var(--bg-elevated) 92%); pointer-events: none; }
+
+        .paywall-msg {
+          font-size: 13px;
+          line-height: 1.65;
+          padding: 10px 14px;
+          margin-bottom: 8px;
+          border-radius: 10px;
+        }
+
+        .paywall-msg--user {
+          color: var(--text-muted);
+          background: rgba(245,158,11,0.05);
+          border: 1px solid rgba(245,158,11,0.1);
+          margin-left: 24px;
+        }
+
+        .paywall-msg--ai { color: var(--text-muted); margin-right: 24px; }
+
+        .paywall-features { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
+
+        .paywall-feature {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 12px;
+          border-radius: 8px;
+          background: rgba(245,158,11,0.03);
+          border: 1px solid var(--border-subtle);
+          transition: all 0.2s ease;
+        }
+
+        .paywall-feature:hover {
+          background: rgba(245,158,11,0.06);
+          border-color: rgba(245,158,11,0.15);
+        }
+
+        .paywall-feature__icon { color: var(--accent-primary); opacity: .8; }
+        .paywall-feature__label { font-size: 11.5px; color: var(--text-secondary); }
+
+        .paywall-cta {
+          width: 100%;
+          padding: 13px 0;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          border: none;
+          cursor: pointer;
+          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+          color: #000;
+          box-shadow: 0 4px 24px rgba(245,158,11,0.3);
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          text-decoration: none;
+        }
+
+        .paywall-cta:hover {
+          box-shadow: 0 6px 32px rgba(245,158,11,0.5);
+          transform: translateY(-2px);
+        }
+
+        .btn-ghost-sm {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--text-muted);
+          background: none;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          transition: all 0.2s ease;
+        }
+
+        .btn-ghost-sm:hover { color: var(--accent-primary); background: rgba(245,158,11,0.08); }
+
+        /* ── ANIMATIONS ── */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(10px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes solvedPop {
+          0% { transform: scale(0.8); opacity: 0; }
+          60% { transform: scale(1.08); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ── DISCUSSION ── */
+        .pp-discussion {
+          padding: 18px 24px;
+          color: var(--text-muted);
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-style: italic;
+          text-align: center;
+          opacity: 0.7;
+        }
       `}</style>
 
-      <div className="page">
-        <main
-          style={{
-            maxWidth: 1280,
-            margin: "0 auto",
-            padding: "28px 24px",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 24,
-              paddingBottom: 16,
-              borderBottom: "1px solid rgba(249,115,22,0.12)",
-            }}
-          >
-            <div
+      <div className="pp-page">
+        {/* ── TOP BAR ── */}
+        <div className="pp-topbar">
+          <div className="pp-topbar-left">
+            <h1 className="pp-title">{p.title}</h1>
+            <span
+              className="pp-diff-badge"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                minWidth: 0,
-                flex: 1,
+                background: diffStyle.bg,
+                border: `1px solid ${diffStyle.border}`,
+                color: diffStyle.color,
               }}
             >
-              <h1
-                style={{
-                  fontSize: 20,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {p.title}
-              </h1>
-              <span
-                className="mono"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: diffColor,
-                  flexShrink: 0,
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  background: `${diffColor}14`,
-                  border: `1px solid ${diffColor}28`,
-                }}
-              >
-                {p.difficulty}
+              {p.difficulty}
+            </span>
+            {tags.slice(0, 3).map((t) => (
+              <span key={t} className="pp-tag">
+                {t}
               </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flexShrink: 0,
-              }}
-            >
-              <button
-                onClick={() =>
-                  !saving &&
-                  setProgress((prev) => ({ ...prev, bookmark: !prev.bookmark }))
-                }
-                disabled={saving}
-                className={`btn-bookmark${progress.bookmark ? " active" : ""}`}
-              >
-                {progress.bookmark ? (
-                  <BookmarkCheck size={13} />
-                ) : (
-                  <Bookmark size={13} />
-                )}
-                {progress.bookmark ? "Bookmarked" : "Bookmark"}
-              </button>
-              <a
-                href={p.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-og"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  padding: "8px 16px",
-                  textDecoration: "none",
-                }}
-              >
-                <ExternalLink size={12} /> Solve on LeetCode
-              </a>
-            </div>
+            ))}
           </div>
 
-          {/* Layer 1: Problem + Progress */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 316px",
-              gap: 14,
-              marginBottom: 14,
-            }}
-          >
-            <div
-              className="card"
-              style={{ borderRadius: 10, padding: "28px 32px" }}
+          <div className="pp-topbar-right">
+            <button
+              className={`pp-bookmark-btn ${progress.bookmark ? "pp-bookmark-btn--active" : ""}`}
+              onClick={async () => {
+                if (saving) return;
+                const newBookmark = !progress.bookmark;
+                setProgress((prev) => ({ ...prev, bookmark: newBookmark }));
+                // Auto-save bookmark change
+                try {
+                  await fetch(`/api/problems/${p.slug}/problem`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ bookmark: newBookmark }),
+                  });
+                } catch (err) {
+                  console.error("Failed to save bookmark:", err);
+                }
+              }}
+              disabled={saving}
             >
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginBottom: 22,
-                }}
-              >
-                {p.tags.map((t: string) => (
-                  <span
-                    key={t}
-                    className="mono"
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 600,
-                      letterSpacing: "0.07em",
-                      textTransform: "uppercase",
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: "rgba(249,115,22,0.07)",
-                      border: "1px solid rgba(249,115,22,0.18)",
-                      color: "rgba(249,115,22,0.7)",
-                    }}
-                  >
-                    {t}
-                  </span>
-                ))}
-                {p.companies.map((c: string) => (
-                  <span
-                    key={c}
-                    className="mono"
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: "rgba(139,92,246,0.08)",
-                      border: "1px solid rgba(139,92,246,0.2)",
-                      color: "rgba(139,92,246,0.7)",
-                    }}
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-              <div style={{ maxWidth: "65%" }}>
-                <p
-                  style={{
-                    fontSize: 14.5,
-                    color: "#9ca3b8",
-                    lineHeight: 1.9,
-                    whiteSpace: "pre-line",
-                  }}
-                >
-                  {p.description}
-                </p>
-              </div>
-              <div
-                style={{
-                  marginTop: 28,
-                  paddingTop: 22,
-                  borderTop: "1px solid rgba(249,115,22,0.12)",
-                }}
-              >
+              {progress.bookmark ? (
+                <BookmarkCheck size={15} />
+              ) : (
+                <Bookmark size={15} />
+              )}
+              <span className="pp-bookmark-label">
+                {progress.bookmark ? "Saved" : "Bookmark"}
+              </span>
+            </button>
+
+            {/* Solved Status */}
+            <div className={`pp-status-badge ${progress.solved ? "pp-status-badge--solved" : "pp-status-badge--unsolved"}`}>
+              {progress.solved ? (
+                <>
+                  <CheckCircle size={14} />
+                  <span>Solved</span>
+                </>
+              ) : (
+                <>
+                  <span className="pp-status-dot" />
+                  <span>Not Solved</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── SECTION NAVIGATION ── */}
+        <div className="pp-section-nav">
+          <div className="pp-section-nav-inner">
+            <button
+              className={`pp-section-btn ${editorialOpen ? "pp-section-btn--active" : ""}`}
+              onClick={() => {
+                setEditorialOpen(true);
+                setTimeout(() => scrollTo("editorial"), 100);
+              }}
+            >
+              <Terminal size={14} />
+              <span>Editorial</span>
+            </button>
+            <button
+              className={`pp-section-btn ${hintsOpen ? "pp-section-btn--active" : ""}`}
+              onClick={() => {
+                setHintsOpen(true);
+                setTimeout(() => scrollTo("hints"), 100);
+              }}
+            >
+              <Lightbulb size={14} />
+              <span>Hints</span>
+            </button>
+            <button
+              className={`pp-section-btn ${notesOpen ? "pp-section-btn--active" : ""}`}
+              onClick={() => {
+                setNotesOpen(true);
+                setTimeout(() => scrollTo("notes"), 100);
+              }}
+            >
+              <StickyNote size={14} />
+              <span>Notes</span>
+            </button>
+            <button
+              className={`pp-section-btn ${aiMentorOpen ? "pp-section-btn--active" : ""}`}
+              onClick={() => {
+                setAiMentorOpen(true);
+                setTimeout(() => scrollTo("ai-mentor"), 100);
+              }}
+            >
+              <Bot size={14} />
+              <span>AI Mentor</span>
+              {!isPremium && <span className="pp-section-badge">Plus</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* ── MAIN SCROLLABLE AREA ── */}
+        <div className="pp-main-scroll">
+          {/* ── BIG CARD ── */}
+          <div className="pp-big-card">
+            {/* LEFT — problem description */}
+            <div className="pp-left">
+              {companies.length > 0 && (
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 18,
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginBottom: 24,
                   }}
                 >
-                  <Code2 size={14} color="#f97316" style={{ opacity: 0.7 }} />
-                  <span className="slabel" style={{ color: "#6b7280" }}>
-                    Examples
-                  </span>
+                  {companies.map((c) => (
+                    <span key={c} className="pp-company-badge">
+                      {c}
+                    </span>
+                  ))}
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 18,
-                    maxWidth: "60%",
-                  }}
-                >
+              )}
+
+              <p className="pp-description">{p.description}</p>
+
+              {examples.length > 0 && (
+                <div>
+                  <div className="pp-examples-header">
+                    <Code2 size={14} color="#f59e0b" style={{ opacity: 0.8 }} />
+                    <span className="pp-examples-title">Examples</span>
+                  </div>
                   {examples.map((ex, i) => (
-                    <div key={i}>
-                      <p
-                        className="mono"
-                        style={{
-                          fontSize: 9,
-                          color: "#6b7280",
-                          marginBottom: 9,
-                          letterSpacing: "0.08em",
-                        }}
-                      >
-                        EXAMPLE {i + 1}
-                      </p>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: 8,
-                        }}
-                      >
-                        <div>
-                          <p className="slabel" style={{ marginBottom: 5 }}>
-                            Input
-                          </p>
-                          <div className="code">{ex.input}</div>
-                        </div>
-                        <div>
-                          <p className="slabel" style={{ marginBottom: 5 }}>
-                            Output
-                          </p>
-                          <div className="code" style={{ color: "#7a8496" }}>
-                            {ex.output}
-                          </div>
-                        </div>
-                      </div>
-                      {ex.explanation && (
-                        <p
-                          style={{
-                            fontSize: 12.5,
-                            color: "#7a8496",
-                            marginTop: 8,
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          <span style={{ color: "#9ca3b8", fontWeight: 500 }}>
-                            Explanation:{" "}
-                          </span>
-                          {ex.explanation}
-                        </p>
-                      )}
+                    <div key={i} className="pp-example-card">
+                      <p className="pp-example-label">EXAMPLE {i + 1}</p>
+                      <pre className="pp-example-pre">{ex}</pre>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="sticky-sidebar">
-              <div
-                className="card"
-                style={{ borderRadius: 10, padding: "22px 20px" }}
-              >
-                <div className="card-title">
-                  <Trophy size={16} className="card-title-icon" />
-                  Your Progress
+            {/* RIGHT — editor panel */}
+            <div className="pp-right">
+              <div className="pp-toolbar">
+                <div className="pp-file-indicator">
+                  <FileText size={13} color="#606070" />
+                  <span className="pp-file-name">
+                    solution.
+                    {language === "cpp"
+                      ? "cpp"
+                      : language === "java"
+                        ? "java"
+                        : "py"}
+                  </span>
+                  <select
+                    className="pp-lang-select"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                  >
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                    <option value="python">Python</option>
+                  </select>
                 </div>
-                <div
-                  style={{
-                    marginBottom: 18,
-                    paddingBottom: 18,
-                    borderBottom: "1px solid #1c1f26",
+
+                <div className="pp-toolbar-actions">
+                  <button
+                    className="pp-run-btn"
+                    disabled={running || submitting}
+                    onClick={handleRun}
+                  >
+                    {running ? (
+                      <>
+                        <Loader2 size={12} className="spin" /> Running…
+                      </>
+                    ) : (
+                      <>
+                        <Play size={12} /> Run
+                      </>
+                    )}
+                  </button>
+                  <button
+                    className="pp-submit-btn"
+                    disabled={running || submitting}
+                    onClick={() => {}}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 size={12} className="spin" /> Submitting…
+                      </>
+                    ) : (
+                      <>
+                        <Zap size={12} /> Submit
+                      </>
+                    )}
+                  </button>
+                  <span className="pp-kbd">⌘↵</span>
+                </div>
+              </div>
+
+              <div className="pp-editor-wrap">
+                <MonacoEditor
+                  height="100%"
+                  language={language}
+                  value={codeData}
+                  onChange={(v: any) => setCodeData(v || "")}
+                  theme="vs-dark"
+                  options={{
+                    fontSize: 13,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    padding: { top: 14, bottom: 14 },
+                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                    lineHeight: 1.7,
+                    cursorBlinking: "smooth",
+                    smoothScrolling: true,
+                    renderLineHighlight: "gutter",
                   }}
-                >
-                  {progress.solved ? (
+                  loading={
                     <div
-                      className="solved-pop"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 9,
-                        padding: "10px 13px",
-                        background: "rgba(16,185,129,0.06)",
-                        border: "1px solid rgba(16,185,129,0.2)",
-                        borderRadius: 7,
+                        padding: 28,
+                        color: "#606070",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
                       }}
                     >
-                      <CheckCircle size={14} color="#10b981" />
-                      <div style={{ flex: 1 }}>
-                        <p
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "#10b981",
-                          }}
-                        >
-                          Solved
-                        </p>
-                        {progress.solvedAt && (
-                          <p
-                            className="mono"
-                            style={{
-                              fontSize: 10,
-                              color: "#6b7280",
-                              marginTop: 2,
-                            }}
-                          >
-                            {new Date(progress.solvedAt).toLocaleDateString(
-                              "en-US",
-                              { month: "short", day: "numeric" },
-                            )}
-                          </p>
-                        )}
-                      </div>
-                      {pendingSolved && <PendingDot />}
+                      Loading editor…
                     </div>
-                  ) : (
-                    <button
-                      onClick={handleSolve}
-                      disabled={saving}
-                      className="btn-solve"
-                    >
-                      <CheckCircle size={13} /> Mark Solved
-                    </button>
-                  )}
+                  }
+                />
+              </div>
+
+              {/* Drag handle */}
+              <div
+                className="drag-handle"
+                onMouseDown={handleDragStart}
+                onTouchStart={handleDragStart}
+              >
+                <div style={{ display: "flex", gap: 4, pointerEvents: "none" }}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="drag-dot" />
+                  ))}
                 </div>
-                <div
-                  style={{
-                    marginBottom: 18,
-                    paddingBottom: 18,
-                    borderBottom: "1px solid #1c1f26",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <p className="slabel">
-                      <Target size={12} className="slabel-icon" />
-                      Confidence
-                    </p>
-                    {pendingConfidence && <PendingDot />}
+              </div>
+
+              {/* IO Strip — drag-resizable */}
+              <div
+                ref={ioStripRef}
+                className="pp-io-strip"
+                style={{ height: ioHeight }}
+              >
+                <div className="pp-stdin">
+                  <div className="pp-stdin-header">
+                    <div className="pp-stdin-title">
+                      <Terminal size={13} color="#606070" />
+                      <span className="pp-stdin-label">Custom Input</span>
+                    </div>
+                    <button
+                      className="pp-stdin-toggle"
+                      onClick={() => setStdinExpanded(!stdinExpanded)}
+                    >
+                      <ChevronDown
+                        size={14}
+                        style={{
+                          transform: stdinExpanded
+                            ? "rotate(180deg)"
+                            : "rotate(0deg)",
+                          transition: "transform 0.25s ease",
+                        }}
+                      />
+                    </button>
                   </div>
                   <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      gap: 5,
-                    }}
+                    className={`pp-stdin-content ${!stdinExpanded ? "pp-stdin-content--collapsed" : ""}`}
+                    style={{ flex: stdinExpanded ? 1 : 0 }}
                   >
-                    {(["LOW", "MEDIUM", "HIGH"] as ConfidenceV2[]).map(
-                      (level) => {
-                        const cfg = CONF[level];
-                        const active = progress.confidenceV2 === level;
-                        return (
-                          <button
-                            key={level}
-                            disabled={saving}
-                            onClick={() =>
-                              !saving &&
-                              setProgress((prev) => ({
-                                ...prev,
-                                confidenceV2: level,
-                              }))
-                            }
-                            className={`conf-btn${active ? " conf-active" : ""}`}
-                            style={
-                              active
-                                ? {
-                                    color: cfg.color,
-                                    background: cfg.bg,
-                                    border: `1px solid ${cfg.border}`,
-                                    transform: "translateY(-1px)",
-                                  }
-                                : {}
-                            }
-                          >
-                            {cfg.label}
-                          </button>
-                        );
-                      },
+                    <p className="pp-stdin-format">
+                      Input format: numbers separated by spaces/newlines
+                    </p>
+                    <textarea
+                      value={stdin}
+                      onChange={(e) => setStdin(e.target.value)}
+                      placeholder={stdinPlaceholder}
+                    />
+                  </div>
+                </div>
+
+                <div className="pp-stdout">
+                  <div className="pp-stdout-header">
+                    <span
+                      className="pp-stdout-label"
+                      style={
+                        running ? { animation: "pulse 1.5s infinite" } : {}
+                      }
+                    >
+                      <ChevronRight size={12} />
+                      Output
+                    </span>
+                  </div>
+                  <div className="pp-stdout-content">
+                    {running ? (
+                      <div className="pp-output-running">
+                        <Loader2 size={13} className="spin" />
+                        <span>Executing...</span>
+                      </div>
+                    ) : stdout === null ? (
+                      <div className="pp-output-empty">
+                        Run your code to see output
+                      </div>
+                    ) : (
+                      <div>
+                        {outputType === "error" && (
+                          <span className="pp-error-badge">
+                            {errorType || "Error"}
+                          </span>
+                        )}
+                        <pre
+                          className="pp-output-pre"
+                          style={{
+                            color:
+                              outputType === "success"
+                                ? "var(--success)"
+                                : "var(--error)",
+                          }}
+                        >
+                          {stdout}
+                        </pre>
+                      </div>
                     )}
                   </div>
                 </div>
-                <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <p className="slabel">
-                      <StickyNote size={12} className="slabel-icon" />
-                      Notes
-                    </p>
-                    {pendingNotes ? (
-                      <PendingDot />
-                    ) : progress.notes ? (
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: 9,
-                          color: "#10b981",
-                          letterSpacing: "0.06em",
-                        }}
-                      >
-                        saved
-                      </span>
-                    ) : null}
-                  </div>
-                  <RichEditor
-                    initialValue={progress.notes}
-                    disabled={saving}
-                    onChange={(html) =>
-                      setProgress((prev) => ({ ...prev, notes: html }))
-                    }
-                  />
-                </div>
-                {isDirty && (
+              </div>
+            </div>
+          </div>
+
+          {/* ── BOTTOM SECTIONS ── */}
+          <div className="pp-bottom">
+            {/* Confidence + Solved row */}
+            <div className="pp-conf-row">
+              <span className="pp-conf-label">Confidence</span>
+              {(["LOW", "MEDIUM", "HIGH"] as ConfidenceV2[]).map((level) => {
+                const cfg = CONF[level];
+                const active = progress.confidenceV2 === level;
+                return (
                   <button
+                    key={level}
+                    className="pp-conf-btn"
+                    disabled={saving}
+                    onClick={() =>
+                      !saving &&
+                      setProgress((prev) => ({ ...prev, confidenceV2: level }))
+                    }
+                    style={
+                      active
+                        ? {
+                            color: cfg.color,
+                            background: cfg.bg,
+                            borderColor: cfg.border,
+                            boxShadow: `0 2px 12px ${cfg.glow}`,
+                          }
+                        : {}
+                    }
+                  >
+                    {cfg.label}
+                  </button>
+                );
+              })}
+              {progress.solved && (
+                <div className="pp-solved-badge">
+                  <CheckCircle size={14} color="#10b981" />
+                  <span>Solved</span>
+                </div>
+              )}
+            </div>
+
+            {/* Editorial */}
+            <CollapsibleSection
+              id="editorial"
+              icon={<Terminal size={15} />}
+              title="Editorial & Approach"
+              isOpen={editorialOpen}
+              onToggle={() => setEditorialOpen((v) => !v)}
+            >
+              {editorial.insight && (
+                <div className="editorial-insight">
+                  <p className="editorial-insight-label">Key Insight</p>
+                  <p className="editorial-insight-text">{editorial.insight}</p>
+                </div>
+              )}
+              {editorial.points.length > 0 && (
+                <div>
+                  {editorial.points.map((pt, i) => (
+                    <div key={i} className="editorial-point">
+                      <span className="editorial-point-num">{i + 1}.</span>
+                      <p className="editorial-point-text">{pt}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CollapsibleSection>
+
+            {/* Hints */}
+            <CollapsibleSection
+              id="hints"
+              icon={<Lightbulb size={15} />}
+              title="Hints"
+              isOpen={hintsOpen}
+              onToggle={() => setHintsOpen((v) => !v)}
+            >
+              <div>
+                {aiHintLines.map((hint, i) => (
+                  <div key={i} className="hint-item">
+                    <Lightbulb size={13} className="hint-icon" />
+                    <p className="hint-text">{hint}</p>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleSection>
+
+            {/* Notes */}
+            <CollapsibleSection
+              id="notes"
+              icon={<StickyNote size={15} />}
+              title="Notes"
+              isOpen={notesOpen}
+              onToggle={() => setNotesOpen((v) => !v)}
+            >
+              <RichEditor
+                initialValue={progress.notes}
+                disabled={saving}
+                onChange={(html) =>
+                  setProgress((prev) => ({ ...prev, notes: html }))
+                }
+              />
+              {progress.notes !== committed.notes && (
+                <div className="pp-notes-save-row">
+                  <button
+                    className="pp-notes-save-btn"
                     onClick={handleSave}
                     disabled={saving}
-                    className="btn-save"
-                    style={{ marginTop: 14 }}
                   >
                     {saving ? (
                       <>
@@ -1476,67 +2785,40 @@ export default function ProblemPage({
                       </>
                     ) : (
                       <>
-                        <Cloud size={12} /> Save Progress
+                        <Cloud size={12} /> Save Notes
                       </>
                     )}
                   </button>
-                )}
-              </div>
-            </div>
-          </div>
+                </div>
+              )}
+            </CollapsibleSection>
 
-          {/* Layer 2: Editorial + AI Mentor */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 3fr",
-              gap: 14,
-              marginBottom: 14,
-            }}
-          >
-            <div
-              className="card"
-              style={{ borderRadius: 10, padding: "22px 24px" }}
-            >
-              <EditorialBlock editorial={editorial} aiHintLines={aiHintLines} />
-            </div>
-            <div
-              className="card"
-              style={{ borderRadius: 10, padding: "22px 24px", minHeight: 500 }}
+            {/* AI Mentor */}
+            <CollapsibleSection
+              id="ai-mentor"
+              icon={<Bot size={15} />}
+              title="AI Mentor"
+              isOpen={aiMentorOpen}
+              onToggle={() => setAiMentorOpen((v) => !v)}
+              rightExtra={
+                isPremium ? (
+                  <span className="online-dot" />
+                ) : (
+                  <span className="badge-plus">Plus</span>
+                )
+              }
             >
               <AIMentor
                 problemId={p.id}
                 title={p.title}
                 isPremium={isPremium}
               />
-            </div>
-          </div>
+            </CollapsibleSection>
 
-          {/* Layer 3: Discussion */}
-          <div style={{ paddingTop: 14 }}>
-            <div
-              style={{
-                height: 1,
-                background:
-                  "linear-gradient(90deg, transparent, rgba(249,115,22,0.18) 30%, rgba(249,115,22,0.18) 70%, transparent)",
-                marginBottom: 22,
-              }}
-            />
-            <p className="slabel" style={{ marginBottom: 18 }}>
-              Discussion
-            </p>
-            <div
-              style={{
-                maxWidth: 640,
-                color: "#6b7280",
-                fontSize: 14,
-                fontStyle: "italic",
-              }}
-            >
-              Coming Soon...
-            </div>
+            {/* Discussion Coming Soon */}
+            <div className="pp-discussion">Discussion — Coming Soon</div>
           </div>
-        </main>
+        </div>
       </div>
     </>
   );

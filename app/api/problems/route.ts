@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import slug from "slug";
-import { kMaxLength } from "node:buffer";
 
 const genSlug = (title: string) => {
   const slugProb = slug(title);
@@ -54,8 +53,12 @@ export async function POST(req: NextRequest) {
       examples,
     } = await req.json();
     const genProb = genSlug(title as string);
-    const problem = await prisma.problem.create({
-      data: {
+
+    // Use upsert for idempotency - if problem exists, return it; otherwise create
+    const problem = await prisma.problem.upsert({
+      where: { slug: genProb },
+      update: {}, // Don't update existing problems
+      create: {
         title,
         slug: genProb,
         description,
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
         examples,
       },
     });
+
     return NextResponse.json(
       {
         success: true,

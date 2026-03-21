@@ -66,11 +66,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const sheet = await prisma.sheet.create({
-      data: {
+    const generatedSlug = genSlug(title as string);
+
+    // Use upsert for idempotency - if sheet exists, return it; otherwise create
+    const sheet = await prisma.sheet.upsert({
+      where: { slug: generatedSlug },
+      update: {}, // Don't update existing sheets
+      create: {
         title,
         description,
-        slug: genSlug(title as string),
+        slug: generatedSlug,
       },
     });
 
