@@ -33,6 +33,7 @@ import {
   Play,
   FileText,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import { Problem, UserProblem } from "@/generated/prisma/client";
 import { toast } from "sonner";
@@ -60,6 +61,29 @@ interface ProgressState {
   notes: string;
   bookmark: boolean;
 }
+
+interface InputFormatItem {
+  name: string;
+  type: string;
+  desc: string;
+  sizeVar?: string;
+}
+
+// TestCase type for the problem
+interface TestCase {
+  id: string;
+  input: string;
+  displayInput?: string | null;
+  displayOutput?: string | null;
+  expectedOutput: string;
+  order: number;
+}
+
+// Extend Problem type to include testCases
+type ProblemWithTestCases = Problem & {
+  inputFormat?: InputFormatItem[] | null;
+  testCases?: TestCase[];
+};
 
 const CONF: Record<
   ConfidenceV2,
@@ -141,6 +165,177 @@ const parseStdin = (example: string): string => {
   if (cutAt !== -1) s = s.substring(0, cutAt);
   return s.trim().replace(/\\n/g, "\n");
 };
+
+// ── INPUT FORMAT PARSING ──
+interface TestCaseData {
+  input: string;
+  displayInput?: string | null;
+}
+
+function parseInputFormat(testCase?: TestCaseData): InputFormatItem[] {
+  if (!testCase?.input) return [];
+
+  const lines = testCase.input.split("\n").filter((l) => l.trim());
+  const result: InputFormatItem[] = [];
+
+  // Parse displayInput to extract variable names: "g = [1,2,3], s = [1,1]"
+  const varMap: Record<string, { isArray: boolean; values: string[] }> = {};
+  if (testCase.displayInput) {
+    const assignments = testCase.displayInput.split(",").map((s) => s.trim());
+    for (const assign of assignments) {
+      const match = assign.match(/^(\w+)\s*=\s*(.+)$/);
+      if (match) {
+        const [, varName, value] = match;
+        const isArray = value.startsWith("[");
+        const values = isArray
+          ? value
+              .replace(/[\[\]]/g, "")
+              .split(",")
+              .map((v) => v.trim())
+          : [value.trim()];
+        varMap[varName] = { isArray, values };
+      }
+    }
+  }
+
+  const varNames = Object.keys(varMap);
+  let varIndex = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const parts = line.split(/\s+/);
+    const isArray = parts.length > 1;
+
+    // Try to match with variable from displayInput
+    let name = "";
+    let desc = "";
+    let sizeVar: string | undefined;
+
+    if (varIndex < varNames.length) {
+      const currentVar = varNames[varIndex];
+      const varData = varMap[currentVar];
+
+      if (!isArray && !varData.isArray) {
+        // Single value - likely a size variable
+        const nextVar = varNames[varIndex + 1];
+        if (nextVar && varMap[nextVar]?.isArray) {
+          name = `n`;
+          desc = `size of array ${nextVar}`;
+          // Don't increment varIndex yet - the array comes next
+        } else {
+          name = currentVar;
+          desc = `value of ${currentVar}`;
+          varIndex++;
+        }
+      } else if (isArray && varData.isArray) {
+        // Array values
+        name = currentVar;
+        desc = `array ${currentVar}`;
+        // Find the size variable (previous single value)
+        if (result.length > 0) {
+          const prevItem = result[result.length - 1];
+          if (!prevItem.type.includes("[]")) {
+            sizeVar = prevItem.name;
+          }
+        }
+        varIndex++;
+      } else if (!isArray && varData.isArray) {
+        // Size before array
+        name = `n`;
+        desc = `size of array ${currentVar}`;
+      } else {
+        // Array without matching variable
+        name = currentVar;
+        desc = `array values`;
+        varIndex++;
+      }
+    } else {
+      // Fallback naming
+      name = isArray ? `arr${i}` : `n${i}`;
+      desc = isArray ? "array values" : "integer value";
+    }
+
+    result.push({
+      name,
+      type: isArray ? "int[]" : "int",
+      desc,
+      sizeVar,
+    });
+  }
+
+  return result;
+}
+
+// ── INPUT FORMAT STRIP COMPONENT ──
+function InputFormatStrip({ items }: { items: InputFormatItem[] }) {
+  if (!items.length) return null;
+
+  // Render description with variable names in code style
+  const renderDesc = (desc: string, sizeVar?: string) => {
+    let text = desc;
+    if (sizeVar) {
+      text += ` (${sizeVar} elements)`;
+    }
+    // Wrap variable names in code tags
+    const parts = text.split(/(\b[a-z]\b|\b[a-z]\d*\b|\barr\d*\b)/gi);
+    return parts.map((part, i) => {
+      if (/^[a-z]\d*$|^arr\d*$/i.test(part) && part.length <= 4) {
+        return (
+          <code
+            key={i}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              background: "rgba(255,255,255,0.08)",
+              padding: "1px 4px",
+              borderRadius: 3,
+              color: "#9a9aaa",
+            }}
+          >
+            {part}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="pp-input-format-strip">
+      <div className="pp-input-format-header">
+        <Info size={14} color="#606070" />
+        <span className="pp-input-format-title">
+          Input format — read in this order
+        </span>
+      </div>
+      <div className="pp-input-format-rows">
+        {items.map((item, i) => {
+          const isArray = item.type.includes("[]");
+          return (
+            <div key={i} className="pp-input-format-row">
+              <span className="pp-input-format-line">{i + 1}</span>
+              <span
+                className="pp-input-format-pill"
+                style={{
+                  background: isArray
+                    ? "rgba(34, 197, 94, 0.12)"
+                    : "rgba(168, 85, 247, 0.12)",
+                  color: isArray ? "#4ade80" : "#c084fc",
+                }}
+              >
+                {item.type} {item.name}
+              </span>
+              <span className="pp-input-format-arrow">→</span>
+              <span className="pp-input-format-desc">
+                {renderDesc(item.desc, item.sizeVar)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ── RICH EDITOR ──
 function RichEditor({
@@ -676,22 +871,274 @@ function CollapsibleSection({
   );
 }
 
+// ── SOLVE DIALOG ──
+function SolveDialog({
+  problemTitle,
+  passed,
+  total,
+  onClose,
+  onSave,
+}: {
+  problemTitle: string;
+  passed: number;
+  total: number;
+  onClose: () => void;
+  onSave: (data: {
+    difficulty: string;
+    confidence: string;
+    insight: string;
+    enableReview: boolean;
+  }) => Promise<void>;
+}) {
+  const [difficulty, setDifficulty] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState<string | null>(null);
+  const [insight, setInsight] = useState("");
+  const [reviewEnabled, setReviewEnabled] = useState(true);
+  const userToggledRef = useRef(false);
+  const [confFlash, setConfFlash] = useState(false);
+  const [phase, setPhase] = useState<"form" | "saving" | "saved">("form");
+
+  const motivationalLines = [
+    "Every problem solved is a step closer to mastery.",
+    "Your future self will thank you for this grind.",
+    "Consistency beats talent. Keep showing up.",
+    "One more problem down. Unstoppable.",
+    "You're building something incredible — one solve at a time.",
+    "The best coders aren't born, they're forged.",
+  ];
+  const motiveRef = useRef(motivationalLines[Math.floor(Math.random() * motivationalLines.length)]);
+
+  useEffect(() => {
+    if (!difficulty) return;
+    let autoConf: string;
+    if (difficulty === "TOO_EASY" || difficulty === "EASY") autoConf = "HIGH";
+    else if (difficulty === "JUST_RIGHT") autoConf = "MEDIUM";
+    else autoConf = "LOW";
+    setConfidence(autoConf);
+    if (!userToggledRef.current) setReviewEnabled(autoConf !== "HIGH");
+    setConfFlash(true);
+    setTimeout(() => setConfFlash(false), 300);
+  }, [difficulty]);
+
+  const diffOpts = [
+    { value: "TOO_EASY", label: "Too Easy" },
+    { value: "EASY", label: "Easy" },
+    { value: "JUST_RIGHT", label: "Just Right" },
+    { value: "HARD", label: "Hard" },
+    { value: "VERY_HARD", label: "Very Hard" },
+  ];
+  const confOpts = [
+    { value: "LOW", label: "Low" },
+    { value: "MEDIUM", label: "Medium" },
+    { value: "HIGH", label: "High" },
+  ];
+
+  const diffSelectedStyle: Record<string, React.CSSProperties> = {
+    TOO_EASY: { background: "rgba(16,185,129,0.08)", borderColor: "rgba(16,185,129,0.3)", color: "#10b981", boxShadow: "0 0 12px rgba(16,185,129,0.1)" },
+    EASY: { background: "rgba(16,185,129,0.06)", borderColor: "rgba(16,185,129,0.25)", color: "#10b981" },
+    JUST_RIGHT: { background: "rgba(249,115,22,0.08)", borderColor: "rgba(249,115,22,0.3)", color: "#f97316", boxShadow: "0 0 12px rgba(249,115,22,0.1)" },
+    HARD: { background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.25)", color: "#ef4444" },
+    VERY_HARD: { background: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.35)", color: "#ef4444", boxShadow: "0 0 12px rgba(239,68,68,0.1)" },
+  };
+  const confSelectedStyle: Record<string, React.CSSProperties> = {
+    LOW: { background: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.28)", color: "#ef4444" },
+    MEDIUM: { background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.28)", color: "#f59e0b" },
+    HIGH: { background: "rgba(16,185,129,0.08)", borderColor: "rgba(16,185,129,0.28)", color: "#10b981" },
+  };
+
+  const btnBase: React.CSSProperties = {
+    fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700,
+    textTransform: "uppercase", letterSpacing: "0.07em",
+    padding: "7px 14px", borderRadius: 6, cursor: "pointer",
+    transition: "all 180ms ease-out",
+    border: "1px solid #1c1f26", background: "rgba(255,255,255,0.02)", color: "#4b5563",
+  };
+
+  return (
+    <>
+      <style>{`
+        @keyframes dialogEntrance {
+          from { opacity: 0; transform: scale(0.94) translateY(12px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes confPulse {
+          0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; }
+        }
+        .sd-textarea::placeholder { color: #2a2d35 !important; }
+        .sd-textarea:focus { border-color: rgba(249,115,22,0.35) !important; background: rgba(249,115,22,0.02) !important; }
+        .sd-pill:hover:not([data-active="true"]) { border-color: #2a2d35 !important; color: #6b7280 !important; background: rgba(255,255,255,0.04) !important; }
+        .sd-pill:active { transform: scale(0.96); }
+        .sd-skip:hover { color: #6b7280 !important; text-decoration: underline; text-decoration-color: #2a2d35; }
+        .sd-save:hover:not(:disabled) { box-shadow: 0 0 32px rgba(249,115,22,0.45) !important; transform: translateY(-1px); filter: brightness(1.05); }
+        .sd-save:active:not(:disabled) { transform: translateY(0) !important; }
+        @keyframes sdSpin { to { transform: rotate(360deg); } }
+        @keyframes sdFadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+      `}</style>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div style={{ background: "#0d0f14", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 16, width: 520, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto", position: "relative", animation: "dialogEntrance 280ms cubic-bezier(0.16, 1, 0.3, 1)" }}>
+
+          {/* Top highlight line (green for success) */}
+          <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg, transparent, rgba(16,185,129,0.5), transparent)", pointerEvents: "none" }} />
+
+          {phase === "saving" && (
+            <div style={{ padding: "80px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+              <div style={{ width: 32, height: 32, border: "2.5px solid #1c1f26", borderTopColor: "#f97316", borderRadius: "50%", animation: "sdSpin 0.8s linear infinite" }} />
+              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#6b7280", letterSpacing: "0.04em" }}>Saving progress…</p>
+            </div>
+          )}
+
+          {phase === "saved" && (
+            <div style={{ padding: "64px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, animation: "sdFadeUp 400ms ease-out" }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                <CheckCircle size={28} color="#10b981" />
+              </div>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 20, fontWeight: 600, color: "#e5e7eb", letterSpacing: "-0.01em" }}>Enjoy solving! 🚀</p>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#6b7280", textAlign: "center", maxWidth: 340, lineHeight: 1.6 }}>{motiveRef.current}</p>
+            </div>
+          )}
+
+          {phase === "form" && (
+          <>
+          {/* ── SECTION 1: SUCCESS HEADER ── */}
+          <div style={{ padding: "32px 32px 24px", textAlign: "center", borderBottom: "1px solid #1c1f26" }}>
+            {/* Layered checkmark rings */}
+            <div style={{ width: 72, height: 72, borderRadius: "50%", border: "1.5px solid rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.04)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <div style={{ width: 54, height: 54, borderRadius: "50%", border: "1.5px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CheckCircle size={26} color="#10b981" />
+              </div>
+            </div>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 22, fontWeight: 600, color: "#e5e7eb", letterSpacing: "-0.01em", marginBottom: 6 }}>All Tests Passed!</p>
+            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#6b7280", letterSpacing: "0.04em", marginBottom: 10 }}>{problemTitle}</p>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 20, padding: "4px 14px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, color: "#10b981" }}>
+              {total > 0 ? `${passed} / ${total} test cases passed` : "All tests passed"}
+            </span>
+          </div>
+
+          {/* ── SECTION 2: FORM BODY ── */}
+          <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+
+            {/* Difficulty */}
+            <div>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#9ca3b8", marginBottom: 10 }}>How hard did this feel?</p>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {diffOpts.map((o) => {
+                  const active = difficulty === o.value;
+                  return (
+                    <button key={o.value} className="sd-pill" data-active={active}
+                      onClick={() => setDifficulty(o.value)}
+                      style={{ ...btnBase, ...(active ? diffSelectedStyle[o.value] : {}) }}>
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: "#1c1f26" }} />
+
+            {/* Confidence */}
+            <div>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#9ca3b8", marginBottom: 10 }}>Your confidence level?</p>
+              <div style={{ display: "flex", gap: 6, animation: confFlash ? "confPulse 300ms ease-out" : undefined }}>
+                {confOpts.map((o) => {
+                  const active = confidence === o.value;
+                  return (
+                    <button key={o.value} className="sd-pill" data-active={active}
+                      onClick={() => { setConfidence(o.value); if (!userToggledRef.current) setReviewEnabled(o.value !== "HIGH"); }}
+                      style={{ ...btnBase, ...(active ? confSelectedStyle[o.value] : {}) }}>
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: "#1c1f26" }} />
+
+            {/* Key insight */}
+            <div>
+              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#9ca3b8", marginBottom: 10 }}>Key insight? (optional)</p>
+              <textarea className="sd-textarea" value={insight} onChange={(e) => setInsight(e.target.value)} maxLength={280}
+                placeholder="What was the key idea? What pattern did you recognize?"
+                style={{ width: "100%", minHeight: 80, maxHeight: 160, resize: "vertical", background: "rgba(255,255,255,0.02)", border: "1px solid #1c1f26", borderRadius: 8, padding: "12px 14px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#c9d1e0", lineHeight: 1.6, outline: "none", transition: "all 200ms ease-out" }}
+              />
+              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "#374151", textAlign: "right", marginTop: 4 }}>{insight.length}/280</p>
+            </div>
+
+            <div style={{ height: 1, background: "#1c1f26" }} />
+
+            {/* Toggle */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid #1c1f26", borderRadius: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#c9d1e0" }}>Remind me to review this</span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#4b5563" }}>We&apos;ll schedule a review based on your confidence</span>
+              </div>
+              <button onClick={() => { userToggledRef.current = true; setReviewEnabled(!reviewEnabled); }}
+                style={{ width: 40, height: 22, borderRadius: 11, border: reviewEnabled ? "1px solid rgba(249,115,22,0.5)" : "1px solid #2a2d35", cursor: "pointer", background: reviewEnabled ? "#f97316" : "#1c1f26", position: "relative", transition: "all 200ms ease-out", padding: 0, flexShrink: 0, boxShadow: reviewEnabled ? "0 0 10px rgba(249,115,22,0.25)" : "none" }}>
+                <span style={{ position: "absolute", top: 2, left: reviewEnabled ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "all 200ms ease-out", boxShadow: reviewEnabled ? "0 0 6px rgba(249,115,22,0.4)" : "none" }} />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: "#1c1f26" }} />
+
+          {/* ── SECTION 3: ACTIONS ── */}
+          <div style={{ padding: "20px 32px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <button className="sd-skip" onClick={onClose}
+              style={{ background: "none", border: "none", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#4b5563", cursor: "pointer", padding: "8px 4px", transition: "color 150ms" }}>
+              Skip for now
+            </button>
+            <button className="sd-save" disabled={!difficulty}
+              onClick={async () => {
+                if (!difficulty || !confidence) return;
+                setPhase("saving");
+                try {
+                  await onSave({ difficulty, confidence, insight, enableReview: reviewEnabled });
+                  setPhase("saved");
+                  setTimeout(() => onClose(), 2000);
+                } catch {
+                  setPhase("form");
+                }
+              }}
+              style={{ padding: "10px 24px", borderRadius: 8, background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", color: "#000", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", cursor: !difficulty ? "not-allowed" : "pointer", boxShadow: difficulty ? "0 0 20px rgba(249,115,22,0.25)" : "none", transition: "all 200ms ease-out", opacity: difficulty ? 1 : 0.35 }}>
+              Save &amp; Continue
+            </button>
+          </div>
+          </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── PAGE ──
 export default function ProblemPage({
   problem: p,
   userProblem,
   isPremium = false,
+  inputFormat,
 }: {
-  problem: Problem;
+  problem: ProblemWithTestCases;
   userProblem?: UserProblem | null;
   isPremium?: boolean;
+  inputFormat?: string;
 }) {
   const editorial = parseEditorial(p.editorial);
   const aiHintLines = parseLines(p.aiHints);
   const examples = (Array.isArray(p.examples) ? p.examples : []) as string[];
   const companies = (Array.isArray(p.companies) ? p.companies : []) as string[];
   const tags = (Array.isArray(p.tags) ? p.tags : []) as string[];
-  const defaultStdin = examples[0] ? parseStdin(examples[0]) : "";
+  const defaultStdin = (p.testCases as any[])?.find((tc) => tc.visibility === "PUBLIC")?.input ?? "";
+
+  // Parse input format from first test case
+  const inputFormatItems = React.useMemo(() => {
+    if (p.testCases && p.testCases.length > 0) {
+      return parseInputFormat(p.testCases[0]);
+    }
+    return [];
+  }, [p.testCases]);
 
   const toState = (up?: UserProblem | null): ProgressState => ({
     solved: up?.solved ?? false,
@@ -712,7 +1159,6 @@ export default function ProblemPage({
   // Editor state
   const [language, setLanguage] = useState("cpp");
   const [codeData, setCodeData] = useState("// Start coding here");
-  const [stdin, setStdin] = useState(defaultStdin);
   const [stdout, setStdout] = useState<string | null>(null);
   const [outputType, setOutputType] = useState<"success" | "error">("success");
   const [errorType, setErrorType] = useState<
@@ -720,7 +1166,37 @@ export default function ProblemPage({
   >(null);
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [stdinExpanded, setStdinExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState<"testcase" | "output">("testcase");
+  const [stdinValue, setStdinValue] = useState(() => {
+    if (p.testCases && p.testCases.length > 0) {
+      const tc = (p.testCases as any[]).find((t) => t.visibility === "PUBLIC") || p.testCases[0];
+      return tc.input || "";
+    }
+    return defaultStdin;
+  });
+  const [runOutput, setRunOutput] = useState<{
+    stdout: string | null;
+    outputType: "success" | "error";
+    errorType: "Compile Error" | "Runtime Error" | null;
+  } | null>(null);
+  const [submitOutput, setSubmitOutput] = useState<{
+    accepted: boolean;
+    passed: number;
+    total: number;
+    compileError?: string | null;
+    results: Array<{
+      passed: boolean;
+      isPublic: boolean;
+      input: string | null;
+      displayInput: string | null;
+      expected: string | null;
+      displayOutput: string | null;
+      got: string | null;
+      status: string;
+      error: string | null;
+    }>;
+  } | null>(null);
+  const [showSolveDialog, setShowSolveDialog] = useState(false);
 
   // Drag-resizable IO strip
   const [ioHeight, setIoHeight] = useState(220);
@@ -752,20 +1228,28 @@ export default function ProblemPage({
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       const maxIO = container.offsetHeight * MAX_IO_RATIO;
       const delta = dragStartY.current - clientY;
-      const h = Math.min(maxIO, Math.max(MIN_IO, dragStartH.current + delta));
-      ioStripRef.current.style.height = h + "px";
+      const nextHeight = Math.min(
+        maxIO,
+        Math.max(MIN_IO, dragStartH.current + delta),
+      );
+      ioStripRef.current.style.height = `${nextHeight}px`;
     };
+
     const onEnd = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-      if (ioStripRef.current) setIoHeight(ioStripRef.current.offsetHeight);
+      if (ioStripRef.current) {
+        setIoHeight(ioStripRef.current.offsetHeight);
+      }
     };
+
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onEnd);
     document.addEventListener("touchmove", onMove, { passive: false });
     document.addEventListener("touchend", onEnd);
+
     return () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onEnd);
@@ -779,8 +1263,8 @@ export default function ProblemPage({
   codeRef.current = codeData;
   const langRef = useRef(language);
   langRef.current = language;
-  const stdinRef = useRef(stdin);
-  stdinRef.current = stdin;
+  const stdinRef = useRef(stdinValue);
+  stdinRef.current = stdinValue;
 
   const handleRun = useCallback(async () => {
     const currentCode = codeRef.current;
@@ -790,6 +1274,9 @@ export default function ProblemPage({
     setRunning(true);
     setStdout(null);
     setErrorType(null);
+    setRunOutput(null);
+    setSubmitOutput(null);
+    setActiveTab("output");
     try {
       const res = await fetch(`/api/problems/${p.slug}/problem/execute`, {
         method: "POST",
@@ -805,32 +1292,93 @@ export default function ProblemPage({
         setStdout(data.error);
         setOutputType("error");
         setErrorType("Runtime Error");
+        setRunOutput({ stdout: data.error, outputType: "error", errorType: "Runtime Error" });
         return;
       }
       const status = (data.status || "").toLowerCase();
       if (status.includes("compilation error")) {
-        setStdout(data.compile_output || "Compilation failed");
+        const msg = data.compile_output || "Compilation failed";
+        setStdout(msg);
         setOutputType("error");
         setErrorType("Compile Error");
+        setRunOutput({ stdout: msg, outputType: "error", errorType: "Compile Error" });
       } else if (
         status.includes("error") ||
         status.includes("time limit") ||
         status.includes("memory limit")
       ) {
-        setStdout(data.stderr || data.stdout || status);
+        const msg = data.stderr || data.stdout || status;
+        setStdout(msg);
         setOutputType("error");
         setErrorType("Runtime Error");
+        setRunOutput({ stdout: msg, outputType: "error", errorType: "Runtime Error" });
       } else {
         setStdout(data.stdout ?? "");
         setOutputType("success");
         setErrorType(null);
+        setRunOutput({ stdout: data.stdout ?? "", outputType: "success", errorType: null });
       }
     } catch {
       setStdout("Something went wrong. Try again.");
       setOutputType("error");
       setErrorType("Runtime Error");
+      setRunOutput({ stdout: "Something went wrong. Try again.", outputType: "error", errorType: "Runtime Error" });
     } finally {
       setRunning(false);
+    }
+  }, [p.slug]); // eslint-disable-line
+
+  const handleSubmit = useCallback(async () => {
+    const currentCode = codeRef.current;
+    const currentLang = langRef.current;
+    setSubmitting(true);
+    setRunOutput(null);
+    setSubmitOutput(null);
+    setActiveTab("output");
+    try {
+      const res = await fetch(`/api/problems/${p.slug}/problem/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: currentCode, language: currentLang }),
+      });
+      const data = await res.json();
+      if (data.compileError) {
+        setSubmitOutput({ accepted: false, passed: 0, total: data.total || 0, compileError: data.compileError, results: [] });
+        return;
+      }
+      const results = (data.results || []).map((r: any) => ({
+        passed: r.passed, isPublic: r.isPublic ?? true,
+        input: r.input || null, displayInput: r.displayInput || null,
+        expected: r.expected || null, displayOutput: r.displayOutput || null,
+        got: r.got || null, status: r.status || (r.passed ? "Accepted" : "Wrong Answer"),
+        error: r.error || null,
+      }));
+      const passedCount = results.filter((r: any) => r.passed).length;
+      const output = { accepted: data.accepted ?? passedCount === results.length, passed: passedCount, total: results.length, results };
+      setSubmitOutput(output);
+      if (output.accepted) setShowSolveDialog(true);
+    } catch {
+      setSubmitOutput({ accepted: false, passed: 0, total: 0, compileError: "Something went wrong. Try again.", results: [] });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [p.slug]); // eslint-disable-line
+
+  const handleSolveDialogSave = useCallback(async (data: { difficulty: string; confidence: string; insight: string; enableReview: boolean }) => {
+    try {
+      const res = await fetch(`/api/problems/${p.slug}/problem`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ solved: true, confidenceV2: data.confidence, perceivedDifficulty: data.difficulty, keyInsight: data.insight, enableReview: data.enableReview }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.message ?? "Save failed");
+      setProgress((prev) => ({ ...prev, solved: true, confidenceV2: data.confidence as ConfidenceV2 }));
+      setCommitted((prev) => ({ ...prev, solved: true, confidenceV2: data.confidence as ConfidenceV2 }));
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to save progress");
+      throw err; // re-throw so dialog reverts to form
     }
   }, [p.slug]); // eslint-disable-line
 
@@ -895,9 +1443,6 @@ export default function ProblemPage({
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
-
-  // Generate placeholder based on examples
-  const stdinPlaceholder = defaultStdin || "5\n1 2 3 4 5";
 
   return (
     <>
@@ -1481,6 +2026,101 @@ export default function ProblemPage({
           min-height: 0;
         }
 
+        /* ── INPUT FORMAT STRIP ── */
+        .pp-input-format-strip {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 12px;
+          padding: 14px 18px;
+          animation: fadeSlideUp 0.4s ease-out;
+        }
+
+        .pp-input-format-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .pp-input-format-title {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+
+        .pp-input-format-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .pp-input-format-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pp-input-format-line-num,
+        .pp-input-format-line {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--text-muted);
+          min-width: 16px;
+          text-align: right;
+          opacity: 0.6;
+          padding-top: 2px;
+        }
+
+        .pp-input-format-pill {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 4px;
+          white-space: nowrap;
+          min-width: 56px;
+          text-align: center;
+        }
+
+        .pp-input-format-pill--scalar {
+          background: rgba(168,85,247,0.12);
+          color: #c084fc;
+        }
+
+        .pp-input-format-pill--array {
+          background: rgba(34,197,94,0.12);
+          color: #4ade80;
+        }
+
+        .pp-input-format-arrow {
+          display: none;
+        }
+
+        .pp-input-format-desc {
+          display: none;
+        }
+
+        .pp-input-format-desc code {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          background: rgba(255,255,255,0.08);
+          padding: 2px 6px;
+          border-radius: 3px;
+          color: var(--text-primary);
+        }
+
+        .pp-input-format-meta {
+          margin-left: auto;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--text-muted);
+          opacity: 0.75;
+          white-space: nowrap;
+        }
+
         /* ── DRAG HANDLE ── */
         .drag-handle {
           height: 8px;
@@ -1513,11 +2153,13 @@ export default function ProblemPage({
 
         /* ── IO STRIP ── */
         .pp-io-strip {
+          height: 220px;
           flex-shrink: 0;
           display: grid;
           grid-template-columns: 1fr 1fr;
           overflow: hidden;
           background: rgba(0,0,0,0.15);
+          border-top: 1px solid var(--border-subtle);
         }
 
         .pp-stdin {
@@ -1525,6 +2167,7 @@ export default function ProblemPage({
           padding: 0;
           display: flex;
           flex-direction: column;
+          min-width: 0;
         }
 
         .pp-stdin-header {
@@ -1551,59 +2194,10 @@ export default function ProblemPage({
           color: var(--text-muted);
         }
 
-        .pp-stdin-toggle {
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 4px;
-          color: var(--text-muted);
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-        }
-
-        .pp-stdin-toggle:hover {
-          color: var(--accent-primary);
-          background: rgba(245,158,11,0.1);
-        }
-
         .pp-stdin-content {
           flex: 1;
-          overflow: hidden;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .pp-stdin-content--collapsed {
-          height: 0 !important;
-          opacity: 0;
-        }
-
-        .pp-stdin-format {
-          font-family: var(--font-mono);
-          font-size: 9px;
-          color: var(--text-muted);
-          padding: 8px 16px 0;
-          opacity: 0.7;
-        }
-
-        .pp-stdin textarea {
-          width: 100%;
-          height: 100%;
-          background: transparent;
-          border: none;
-          outline: none;
-          resize: none;
-          font-family: var(--font-mono);
-          font-size: 12px;
-          color: var(--text-secondary);
-          line-height: 1.65;
-          padding: 10px 16px;
-        }
-
-        .pp-stdin textarea::placeholder {
-          color: rgba(255,255,255,0.2);
-          font-style: italic;
+          overflow-y: auto;
+          padding: 10px 12px;
         }
 
         .pp-stdout {
@@ -1611,6 +2205,7 @@ export default function ProblemPage({
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          min-width: 0;
         }
 
         .pp-stdout-header {
@@ -2308,6 +2903,11 @@ export default function ProblemPage({
           100% { transform: scale(1); opacity: 1; }
         }
 
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(16px) scale(0.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
         /* ── DISCUSSION ── */
         .pp-discussion {
           padding: 18px 24px;
@@ -2374,7 +2974,9 @@ export default function ProblemPage({
             </button>
 
             {/* Solved Status */}
-            <div className={`pp-status-badge ${progress.solved ? "pp-status-badge--solved" : "pp-status-badge--unsolved"}`}>
+            <div
+              className={`pp-status-badge ${progress.solved ? "pp-status-badge--solved" : "pp-status-badge--unsolved"}`}
+            >
               {progress.solved ? (
                 <>
                   <CheckCircle size={14} />
@@ -2476,6 +3078,19 @@ export default function ProblemPage({
                   ))}
                 </div>
               )}
+
+              {/* Input Format */}
+              {inputFormatItems.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <InputFormatStrip items={inputFormatItems} />
+                </div>
+              )}
+              {inputFormat && (
+                <div style={{ marginTop: inputFormatItems.length > 0 ? 12 : 20 }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4b5563", display: "block", marginBottom: 8 }}>Input Format</span>
+                  <div style={{ background: "rgba(249,115,22,0.03)", border: "1px solid #1c1f26", borderLeft: "2px solid rgba(249,115,22,0.3)", borderRadius: 6, padding: "10px 14px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#9ca3b8", lineHeight: 1.7, whiteSpace: "pre-line" }}>{inputFormat}</div>
+                </div>
+              )}
             </div>
 
             {/* RIGHT — editor panel */}
@@ -2521,7 +3136,7 @@ export default function ProblemPage({
                   <button
                     className="pp-submit-btn"
                     disabled={running || submitting}
-                    onClick={() => {}}
+                    onClick={handleSubmit}
                   >
                     {submitting ? (
                       <>
@@ -2570,104 +3185,131 @@ export default function ProblemPage({
                 />
               </div>
 
-              {/* Drag handle */}
               <div
                 className="drag-handle"
                 onMouseDown={handleDragStart}
                 onTouchStart={handleDragStart}
+                aria-label="Resize output section"
+                role="separator"
               >
-                <div style={{ display: "flex", gap: 4, pointerEvents: "none" }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="drag-dot" />
-                  ))}
-                </div>
+                <span className="drag-dot" />
               </div>
 
-              {/* IO Strip — drag-resizable */}
               <div
                 ref={ioStripRef}
-                className="pp-io-strip"
-                style={{ height: ioHeight }}
+                style={{ height: `${ioHeight}px`, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(0,0,0,0.15)", borderTop: "1px solid var(--border-subtle)" }}
               >
-                <div className="pp-stdin">
-                  <div className="pp-stdin-header">
-                    <div className="pp-stdin-title">
-                      <Terminal size={13} color="#606070" />
-                      <span className="pp-stdin-label">Custom Input</span>
-                    </div>
-                    <button
-                      className="pp-stdin-toggle"
-                      onClick={() => setStdinExpanded(!stdinExpanded)}
-                    >
-                      <ChevronDown
-                        size={14}
-                        style={{
-                          transform: stdinExpanded
-                            ? "rotate(180deg)"
-                            : "rotate(0deg)",
-                          transition: "transform 0.25s ease",
-                        }}
-                      />
-                    </button>
+                {/* Tab header */}
+                <div style={{ height: 36, borderBottom: "1px solid #1c1f26", padding: "0 14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {(["testcase", "output"] as const).map((tab) => (
+                      <button key={tab} onClick={() => setActiveTab(tab)}
+                        style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "3px 10px", borderRadius: 5, border: activeTab === tab ? "1px solid rgba(249,115,22,0.3)" : "1px solid transparent", background: activeTab === tab ? "rgba(249,115,22,0.1)" : "transparent", color: activeTab === tab ? "#f97316" : "#4b5563", cursor: "pointer", transition: "all 180ms ease-out" }}>
+                        {tab}
+                      </button>
+                    ))}
                   </div>
-                  <div
-                    className={`pp-stdin-content ${!stdinExpanded ? "pp-stdin-content--collapsed" : ""}`}
-                    style={{ flex: stdinExpanded ? 1 : 0 }}
-                  >
-                    <p className="pp-stdin-format">
-                      Input format: numbers separated by spaces/newlines
-                    </p>
-                    <textarea
-                      value={stdin}
-                      onChange={(e) => setStdin(e.target.value)}
-                      placeholder={stdinPlaceholder}
-                    />
+                  <div>
+                    {activeTab === "output" && runOutput && !submitOutput && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "2px 8px", borderRadius: 4, display: "inline-block",
+                        ...(runOutput.outputType === "success" ? { background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: "#10b981" } : { background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" })
+                      }}>{runOutput.outputType === "success" ? "Accepted" : runOutput.errorType || "Error"}</span>
+                    )}
+                    {activeTab === "output" && submitOutput && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280" }}>{submitOutput.passed}/{submitOutput.total} passed</span>
+                    )}
                   </div>
                 </div>
 
-                <div className="pp-stdout">
-                  <div className="pp-stdout-header">
-                    <span
-                      className="pp-stdout-label"
-                      style={
-                        running ? { animation: "pulse 1.5s infinite" } : {}
-                      }
-                    >
-                      <ChevronRight size={12} />
-                      Output
-                    </span>
-                  </div>
-                  <div className="pp-stdout-content">
-                    {running ? (
-                      <div className="pp-output-running">
-                        <Loader2 size={13} className="spin" />
-                        <span>Executing...</span>
-                      </div>
-                    ) : stdout === null ? (
-                      <div className="pp-output-empty">
-                        Run your code to see output
-                      </div>
-                    ) : (
-                      <div>
-                        {outputType === "error" && (
-                          <span className="pp-error-badge">
-                            {errorType || "Error"}
-                          </span>
-                        )}
-                        <pre
-                          className="pp-output-pre"
-                          style={{
-                            color:
-                              outputType === "success"
-                                ? "var(--success)"
-                                : "var(--error)",
-                          }}
-                        >
-                          {stdout}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
+                {/* Tab content */}
+                <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
+                  {activeTab === "testcase" ? (
+                    <div>
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#4b5563", display: "block", marginBottom: 8 }}>Input</span>
+                      <textarea
+                        value={stdinValue}
+                        onChange={(e) => setStdinValue(e.target.value)}
+                        style={{ width: "100%", minHeight: 80, resize: "vertical", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: 8, padding: "10px 12px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#c9d1e0", lineHeight: 1.6, outline: "none", transition: "border-color 200ms" }}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(249,115,22,0.3)"; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
+                      />
+                      <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "#374151", fontStyle: "italic", marginTop: 6 }}>Edit input above to test custom cases</p>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Running state */}
+                      {(running || submitting) && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "24px 0", color: "#4b5563", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>
+                          <Loader2 size={13} className="spin" /> {submitting ? "Submitting…" : "Running…"}
+                        </div>
+                      )}
+
+                      {/* Idle state */}
+                      {!running && !submitting && !runOutput && !submitOutput && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 0", color: "#374151", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontStyle: "italic" }}>
+                          Run your code to see output here
+                        </div>
+                      )}
+
+                      {/* Run output */}
+                      {!running && runOutput && !submitOutput && (
+                        <div>
+                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "2px 8px", borderRadius: 4, display: "inline-block", marginBottom: 10,
+                            ...(runOutput.outputType === "success" ? { background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: "#10b981" } : { background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" })
+                          }}>{runOutput.outputType === "success" ? "Accepted" : runOutput.errorType || "Error"}</span>
+                          <pre style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, lineHeight: 1.6, color: runOutput.outputType === "success" ? "#10b981" : "#ef4444", whiteSpace: "pre-wrap", margin: 0, padding: 0 }}>
+                            {runOutput.stdout || "(no output)"}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Submit output */}
+                      {!submitting && submitOutput && (
+                        <div>
+                          {/* Compile error */}
+                          {submitOutput.compileError && (
+                            <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, padding: "10px 12px", marginBottom: 12 }}>
+                              <pre style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#ef4444", whiteSpace: "pre-wrap", margin: 0 }}>{submitOutput.compileError}</pre>
+                            </div>
+                          )}
+
+                          {/* Verdict header */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: submitOutput.accepted ? "#10b981" : "#ef4444" }}>
+                              {submitOutput.accepted ? "Accepted" : "Wrong Answer"}
+                            </span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280" }}>{submitOutput.passed} / {submitOutput.total} passed</span>
+                          </div>
+
+                          {/* Test case list */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {submitOutput.results.map((r, i) => (
+                              <div key={i}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: r.passed ? "#10b981" : "#ef4444", flexShrink: 0 }} />
+                                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: r.passed ? "#10b981" : "#ef4444" }}>
+                                    {r.isPublic ? `Test ${i + 1}` : "Hidden test"} — {r.passed ? "Accepted" : r.isPublic ? r.status : "Failed"}
+                                  </span>
+                                </div>
+                                {!r.passed && r.isPublic && (
+                                  <div style={{ paddingLeft: 14, marginTop: 4 }}>
+                                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280", margin: "2px 0" }}>Input: {r.displayInput || r.input || "—"}</p>
+                                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280", margin: "2px 0" }}>Expected: {r.displayOutput || r.expected || "—"}</p>
+                                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#ef4444", margin: "2px 0" }}>Got: {r.got || "—"}</p>
+                                  </div>
+                                )}
+                                {!r.passed && !r.isPublic && (
+                                  <p style={{ paddingLeft: 14, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#4b5563", marginTop: 4 }}>
+                                    A hidden test case is failing. Check edge cases.
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2820,6 +3462,17 @@ export default function ProblemPage({
           </div>
         </div>
       </div>
+
+      {/* ── SOLVE DIALOG ── */}
+      {showSolveDialog && submitOutput && (
+        <SolveDialog
+          problemTitle={p.title}
+          passed={submitOutput.passed}
+          total={submitOutput.total}
+          onClose={() => setShowSolveDialog(false)}
+          onSave={handleSolveDialogSave}
+        />
+      )}
     </>
   );
 }

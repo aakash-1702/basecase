@@ -22,6 +22,7 @@ export async function POST(
 
   try {
     const { code, language, stdin = "" } = await req.json();
+    const cleanStdin = stdin.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
     const languageId = LANGUAGE_IDS[language];
 
@@ -40,7 +41,7 @@ export async function POST(
 
     // encoding data to base64
     const encodedCode = Buffer.from(code).toString("base64");
-    const encodedStdin = Buffer.from(stdin).toString("base64");
+    const encodedStdin = Buffer.from(cleanStdin).toString("base64");
 
     // step 1 is gettting the token
     const submitRes = await fetch(

@@ -50,7 +50,9 @@ async function apiRequest(
     return data.data;
   } catch (error: any) {
     if (retryCount < MAX_RETRIES) {
-      console.log(`  ⚠️ Request failed, retrying in ${RETRY_DELAY_MS}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      console.log(
+        `  ⚠️ Request failed, retrying in ${RETRY_DELAY_MS}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`,
+      );
       await delay(RETRY_DELAY_MS);
       return apiRequest(endpoint, method, body, retryCount + 1);
     }
@@ -110,342 +112,330 @@ async function linkProblemToSection(
 // PROBLEM DATA
 // ─────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────
+// CODEFORCES PROBLEMS — Ready for seed file
+// All inputs are in raw stdin format for Judge0
+// ─────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────
+// SHEET CONFIGURATION
+// ─────────────────────────────────────────────────────────────────
+
 const EASY_PROBLEMS = [
   {
-    title: "Best Time to Buy and Sell Stock",
+    title: "Find if Path Exists in Graph",
+    slug: "find-if-path-exists-in-graph",
     difficulty: "easy",
-    link: "https://leetcode.com/problems/best-time-to-buy-and-sell-stock/",
-    description: `You are given an array prices where prices[i] is the price of a given stock on the ith day.
+    link: "https://leetcode.com/problems/find-if-path-exists-in-graph/",
+    description: `There is a bi-directional graph with n vertices, where each vertex is labeled from 0 to n-1. The edges in the graph are represented as a 2D integer array edges, where each edges[i] = [ui, vi] denotes a bi-directional edge between vertex ui and vertex vi.
 
-You want to maximize your profit by choosing a single day to buy one stock and choosing a different day in the future to sell that stock.
-
-Return the maximum profit you can achieve from this transaction. If you cannot achieve any profit, return 0.`,
-    tags: ["Array", "Sliding Window"],
-    companies: ["Amazon", "Microsoft", "Goldman Sachs", "Bloomberg"],
+Given the integer n, the array edges, and two integers source and destination, return true if there is a valid path from source to destination, or false otherwise.`,
+    tags: ["Graph", "BFS", "DFS", "Union Find"],
+    companies: ["Amazon", "Facebook"],
     examples: [
-      `Input: prices = [7,1,5,3,6,4]
-Output: 5
-Explanation: Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 6-1 = 5.`,
-      `Input: prices = [7,6,4,3,1]
-Output: 0
-Explanation: In this case, no transactions are done and the max profit = 0.`,
+      `Input: n = 3, edges = [[0,1],[1,2],[2,0]], source = 0, destination = 2\nOutput: true`,
+      `Input: n = 6, edges = [[0,1],[0,2],[3,5],[5,4],[4,3]], source = 0, destination = 5\nOutput: false`,
     ],
-    editorial: `Sliding window with two pointers (buy and sell)
-Place left pointer at buy day and right pointer at sell day
-If prices[right] > prices[left], calculate profit and update maximum
-If prices[right] <= prices[left], move left to right (found a cheaper buy day)
-Advance right pointer every iteration
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Use two pointers: one for the buy day and one for the sell day
-When should you move the buy pointer forward?
-You want to minimize the buy price and maximize the sell price`,
+    editorial: `Build an adjacency list from the edges array.
+Run BFS or DFS from source, marking visited nodes.
+If destination is reached at any point, return true.
+If traversal completes without reaching destination, return false.
+Alternatively use Union-Find: union all edges, then check if source and destination share the same root.
+Time complexity: O(n + e), Space complexity: O(n + e).`,
+    aiHints: `Build an adjacency list first — store neighbors for each node\nBFS/DFS from source: if you ever reach destination return true\nUnion-Find is also valid: union all edges then check if find(source) == find(destination)`,
     testCases: [
       {
-        input: "[7,1,5,3,6,4]",
-        expectedOutput: "5",
-        displayInput: "prices = [7,1,5,3,6,4]",
-        displayOutput: "5",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[7,6,4,3,1]",
-        expectedOutput: "0",
-        displayInput: "prices = [7,6,4,3,1]",
-        displayOutput: "0",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[2,4,1,7]",
-        expectedOutput: "6",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Valid Palindrome",
-    difficulty: "easy",
-    link: "https://leetcode.com/problems/valid-palindrome/",
-    description: `A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward. Alphanumeric characters include letters and numbers.
-
-Given a string s, return true if it is a palindrome, or false otherwise.`,
-    tags: ["Two Pointers", "String"],
-    companies: ["Meta", "Amazon", "Microsoft"],
-    examples: [
-      `Input: s = "A man, a plan, a canal: Panama"
-Output: true
-Explanation: "amanaplanacanalpanama" is a palindrome.`,
-      `Input: s = "race a car"
-Output: false
-Explanation: "raceacar" is not a palindrome.`,
-      `Input: s = " "
-Output: true
-Explanation: s is an empty string "" after removing non-alphanumeric characters. Since an empty string reads the same forward and backward, it is a palindrome.`,
-    ],
-    editorial: `Two pointers from both ends converging inward
-Place left pointer at start and right pointer at end
-Skip non-alphanumeric characters on both sides
-Compare characters (case-insensitive) at both pointers
-If mismatch found return false; otherwise move both pointers inward
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Use two pointers starting from each end of the string
-How do you skip non-alphanumeric characters?
-What does case-insensitive comparison mean for your implementation?`,
-    testCases: [
-      {
-        input: "A man, a plan, a canal: Panama",
+        input: "3 0 2\n0 1\n1 2\n2 0",
         expectedOutput: "true",
-        displayInput: 's = "A man, a plan, a canal: Panama"',
+        displayInput:
+          "n = 3, source = 0, destination = 2, edges = [[0,1],[1,2],[2,0]]",
         displayOutput: "true",
         visibility: "PUBLIC",
       },
       {
-        input: "race a car",
+        input: "6 0 5\n0 1\n0 2\n3 5\n5 4\n4 3",
         expectedOutput: "false",
-        displayInput: 's = "race a car"',
+        displayInput:
+          "n = 6, source = 0, destination = 5, edges = [[0,1],[0,2],[3,5],[5,4],[4,3]]",
         displayOutput: "false",
         visibility: "PUBLIC",
       },
       {
-        input: " ",
+        input: "1 0 0",
         expectedOutput: "true",
         visibility: "PRIVATE",
       },
-    ],
-  },
-  {
-    title: "Squares of a Sorted Array",
-    difficulty: "easy",
-    link: "https://leetcode.com/problems/squares-of-a-sorted-array/",
-    description: `Given an integer array nums sorted in non-decreasing order, return an array of the squares of each number sorted in non-decreasing order.`,
-    tags: ["Array", "Two Pointers", "Sorting"],
-    companies: ["Amazon", "Google", "Apple"],
-    examples: [
-      `Input: nums = [-4,-1,0,3,10]
-Output: [0,1,9,16,100]
-Explanation: After squaring, the array becomes [16,1,0,9,100]. After sorting, it becomes [0,1,9,16,100].`,
-      `Input: nums = [-7,-3,2,3,11]
-Output: [4,9,9,49,121]`,
-    ],
-    editorial: `Two pointers from both ends, filling result from the back
-The largest square is always at one of the two ends (most negative or most positive)
-Compare absolute values at left and right pointers
-Place the larger square at the current back position of the result array
-Move the corresponding pointer inward
-Time complexity: O(n), Space complexity: O(n)`,
-    aiHints: `The largest squared values are at the extremes of the sorted array
-Use two pointers: one at the start (most negative) and one at the end (most positive)
-Fill the result array from the back to the front`,
-    testCases: [
       {
-        input: "[-4,-1,0,3,10]",
-        expectedOutput: "[0,1,9,16,100]",
-        displayInput: "nums = [-4,-1,0,3,10]",
-        displayOutput: "[0,1,9,16,100]",
-        visibility: "PUBLIC",
+        input: "4 0 3\n0 1\n1 2\n2 3",
+        expectedOutput: "true",
+        visibility: "PRIVATE",
       },
       {
-        input: "[-7,-3,2,3,11]",
-        expectedOutput: "[4,9,9,49,121]",
-        displayInput: "nums = [-7,-3,2,3,11]",
-        displayOutput: "[4,9,9,49,121]",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[-1]",
-        expectedOutput: "[1]",
+        input: "5 0 4\n0 1\n1 2\n3 4",
+        expectedOutput: "false",
         visibility: "PRIVATE",
       },
     ],
   },
-  
   {
-    title: "Remove Duplicates from Sorted Array",
+    title: "Number of Islands",
+    slug: "number-of-islands",
     difficulty: "easy",
-    link: "https://leetcode.com/problems/remove-duplicates-from-sorted-array/",
-    description: `Given an integer array nums sorted in non-decreasing order, remove the duplicates in-place such that each unique element appears only once. The relative order of the elements should be kept the same. Then return the number of unique elements in nums.
+    link: "https://leetcode.com/problems/number-of-islands/",
+    description: `Given an m x n 2D binary grid which represents a map of '1's (land) and '0's (water), return the number of islands.
 
-Consider the number of unique elements of nums to be k. To get accepted, you need to do the following things:
-- Change the array nums such that the first k elements of nums contain the unique elements in the order they were present in nums initially.
-- Return k.`,
-    tags: ["Array", "Two Pointers"],
-    companies: ["Amazon", "Google", "Microsoft", "Apple"],
+An island is surrounded by water and is formed by connecting adjacent lands horizontally or vertically. You may assume all four edges of the grid are all surrounded by water.`,
+    tags: ["Graph", "BFS", "DFS", "Union Find"],
+    companies: ["Amazon", "Google", "Facebook", "Microsoft", "Bloomberg"],
     examples: [
-      `Input: nums = [1,1,2]
-Output: 2, nums = [1,2,_]
-Explanation: Your function should return k = 2, with the first two elements of nums being 1 and 2 respectively.`,
-      `Input: nums = [0,0,1,1,1,2,2,3,3,4]
-Output: 5, nums = [0,1,2,3,4,_,_,_,_,_]`,
+      `Input: grid = [\n  ["1","1","1","1","0"],\n  ["1","1","0","1","0"],\n  ["1","1","0","0","0"],\n  ["0","0","0","0","0"]\n]\nOutput: 1`,
+      `Input: grid = [\n  ["1","1","0","0","0"],\n  ["1","1","0","0","0"],\n  ["0","0","1","0","0"],\n  ["0","0","0","1","1"]\n]\nOutput: 3`,
     ],
-    editorial: `Two pointers: slow writer and fast reader
-Slow pointer k tracks the position for the next unique element
-Fast pointer i scans through the array
-When nums[i] != nums[k-1], a new unique element is found — write it at k and increment k
-Return k as the count of unique elements
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Use a slow pointer that only advances when a new unique element is found
-The fast pointer scans every element
-Since the array is sorted, duplicates are always adjacent`,
+    editorial: `Scan each cell. When a '1' is found, increment island count and run DFS/BFS to sink the entire island (mark all connected '1's as '0').
+This way each island is counted exactly once.
+Four-directional neighbors: up, down, left, right.
+Time complexity: O(m*n), Space complexity: O(m*n) recursion stack.`,
+    aiHints: `Every time you find an unvisited land cell, you have found a new island\nFrom that cell, DFS/BFS in 4 directions and mark all connected land as visited\nSinking the island (overwriting '1' with '0') avoids needing a separate visited array`,
     testCases: [
       {
-        input: "[1,1,2]",
+        input: "4 5\n1 1 1 1 0\n1 1 0 1 0\n1 1 0 0 0\n0 0 0 0 0",
+        expectedOutput: "1",
+        displayInput: "4x5 grid — one large island",
+        displayOutput: "1",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "4 5\n1 1 0 0 0\n1 1 0 0 0\n0 0 1 0 0\n0 0 0 1 1",
+        expectedOutput: "3",
+        displayInput: "4x5 grid — three islands",
+        displayOutput: "3",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1 1\n1",
+        expectedOutput: "1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "2 2\n1 0\n0 1",
         expectedOutput: "2",
-        displayInput: "nums = [1,1,2]",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3\n1 1 0\n0 1 0\n0 0 1",
+        expectedOutput: "2",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Flood Fill",
+    slug: "flood-fill",
+    difficulty: "easy",
+    link: "https://leetcode.com/problems/flood-fill/",
+    description: `You are given an image represented by an m x n integer grid image, where image[i][j] represents the pixel value of the image. You are also given three integers sr, sc, and color.
+
+Perform a flood fill starting from pixel (sr, sc) using the given color. To perform a flood fill, consider the starting pixel, plus any pixels connected 4-directionally to the starting pixel of the same color as the starting pixel, and color them with color (and keep doing this process for each subsequent pixel).
+
+Return the modified image after performing the flood fill.`,
+    tags: ["Graph", "DFS", "BFS", "Array"],
+    companies: ["Amazon", "Facebook", "Microsoft"],
+    examples: [
+      `Input: image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2\nOutput: [[2,2,2],[2,2,0],[2,0,1]]`,
+      `Input: image = [[0,0,0],[0,0,0]], sr = 0, sc = 0, color = 0\nOutput: [[0,0,0],[0,0,0]]`,
+    ],
+    editorial: `Record original color at (sr, sc). If it already equals the target color, return image unchanged.
+DFS/BFS from (sr, sc): for each cell with the original color, paint it with the new color and recurse on 4 neighbors.
+The early-exit check avoids infinite recursion when old == new color.
+Time complexity: O(m*n), Space complexity: O(m*n).`,
+    aiHints: `Record the original color at the start pixel before modifying anything\nIf old color == new color, return early to avoid infinite recursion\nDFS in 4 directions, only continuing to cells that still have the original color`,
+    testCases: [
+      {
+        input: "3 3 1 1 2\n1 1 1\n1 1 0\n1 0 1",
+        expectedOutput: "2 2 2\n2 2 0\n2 0 1",
+        displayInput: "image = [[1,1,1],[1,1,0],[1,0,1]], sr=1, sc=1, color=2",
+        displayOutput: "[[2,2,2],[2,2,0],[2,0,1]]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "2 3 0 0 0\n0 0 0\n0 0 0",
+        expectedOutput: "0 0 0\n0 0 0",
+        displayInput: "image = [[0,0,0],[0,0,0]], sr=0, sc=0, color=0",
+        displayOutput: "[[0,0,0],[0,0,0]]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1 1 0 0 1\n0",
+        expectedOutput: "1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3 0 0 3\n1 1 0\n1 0 0\n0 0 1",
+        expectedOutput: "1 1 3\n1 3 3\n3 3 1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3 1 1 5\n0 0 0\n0 1 1\n0 1 0",
+        expectedOutput: "0 0 0\n0 5 5\n0 5 0",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Clone Graph",
+    slug: "clone-graph",
+    difficulty: "easy",
+    link: "https://leetcode.com/problems/clone-graph/",
+    description: `Given a reference of a node in a connected undirected graph, return a deep copy (clone) of the graph.
+
+Each node in the graph contains a value (int) and a list (List[Node]) of its neighbors.
+
+The graph is represented in the test input as an adjacency list. Each node's value equals its index (1-indexed).`,
+    tags: ["Graph", "DFS", "BFS", "Hash Map"],
+    companies: ["Amazon", "Facebook", "Google", "Microsoft"],
+    examples: [
+      `Input: adjList = [[2,4],[1,3],[2,4],[1,3]]\nOutput: [[2,4],[1,3],[2,4],[1,3]]`,
+      `Input: adjList = [[]]\nOutput: [[]]`,
+    ],
+    editorial: `Use a hash map: original node → cloned node.
+DFS from the given node. For each node:
+  If already in the map, return the clone.
+  Otherwise create a new node, store it in the map, then recursively clone all neighbors.
+The hash map prevents infinite loops in cyclic graphs.
+Time complexity: O(n + e), Space complexity: O(n).`,
+    aiHints: `Use a hash map from original node to its clone to track already-visited nodes\nDFS: if node is already in the map return the existing clone — this handles cycles\nFor each neighbor of the current node, recursively clone and append to the clone's neighbor list`,
+    testCases: [
+      {
+        input: "4\n2 4\n1 3\n2 4\n1 3",
+        expectedOutput: "2 4\n1 3\n2 4\n1 3",
+        displayInput: "adjList = [[2,4],[1,3],[2,4],[1,3]]",
+        displayOutput: "[[2,4],[1,3],[2,4],[1,3]]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1\n",
+        expectedOutput: "",
+        displayInput: "adjList = [[]]",
+        displayOutput: "[[]]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "2\n2\n1",
+        expectedOutput: "2\n1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3\n2 3\n1 3\n1 2",
+        expectedOutput: "2 3\n1 3\n1 2",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "5\n2\n1 3\n2 4\n3 5\n4",
+        expectedOutput: "2\n1 3\n2 4\n3 5\n4",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Number of Connected Components in an Undirected Graph",
+    slug: "number-of-connected-components",
+    difficulty: "easy",
+    link: "https://leetcode.com/problems/number-of-connected-components-in-an-undirected-graph/",
+    description: `You have a graph of n nodes. You are given an integer n and an array edges where edges[i] = [ai, bi] indicates that there is an edge between ai and bi in the graph.
+
+Return the number of connected components in the graph.`,
+    tags: ["Graph", "DFS", "BFS", "Union Find"],
+    companies: ["LinkedIn", "Google", "Amazon"],
+    examples: [
+      `Input: n = 5, edges = [[0,1],[1,2],[3,4]]\nOutput: 2`,
+      `Input: n = 5, edges = [[0,1],[1,2],[2,3],[3,4]]\nOutput: 1`,
+    ],
+    editorial: `Approach 1 — DFS/BFS: Build adjacency list. For each unvisited node run DFS and mark all reachable nodes visited. Count DFS launches = number of components.
+Approach 2 — Union Find: Initialize n components. For each edge, if endpoints have different roots, union them and decrement component count.
+Time complexity: O(n + e), Space complexity: O(n + e).`,
+    aiHints: `Each unvisited node that you start a DFS from represents a new component\nUnion-Find is cleaner: start with n components, merge connected nodes, count remaining roots\nKeep a visited array to avoid revisiting nodes in BFS/DFS`,
+    testCases: [
+      {
+        input: "5 3\n0 1\n1 2\n3 4",
+        expectedOutput: "2",
+        displayInput: "n = 5, edges = [[0,1],[1,2],[3,4]]",
         displayOutput: "2",
         visibility: "PUBLIC",
       },
       {
-        input: "[0,0,1,1,1,2,2,3,3,4]",
-        expectedOutput: "5",
-        displayInput: "nums = [0,0,1,1,1,2,2,3,3,4]",
-        displayOutput: "5",
+        input: "5 4\n0 1\n1 2\n2 3\n3 4",
+        expectedOutput: "1",
+        displayInput: "n = 5, edges = [[0,1],[1,2],[2,3],[3,4]]",
+        displayOutput: "1",
         visibility: "PUBLIC",
       },
       {
-        input: "[1,2,3]",
+        input: "3 0",
         expectedOutput: "3",
         visibility: "PRIVATE",
       },
-    ],
-  },
-  {
-    title: "Move Zeroes",
-    difficulty: "easy",
-    link: "https://leetcode.com/problems/move-zeroes/",
-    description: `Given an integer array nums, move all 0's to the end of it while maintaining the relative order of the non-zero elements.
-
-Note that you must do this in-place without making a copy of the array.`,
-    tags: ["Array", "Two Pointers"],
-    companies: ["Amazon", "Google", "Microsoft", "Bloomberg"],
-    examples: [
-      `Input: nums = [0,1,0,3,12]
-Output: [1,3,12,0,0]`,
-      `Input: nums = [0]
-Output: [0]`,
-    ],
-    editorial: `Two pointers: slow pointer for next non-zero position, fast pointer scanning
-Slow pointer k tracks where the next non-zero element should go
-Fast pointer i scans through all elements
-When nums[i] != 0, write it to nums[k] and increment k
-After the loop, fill positions from k to end with zeros
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Use a slow pointer to track where to place the next non-zero element
-After placing all non-zero elements, what fills the remaining positions?
-How do you maintain the relative order of non-zero elements?`,
-    testCases: [
       {
-        input: "[0,1,0,3,12]",
-        expectedOutput: "[1,3,12,0,0]",
-        displayInput: "nums = [0,1,0,3,12]",
-        displayOutput: "[1,3,12,0,0]",
-        visibility: "PUBLIC",
+        input: "4 2\n0 1\n2 3",
+        expectedOutput: "2",
+        visibility: "PRIVATE",
       },
       {
-        input: "[0]",
-        expectedOutput: "[0]",
-        displayInput: "nums = [0]",
-        displayOutput: "[0]",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,0,0,2,0,3]",
-        expectedOutput: "[1,2,3,0,0,0]",
+        input: "6 4\n0 1\n1 2\n3 4\n4 5",
+        expectedOutput: "2",
         visibility: "PRIVATE",
       },
     ],
   },
   {
-    title: "Two Sum II - Input Array Is Sorted",
+    title: "Max Area of Island",
+    slug: "max-area-of-island",
     difficulty: "easy",
-    link: "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
-    description: `Given a 1-indexed array of integers numbers that is already sorted in non-decreasing order, find two numbers such that they add up to a specific target number. Let these two numbers be numbers[index1] and numbers[index2] where 1 <= index1 < index2 <= numbers.length.
+    link: "https://leetcode.com/problems/max-area-of-island/",
+    description: `You are given an m x n binary matrix grid. An island is a group of 1's (representing land) connected 4-directionally (horizontal or vertical). You may assume all four edges of the grid are surrounded by water.
 
-Return the indices of the two numbers, index1 and index2, added by one as an integer array [index1, index2] of length 2.
+The area of an island is the number of cells with a value 1 in the island.
 
-You may not use the same element twice. There is exactly one solution. You must use only constant extra space.`,
-    tags: ["Array", "Two Pointers", "Binary Search"],
-    companies: ["Amazon", "Google", "Microsoft"],
+Return the maximum area of an island in grid. If there is no island, return 0.`,
+    tags: ["Graph", "DFS", "BFS", "Array"],
+    companies: ["Amazon", "Facebook", "Google"],
     examples: [
-      `Input: numbers = [2,7,11,15], target = 9
-Output: [1,2]
-Explanation: The sum of 2 and 7 is 9. Therefore, index1 = 1, index2 = 2. We return [1, 2].`,
-      `Input: numbers = [2,3,4], target = 6
-Output: [1,3]`,
-      `Input: numbers = [-1,0], target = -1
-Output: [1,2]`,
+      `Input: grid = [[0,0,1,0,0,0,0,1,0,0,0,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],...]\nOutput: 6`,
+      `Input: grid = [[0,0,0,0,0,0,0,0]]\nOutput: 0`,
     ],
-    editorial: `Classic two-pointer on a sorted array
-Left pointer starts at index 0, right pointer starts at the last index
-If sum equals target, return the 1-indexed positions
-If sum < target, increment left pointer (need a larger value)
-If sum > target, decrement right pointer (need a smaller value)
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `The array is sorted — how does that help narrow your search?
-If the current sum is too small, which pointer should you move?
-If the current sum is too large, which pointer should you move?`,
+    editorial: `DFS from each unvisited land cell, counting cells as you go.
+Mark cells visited by setting them to 0.
+Track the maximum count seen across all DFS calls.
+Time complexity: O(m*n), Space complexity: O(m*n) recursion stack.`,
+    aiHints: `DFS from every unvisited land cell and count how many cells you visit\nSink visited cells (set to 0) to avoid counting them twice\nReturn the count from DFS and track the maximum across all islands`,
     testCases: [
       {
-        input: "[2,7,11,15]\n9",
-        expectedOutput: "[1,2]",
-        displayInput: "numbers = [2,7,11,15], target = 9",
-        displayOutput: "[1,2]",
+        input:
+          "4 13\n0 0 1 0 0 0 0 1 0 0 0 0 0\n0 0 0 0 0 0 0 1 1 1 0 0 0\n0 1 1 0 1 0 0 0 0 0 0 0 0\n0 1 0 0 1 1 0 0 1 0 1 0 0",
+        expectedOutput: "6",
+        displayInput: "4x13 grid",
+        displayOutput: "6",
         visibility: "PUBLIC",
       },
       {
-        input: "[2,3,4]\n6",
-        expectedOutput: "[1,3]",
-        displayInput: "numbers = [2,3,4], target = 6",
-        displayOutput: "[1,3]",
+        input: "1 8\n0 0 0 0 0 0 0 0",
+        expectedOutput: "0",
+        displayInput: "grid = [[0,0,0,0,0,0,0,0]]",
+        displayOutput: "0",
         visibility: "PUBLIC",
       },
       {
-        input: "[-1,0]\n-1",
-        expectedOutput: "[1,2]",
+        input: "1 1\n1",
+        expectedOutput: "1",
         visibility: "PRIVATE",
       },
-    ],
-  },
-  {
-    title: "Contains Duplicate II",
-    difficulty: "easy",
-    link: "https://leetcode.com/problems/contains-duplicate-ii/",
-    description: `Given an integer array nums and an integer k, return true if there are two distinct indices i and j in the array such that nums[i] == nums[j] and abs(i - j) <= k.`,
-    tags: ["Array", "Hash Table", "Sliding Window"],
-    companies: ["Amazon", "Palantir", "Google"],
-    examples: [
-      `Input: nums = [1,2,3,1], k = 3
-Output: true`,
-      `Input: nums = [1,0,1,1], k = 1
-Output: true`,
-      `Input: nums = [1,2,3,1,2,3], k = 2
-Output: false`,
-    ],
-    editorial: `Sliding window of size k using a hash set
-Maintain a set of at most k elements (the current window)
-For each new element, check if it already exists in the set
-If yes, return true (duplicate within distance k found)
-If no, add it to the set; if set size exceeds k, remove the oldest element
-Time complexity: O(n), Space complexity: O(k)`,
-    aiHints: `Maintain a sliding window of the last k elements
-A hash set gives O(1) lookup for duplicates within the window
-When the window grows beyond size k, which element do you remove?`,
-    testCases: [
       {
-        input: "[1,2,3,1]\n3",
-        expectedOutput: "true",
-        displayInput: "nums = [1,2,3,1], k = 3",
-        displayOutput: "true",
-        visibility: "PUBLIC",
+        input: "3 3\n1 1 0\n1 0 0\n0 0 1",
+        expectedOutput: "3",
+        visibility: "PRIVATE",
       },
       {
-        input: "[1,0,1,1]\n1",
-        expectedOutput: "true",
-        displayInput: "nums = [1,0,1,1], k = 1",
-        displayOutput: "true",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,2,3,1,2,3]\n2",
-        expectedOutput: "false",
+        input: "3 3\n1 1 1\n1 0 1\n1 1 1",
+        expectedOutput: "8",
         visibility: "PRIVATE",
       },
     ],
@@ -454,394 +444,275 @@ When the window grows beyond size k, which element do you remove?`,
 
 const MEDIUM_PROBLEMS = [
   {
-    title: "Longest Substring Without Repeating Characters",
+    title: "Course Schedule",
+    slug: "course-schedule",
     difficulty: "medium",
-    link: "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
-    description: `Given a string s, find the length of the longest substring without repeating characters.`,
-    tags: ["Hash Table", "String", "Sliding Window"],
-    companies: ["Amazon", "Google", "Meta", "Microsoft", "Bloomberg"],
+    link: "https://leetcode.com/problems/course-schedule/",
+    description: `There are a total of numCourses courses you have to take, labeled from 0 to numCourses-1. You are given an array prerequisites where prerequisites[i] = [ai, bi] indicates that you must take course bi first if you want to take course ai.
+
+Return true if you can finish all courses. Otherwise, return false.`,
+    tags: ["Graph", "Topological Sort", "DFS", "BFS"],
+    companies: ["Amazon", "Facebook", "Google", "Airbnb", "Uber"],
     examples: [
-      `Input: s = "abcabcbb"
-Output: 3
-Explanation: The answer is "abc", with the length of 3.`,
-      `Input: s = "bbbbb"
-Output: 1
-Explanation: The answer is "b", with the length of 1.`,
-      `Input: s = "pwwkew"
-Output: 3
-Explanation: The answer is "wke", with the length of 3.`,
+      `Input: numCourses = 2, prerequisites = [[1,0]]\nOutput: true\nExplanation: Take course 0 then course 1.`,
+      `Input: numCourses = 2, prerequisites = [[1,0],[0,1]]\nOutput: false\nExplanation: Cycle — impossible.`,
     ],
-    editorial: `Sliding window with a hash map storing last seen index of each character
-Maintain left pointer as the start of the current valid window
-For each character at right pointer, if it was seen and its last index >= left, move left past it
-Update the last seen index of the current character
-Track the maximum window size
-Time complexity: O(n), Space complexity: O(min(n, m)) where m is the charset size`,
-    aiHints: `Maintain a window that contains only unique characters
-When you find a duplicate, where should the left pointer jump to?
-A hash map storing the last seen index is more efficient than a set`,
+    editorial: `This is cycle detection in a directed graph.
+Approach 1 — DFS: For each node do DFS. Track state: 0=unvisited, 1=visiting (in stack), 2=done.
+If you visit a node in state 1, a cycle exists → return false.
+Approach 2 — BFS (Kahn's): Compute in-degrees. Push 0-in-degree nodes to queue. Process queue: for each node reduce neighbor in-degrees; push neighbors that reach 0. If processed count == numCourses, no cycle.
+Time complexity: O(V + E), Space complexity: O(V + E).`,
+    aiHints: `This reduces to: does the directed graph have a cycle?\nDFS with three states (unvisited/visiting/done) detects back edges which indicate cycles\nKahn's BFS: if you can topologically sort all nodes then no cycle exists`,
     testCases: [
       {
-        input: "abcabcbb",
-        expectedOutput: "3",
-        displayInput: 's = "abcabcbb"',
-        displayOutput: "3",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "bbbbb",
-        expectedOutput: "1",
-        displayInput: 's = "bbbbb"',
-        displayOutput: "1",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "pwwkew",
-        expectedOutput: "3",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "3Sum",
-    difficulty: "medium",
-    link: "https://leetcode.com/problems/3sum/",
-    description: `Given an integer array nums, return all the triplets [nums[i], nums[j], nums[k]] such that i != j, i != k, and j != k, and nums[i] + nums[j] + nums[k] == 0.
-
-Notice that the solution set must not contain duplicate triplets.`,
-    tags: ["Array", "Two Pointers", "Sorting"],
-    companies: ["Amazon", "Microsoft", "Apple", "Adobe", "Google"],
-    examples: [
-      `Input: nums = [-1,0,1,2,-1,-4]
-Output: [[-1,-1,2],[-1,0,1]]`,
-      `Input: nums = [0,1,1]
-Output: []`,
-      `Input: nums = [0,0,0]
-Output: [[0,0,0]]`,
-    ],
-    editorial: `Sort the array then use two pointers for each fixed element
-Fix the first element with an outer loop (skip duplicates)
-Use left and right pointers to find pairs summing to -nums[i]
-If sum < 0, move left pointer right; if sum > 0, move right pointer left
-Skip duplicate values at both pointers after finding a valid triplet
-Time complexity: O(n²), Space complexity: O(1) excluding output`,
-    aiHints: `Sorting allows you to use two pointers and skip duplicates efficiently
-Fix one element and reduce the problem to two sum on the remaining array
-How do you ensure no duplicate triplets are included in the result?`,
-    testCases: [
-      {
-        input: "[-1,0,1,2,-1,-4]",
-        expectedOutput: "[[-1,-1,2],[-1,0,1]]",
-        displayInput: "nums = [-1,0,1,2,-1,-4]",
-        displayOutput: "[[-1,-1,2],[-1,0,1]]",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[0,1,1]",
-        expectedOutput: "[]",
-        displayInput: "nums = [0,1,1]",
-        displayOutput: "[]",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[0,0,0]",
-        expectedOutput: "[[0,0,0]]",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Container With Most Water",
-    difficulty: "medium",
-    link: "https://leetcode.com/problems/container-with-most-water/",
-    description: `You are given an integer array height of length n. There are n vertical lines drawn such that the two endpoints of the ith line are (i, 0) and (i, height[i]).
-
-Find two lines that together with the x-axis form a container, such that the container contains the most water.
-
-Return the maximum amount of water a container can store.`,
-    tags: ["Array", "Two Pointers", "Greedy"],
-    companies: ["Amazon", "Google", "Meta", "Bloomberg"],
-    examples: [
-      `Input: height = [1,8,6,2,5,4,8,3,7]
-Output: 49
-Explanation: The vertical lines are at positions with heights 8 and 7. Area = min(8,7) * 8 = 49.`,
-      `Input: height = [1,1]
-Output: 1`,
-    ],
-    editorial: `Two pointers from both ends moving inward greedily
-Start with the widest possible container (pointers at each end)
-Area = min(height[left], height[right]) * (right - left)
-Move the pointer pointing to the shorter line inward
-This greedy choice is optimal: moving the taller line can only decrease or maintain area
-Track the maximum area throughout
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Start with the widest container and try to find a taller one
-Moving the shorter line inward is the only way to possibly increase the area
-Why is it always safe to discard the shorter line?`,
-    testCases: [
-      {
-        input: "[1,8,6,2,5,4,8,3,7]",
-        expectedOutput: "49",
-        displayInput: "height = [1,8,6,2,5,4,8,3,7]",
-        displayOutput: "49",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,1]",
-        expectedOutput: "1",
-        displayInput: "height = [1,1]",
-        displayOutput: "1",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[4,3,2,1,4]",
-        expectedOutput: "16",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Fruit Into Baskets",
-    difficulty: "medium",
-    link: "https://leetcode.com/problems/fruit-into-baskets/",
-    description: `You are visiting a farm that has a single row of fruit trees arranged from left to right. The trees are represented by an integer array fruits where fruits[i] is the type of fruit the ith tree produces.
-
-You want to collect as much fruit as possible. However, the owner has some strict rules that you must follow:
-- You only have two baskets, and each basket can hold only one type of fruit. There is no limit on the amount of fruit each basket can hold.
-- Starting from any tree of your choice, you must pick exactly one fruit from every tree (including the start tree) while moving to the right. The picked fruits must fit in one of your baskets.
-- Once you reach a tree with fruit that cannot fit in your baskets, you must stop.
-
-Given the integer array fruits, return the maximum number of fruits you can pick.`,
-    tags: ["Array", "Hash Table", "Sliding Window"],
-    companies: ["Amazon", "Google"],
-    examples: [
-      `Input: fruits = [1,2,1]
-Output: 3
-Explanation: We can pick from all 3 trees.`,
-      `Input: fruits = [0,1,2,2]
-Output: 3
-Explanation: We can pick from trees [1,2,2]. If we had started at the first tree, we would only pick from trees [0,1].`,
-      `Input: fruits = [1,2,3,2,2]
-Output: 4
-Explanation: We can pick from trees [2,3,2,2].`,
-    ],
-    editorial: `Sliding window with at most 2 distinct values (longest subarray with at most 2 distinct)
-Use a hash map to count fruit type frequencies in the current window
-Expand right pointer and add fruit to window
-When more than 2 distinct types in window, shrink from left until only 2 remain
-Track the maximum window size throughout
-Time complexity: O(n), Space complexity: O(1) — at most 3 entries in map`,
-    aiHints: `This is equivalent to finding the longest subarray with at most 2 distinct elements
-Use a sliding window and a frequency map to track types in the window
-When should you shrink the left side of the window?`,
-    testCases: [
-      {
-        input: "[1,2,1]",
-        expectedOutput: "3",
-        displayInput: "fruits = [1,2,1]",
-        displayOutput: "3",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[0,1,2,2]",
-        expectedOutput: "3",
-        displayInput: "fruits = [0,1,2,2]",
-        displayOutput: "3",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,2,3,2,2]",
-        expectedOutput: "4",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Permutation in String",
-    difficulty: "medium",
-    link: "https://leetcode.com/problems/permutation-in-string/",
-    description: `Given two strings s1 and s2, return true if s2 contains a permutation of s1, or false otherwise.
-
-In other words, return true if one of s1's permutations is a substring of s2.`,
-    tags: ["Hash Table", "Two Pointers", "String", "Sliding Window"],
-    companies: ["Amazon", "Google", "Microsoft", "Bloomberg"],
-    examples: [
-      `Input: s1 = "ab", s2 = "eidbaooo"
-Output: true
-Explanation: s2 contains one permutation of s1 ("ba").`,
-      `Input: s1 = "ab", s2 = "eidboaoo"
-Output: false`,
-    ],
-    editorial: `Fixed-size sliding window of length s1, comparing character frequencies
-Build a frequency map for s1 and a frequency map for the current window in s2
-Slide a window of size s1.length across s2
-At each step, add the new right character and remove the leftmost character
-Compare the two frequency maps; if equal, a permutation exists
-Optimize by tracking a match counter instead of comparing full maps
-Time complexity: O(n), Space complexity: O(1) — fixed 26-character alphabet`,
-    aiHints: `A permutation has the same character frequencies as the original
-Use a fixed-size window equal to the length of s1
-Instead of comparing the full maps, track how many characters have matching counts`,
-    testCases: [
-      {
-        input: "ab\neidbaooo",
+        input: "2 1\n1 0",
         expectedOutput: "true",
-        displayInput: 's1 = "ab", s2 = "eidbaooo"',
+        displayInput: "numCourses = 2, prerequisites = [[1,0]]",
         displayOutput: "true",
         visibility: "PUBLIC",
       },
       {
-        input: "ab\neidboaoo",
+        input: "2 2\n1 0\n0 1",
         expectedOutput: "false",
-        displayInput: 's1 = "ab", s2 = "eidboaoo"',
+        displayInput: "numCourses = 2, prerequisites = [[1,0],[0,1]]",
         displayOutput: "false",
         visibility: "PUBLIC",
       },
       {
-        input: "adc\ndcda",
+        input: "1 0",
         expectedOutput: "true",
         visibility: "PRIVATE",
       },
+      {
+        input: "4 4\n1 0\n2 0\n3 1\n3 2",
+        expectedOutput: "true",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3\n0 1\n1 2\n2 0",
+        expectedOutput: "false",
+        visibility: "PRIVATE",
+      },
     ],
   },
   {
-    title: "Subarray Sum Equals K",
+    title: "Number of Provinces",
+    slug: "number-of-provinces",
     difficulty: "medium",
-    link: "https://leetcode.com/problems/subarray-sum-equals-k/",
-    description: `Given an array of integers nums and an integer k, return the total number of subarrays whose sum equals to k.
+    link: "https://leetcode.com/problems/number-of-provinces/",
+    description: `There are n cities. Some of them are connected, while some are not. If city a is connected directly with city b, and city b is connected directly with city c, then city a is connected indirectly with city c.
 
-A subarray is a contiguous non-empty sequence of elements within an array.`,
-    tags: ["Array", "Hash Table", "Prefix Sum"],
-    companies: ["Amazon", "Google", "Meta", "Microsoft", "Goldman Sachs"],
+A province is a group of directly or indirectly connected cities and no other cities outside of the group.
+
+You are given an n x n matrix isConnected where isConnected[i][j] = 1 if the i-th city and the j-th city are directly connected, and isConnected[i][j] = 0 otherwise.
+
+Return the total number of provinces.`,
+    tags: ["Graph", "DFS", "BFS", "Union Find"],
+    companies: ["Amazon", "Bloomberg", "Microsoft"],
     examples: [
-      `Input: nums = [1,1,1], k = 2
-Output: 2`,
-      `Input: nums = [1,2,3], k = 3
-Output: 2`,
+      `Input: isConnected = [[1,1,0],[1,1,0],[0,0,1]]\nOutput: 2`,
+      `Input: isConnected = [[1,0,0],[0,1,0],[0,0,1]]\nOutput: 3`,
     ],
-    editorial: `Prefix sum with hash map — sliding window doesn't work due to negative numbers
-Maintain a running prefix sum and a map from prefix sum to its frequency
-For each position, check if (prefixSum - k) exists in the map
-If yes, add its frequency to the answer (all subarrays from that earlier point to current sum to k)
-Initialize map with {0: 1} to handle subarrays starting from index 0
-Time complexity: O(n), Space complexity: O(n)`,
-    aiHints: `A subarray sum equals k if prefixSum[j] - prefixSum[i] == k
-Rearrange to: prefixSum[i] == prefixSum[j] - k
-Use a hash map to count how many times each prefix sum has been seen`,
+    editorial: `Treat the matrix as an adjacency matrix. Count connected components using DFS/BFS or Union-Find.
+DFS: for each unvisited city, DFS to mark all cities in its province as visited, increment count.
+Union-Find: for each pair (i,j) where isConnected[i][j]==1, union them. Count distinct roots.
+Time complexity: O(n²), Space complexity: O(n).`,
+    aiHints: `The adjacency matrix directly encodes the graph — row i gives all neighbors of city i\nCount the number of DFS/BFS launches needed to visit all cities\nUnion-Find: union connected pairs, then count distinct roots`,
     testCases: [
       {
-        input: "[1,1,1]\n2",
+        input: "3\n1 1 0\n1 1 0\n0 0 1",
         expectedOutput: "2",
-        displayInput: "nums = [1,1,1], k = 2",
+        displayInput: "isConnected = [[1,1,0],[1,1,0],[0,0,1]]",
         displayOutput: "2",
         visibility: "PUBLIC",
       },
       {
-        input: "[1,2,3]\n3",
-        expectedOutput: "2",
-        displayInput: "nums = [1,2,3], k = 3",
-        displayOutput: "2",
+        input: "3\n1 0 0\n0 1 0\n0 0 1",
+        expectedOutput: "3",
+        displayInput: "isConnected = [[1,0,0],[0,1,0],[0,0,1]]",
+        displayOutput: "3",
         visibility: "PUBLIC",
       },
       {
-        input: "[-1,-1,1]\n0",
+        input: "1\n1",
         expectedOutput: "1",
         visibility: "PRIVATE",
       },
-    ],
-  },
-  {
-    title: "Maximum Average Subarray I",
-    difficulty: "medium",
-    link: "https://leetcode.com/problems/maximum-average-subarray-i/",
-    description: `You are given an integer array nums consisting of n elements, and an integer k.
-
-Find a contiguous subarray whose length is equal to k that has the maximum average value and return this value. Any answer with a calculation error less than 10-5 will be accepted.`,
-    tags: ["Array", "Sliding Window"],
-    companies: ["Amazon", "Google"],
-    examples: [
-      `Input: nums = [1,12,-5,-6,50,3], k = 4
-Output: 12.75000
-Explanation: Maximum average is (12 - 5 - 6 + 50) / 4 = 51 / 4 = 12.75`,
-      `Input: nums = [5], k = 1
-Output: 5.00000`,
-    ],
-    editorial: `Fixed-size sliding window of length k
-Compute the sum of the first k elements as the initial window
-Slide right: subtract the element leaving the window on the left, add the element entering on the right
-Track the maximum window sum seen throughout
-Return maxSum / k as the result
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Compute the first window sum, then slide it across the array
-When sliding, remove the leftmost element and add the new rightmost element
-You only need to track the sum, not every element in the window`,
-    testCases: [
       {
-        input: "[1,12,-5,-6,50,3]\n4",
-        expectedOutput: "12.75000",
-        displayInput: "nums = [1,12,-5,-6,50,3], k = 4",
-        displayOutput: "12.75000",
-        visibility: "PUBLIC",
+        input: "4\n1 1 0 0\n1 1 1 0\n0 1 1 0\n0 0 0 1",
+        expectedOutput: "2",
+        visibility: "PRIVATE",
       },
       {
-        input: "[5]\n1",
-        expectedOutput: "5.00000",
-        displayInput: "nums = [5], k = 1",
-        displayOutput: "5.00000",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[0,4,0,3,2]\n1",
-        expectedOutput: "4.00000",
+        input: "4\n1 0 0 1\n0 1 1 0\n0 1 1 0\n1 0 0 1",
+        expectedOutput: "2",
         visibility: "PRIVATE",
       },
     ],
   },
   {
-    title: "4Sum",
+    title: "Rotting Oranges",
+    slug: "rotting-oranges",
     difficulty: "medium",
-    link: "https://leetcode.com/problems/4sum/",
-    description: `Given an array nums of n integers, return an array of all the unique quadruplets [nums[a], nums[b], nums[c], nums[d]] such that:
-- 0 <= a, b, c, d < n
-- a, b, c, and d are distinct
-- nums[a] + nums[b] + nums[c] + nums[d] == target
+    link: "https://leetcode.com/problems/rotting-oranges/",
+    description: `You are given an m x n integer grid where:
+- 0 represents an empty cell,
+- 1 represents a fresh orange,
+- 2 represents a rotten orange.
 
-You may return the answer in any order.`,
-    tags: ["Array", "Two Pointers", "Sorting"],
-    companies: ["Amazon", "Google", "Microsoft"],
+Every minute, any fresh orange that is 4-directionally adjacent to a rotten orange becomes rotten.
+
+Return the minimum number of minutes that must elapse until no cell has a fresh orange. If this is impossible, return -1.`,
+    tags: ["Graph", "BFS", "Matrix"],
+    companies: ["Amazon", "Facebook", "Google", "DoorDash"],
     examples: [
-      `Input: nums = [1,0,-1,0,-2,2], target = 0
-Output: [[-2,-1,1,2],[-2,0,0,2],[-1,0,0,1]]`,
-      `Input: nums = [2,2,2,2,2], target = 8
-Output: [[2,2,2,2]]`,
+      `Input: grid = [[2,1,1],[1,1,0],[0,1,1]]\nOutput: 4`,
+      `Input: grid = [[2,1,1],[0,1,1],[1,0,1]]\nOutput: -1`,
     ],
-    editorial: `Extend 3Sum with an additional outer loop
-Sort the array first
-Two nested loops fix the first two elements (skip duplicates)
-Two pointers find the remaining two elements summing to (target - nums[i] - nums[j])
-Skip duplicates at all four pointer positions to avoid duplicate quadruplets
-Time complexity: O(n³), Space complexity: O(1) excluding output`,
-    aiHints: `This extends 3Sum by adding one more outer loop
-Fix two elements with nested loops and use two pointers for the remaining pair
-How do you generalize the duplicate-skipping logic from 3Sum?`,
+    editorial: `Multi-source BFS starting from all rotten oranges simultaneously.
+Enqueue all initial rotten oranges. Track count of fresh oranges.
+BFS level by level — each level = 1 minute. Spread rot to fresh 4-directional neighbors.
+Decrement fresh count as oranges rot.
+After BFS: if fresh count > 0 return -1, else return minutes elapsed (subtract 1 for the initial level).
+Time complexity: O(m*n), Space complexity: O(m*n).`,
+    aiHints: `This is multi-source BFS — enqueue ALL rotten oranges at minute 0 simultaneously\nProcess the queue level by level where each level represents one minute passing\nAfter BFS completes, if any fresh orange remains it's unreachable — return -1`,
     testCases: [
       {
-        input: "[1,0,-1,0,-2,2]\n0",
-        expectedOutput: "[[-2,-1,1,2],[-2,0,0,2],[-1,0,0,1]]",
-        displayInput: "nums = [1,0,-1,0,-2,2], target = 0",
-        displayOutput: "[[-2,-1,1,2],[-2,0,0,2],[-1,0,0,1]]",
+        input: "3 3\n2 1 1\n1 1 0\n0 1 1",
+        expectedOutput: "4",
+        displayInput: "grid = [[2,1,1],[1,1,0],[0,1,1]]",
+        displayOutput: "4",
         visibility: "PUBLIC",
       },
       {
-        input: "[2,2,2,2,2]\n8",
-        expectedOutput: "[[2,2,2,2]]",
-        displayInput: "nums = [2,2,2,2,2], target = 8",
-        displayOutput: "[[2,2,2,2]]",
+        input: "3 3\n2 1 1\n0 1 1\n1 0 1",
+        expectedOutput: "-1",
+        displayInput: "grid = [[2,1,1],[0,1,1],[1,0,1]]",
+        displayOutput: "-1",
         visibility: "PUBLIC",
       },
       {
-        input: "[0,0,0,0]\n0",
-        expectedOutput: "[[0,0,0,0]]",
+        input: "1 1\n0",
+        expectedOutput: "0",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "1 2\n2 1",
+        expectedOutput: "1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3\n2 1 1\n1 1 1\n0 1 2",
+        expectedOutput: "2",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Pacific Atlantic Water Flow",
+    slug: "pacific-atlantic-water-flow",
+    difficulty: "medium",
+    link: "https://leetcode.com/problems/pacific-atlantic-water-flow/",
+    description: `There is an m x n rectangular island that borders both the Pacific Ocean and Atlantic Ocean. The Pacific Ocean touches the island's left and top edges, and the Atlantic Ocean touches the island's right and bottom edges.
+
+Water can flow in four directions and flows from a cell to an adjacent one with height equal or less.
+
+Return a list of grid coordinates where water can flow to both the Pacific and Atlantic oceans.`,
+    tags: ["Graph", "BFS", "DFS", "Matrix"],
+    companies: ["Google", "Amazon", "Salesforce"],
+    examples: [
+      `Input: heights = [[1,2,2,3,5],[3,2,3,4,4],[2,4,5,3,1],[6,7,1,4,5],[5,1,1,2,4]]\nOutput: [[0,4],[1,3],[1,4],[2,2],[3,0],[3,1],[4,0]]`,
+      `Input: heights = [[1]]\nOutput: [[0,0]]`,
+    ],
+    editorial: `Reverse the flow direction: instead of flowing down from each cell, flow UP from ocean borders.
+BFS/DFS from all Pacific border cells — mark cells reachable.
+BFS/DFS from all Atlantic border cells — mark cells reachable.
+A cell is in the answer if it appears in both reachable sets.
+Reverse condition: move to neighbor if neighbor height >= current height.
+Time complexity: O(m*n), Space complexity: O(m*n).`,
+    aiHints: `Instead of simulating forward flow (high to low), reverse it: flow backwards from each ocean (low to high)\nRun two separate BFS/DFS passes — one from Pacific borders, one from Atlantic borders\nThe answer is the intersection of the two reachable sets`,
+    testCases: [
+      {
+        input: "5 5\n1 2 2 3 5\n3 2 3 4 4\n2 4 5 3 1\n6 7 1 4 5\n5 1 1 2 4",
+        expectedOutput: "0 4\n1 3\n1 4\n2 2\n3 0\n3 1\n4 0",
+        displayInput: "5x5 heights grid",
+        displayOutput: "[[0,4],[1,3],[1,4],[2,2],[3,0],[3,1],[4,0]]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1 1\n1",
+        expectedOutput: "0 0",
+        displayInput: "heights = [[1]]",
+        displayOutput: "[[0,0]]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "2 2\n1 2\n3 4",
+        expectedOutput: "0 1\n1 0\n1 1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "1 5\n1 2 3 4 5",
+        expectedOutput: "0 4",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3\n3 3 3\n3 1 3\n3 3 3",
+        expectedOutput: "0 0\n0 1\n0 2\n1 0\n1 2\n2 0\n2 1\n2 2",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Course Schedule II",
+    slug: "course-schedule-ii",
+    difficulty: "medium",
+    link: "https://leetcode.com/problems/course-schedule-ii/",
+    description: `There are a total of numCourses courses you have to take, labeled from 0 to numCourses-1. You are given an array prerequisites where prerequisites[i] = [ai, bi] means you must take bi before ai.
+
+Return the ordering of courses you should take to finish all courses. If there are many valid answers, return any of them. If it is impossible to finish all courses, return an empty array.`,
+    tags: ["Graph", "Topological Sort", "DFS", "BFS"],
+    companies: ["Amazon", "Facebook", "Zenefits", "Airbnb"],
+    examples: [
+      `Input: numCourses = 2, prerequisites = [[1,0]]\nOutput: [0,1]`,
+      `Input: numCourses = 4, prerequisites = [[1,0],[2,0],[3,1],[3,2]]\nOutput: [0,2,1,3]`,
+    ],
+    editorial: `Topological sort of a directed graph.
+Kahn's BFS: Compute in-degrees. Push all 0-in-degree nodes to queue.
+Process queue: add node to result, reduce neighbors' in-degrees, push newly 0-in-degree nodes.
+If result length == numCourses, return result. Otherwise a cycle exists — return [].
+DFS alternative: post-order DFS, push node to stack after visiting all its descendants.
+Time complexity: O(V + E), Space complexity: O(V + E).`,
+    aiHints: `This is classic topological sort — output nodes in dependency order\nKahn's algorithm: repeatedly remove nodes with no remaining prerequisites\nIf you process all nodes you have a valid ordering; if stuck there is a cycle`,
+    testCases: [
+      {
+        input: "2 1\n1 0",
+        expectedOutput: "0 1",
+        displayInput: "numCourses = 2, prerequisites = [[1,0]]",
+        displayOutput: "[0,1]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "4 4\n1 0\n2 0\n3 1\n3 2",
+        expectedOutput: "0 1 2 3",
+        displayInput:
+          "numCourses = 4, prerequisites = [[1,0],[2,0],[3,1],[3,2]]",
+        displayOutput: "[0,1,2,3] or [0,2,1,3]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1 0",
+        expectedOutput: "0",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 3\n1 0\n2 1\n0 2",
+        expectedOutput: "",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "6 6\n1 0\n2 0\n3 1\n4 2\n5 3\n5 4",
+        expectedOutput: "0 1 2 3 4 5",
         visibility: "PRIVATE",
       },
     ],
@@ -850,400 +721,273 @@ How do you generalize the duplicate-skipping logic from 3Sum?`,
 
 const HARD_PROBLEMS = [
   {
-    title: "Minimum Window Substring",
+    title: "Word Ladder",
+    slug: "word-ladder",
     difficulty: "hard",
-    link: "https://leetcode.com/problems/minimum-window-substring/",
-    description: `Given two strings s and t of lengths m and n respectively, return the minimum window substring of s such that every character in t (including duplicates) is included in the window. If there is no such substring, return the empty string "".
+    link: "https://leetcode.com/problems/word-ladder/",
+    description: `A transformation sequence from word beginWord to word endWord using a dictionary wordList is a sequence beginWord -> s1 -> s2 -> ... -> sk such that:
+- Every adjacent pair of words differs by a single letter.
+- Every si for 1 <= i <= k is in wordList.
+- sk == endWord.
 
-The testcases will be generated such that the answer is unique.`,
-    tags: ["Hash Table", "String", "Sliding Window"],
-    companies: ["Amazon", "Google", "Meta", "Microsoft", "Uber"],
+Given beginWord, endWord, and wordList, return the number of words in the shortest transformation sequence, or 0 if no such sequence exists.`,
+    tags: ["Graph", "BFS", "Hash Set", "String"],
+    companies: ["Amazon", "Facebook", "LinkedIn", "Snapchat"],
     examples: [
-      `Input: s = "ADOBECODEBANC", t = "ABC"
-Output: "BANC"
-Explanation: The minimum window substring "BANC" includes 'A', 'B', and 'C' from string t.`,
-      `Input: s = "a", t = "a"
-Output: "a"`,
-      `Input: s = "a", t = "aa"
-Output: ""
-Explanation: Both 'a's from t must be included in the window. Since the largest window of s only has one 'a', return "".`,
+      `Input: beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log","cog"]\nOutput: 5\nExplanation: hit→hot→dot→dog→cog (5 words).`,
+      `Input: beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log"]\nOutput: 0`,
     ],
-    editorial: `Variable-size sliding window with two frequency maps
-Build a need map from t's character frequencies
-Expand the right pointer and add characters to the window map
-Track a formed counter for how many unique characters are fully satisfied
-When all characters are satisfied, try shrinking the left pointer
-Update the minimum window whenever a valid window is found
-Time complexity: O(m + n), Space complexity: O(m + n)`,
-    aiHints: `Expand right until all required characters are covered
-Then shrink left as much as possible while keeping the window valid
-A formed counter avoids comparing the full frequency maps every step`,
+    editorial: `BFS on an implicit graph where two words are neighbors if they differ by exactly one character.
+Add beginWord to queue. For each word dequeued, try changing each position to every letter a-z.
+If the transformed word is in the word set, enqueue it and remove it from the set (avoid revisits).
+Return level count when endWord is found, 0 if queue empties.
+Optimization: bidirectional BFS from both ends reduces search space significantly.
+Time complexity: O(m² * n) where m = word length, n = wordList size.`,
+    aiHints: `Model as BFS on a graph — two words are connected if they differ by exactly one character\nGenerate all possible single-character mutations of the current word and check against the word set\nRemove words from the set once visited to prevent revisiting — this also serves as the visited check`,
     testCases: [
       {
-        input: "ADOBECODEBANC\nABC",
-        expectedOutput: "BANC",
-        displayInput: 's = "ADOBECODEBANC", t = "ABC"',
-        displayOutput: "BANC",
+        input: "hit cog\nhot dot dog lot log cog",
+        expectedOutput: "5",
+        displayInput: 'beginWord = "hit", endWord = "cog"',
+        displayOutput: "5",
         visibility: "PUBLIC",
       },
       {
-        input: "a\na",
+        input: "hit cog\nhot dot dog lot log",
+        expectedOutput: "0",
+        displayInput: 'beginWord = "hit", endWord = "cog" (no cog in list)',
+        displayOutput: "0",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "a b\na b",
+        expectedOutput: "2",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "hot dog\nhot dog",
+        expectedOutput: "2",
+        visibility: "PRIVATE",
+      },
+      {
+        input:
+          "sand acne\nsand band bend bead dead dean mean bean lean team tram acne",
+        expectedOutput: "9",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Cheapest Flights Within K Stops",
+    slug: "cheapest-flights-within-k-stops",
+    difficulty: "hard",
+    link: "https://leetcode.com/problems/cheapest-flights-within-k-stops/",
+    description: `There are n cities connected by some number of flights. You are given an array flights where flights[i] = [fromi, toi, pricei] indicates that there is a flight from city fromi to city toi with cost pricei.
+
+Given the integers n, flights, src, dst, and k, return the cheapest price from src to dst with at most k stops. If there is no such route, return -1.`,
+    tags: ["Graph", "BFS", "Dynamic Programming", "Shortest Path"],
+    companies: ["Amazon", "Google", "Uber", "Airbnb"],
+    examples: [
+      `Input: n = 4, flights = [[0,1,100],[1,2,100],[2,0,100],[1,3,600],[2,3,200]], src = 0, dst = 3, k = 1\nOutput: 700`,
+      `Input: n = 3, flights = [[0,1,100],[1,2,100],[0,2,500]], src = 0, dst = 2, k = 1\nOutput: 200`,
+    ],
+    editorial: `Bellman-Ford with k+1 iterations (modified for k stops).
+dp[i] = min cost to reach city i using at most j edges (j from 1 to k+1).
+Use a copy of previous iteration's dp to avoid using more edges than allowed per step.
+Alternatively use BFS (modified Dijkstra) with state (city, stops_used).
+Avoid standard Dijkstra — it may relax edges using too many stops.
+Time complexity: O(k * |flights|), Space complexity: O(n).`,
+    aiHints: `Standard Dijkstra doesn't work here because a cheaper path might use too many stops\nBellman-Ford: run exactly k+1 relaxation rounds — each round adds at most one more edge\nUse a temporary copy of the distance array per round to prevent chain updates in a single round`,
+    testCases: [
+      {
+        input: "4 0 3 1\n0 1 100\n1 2 100\n2 0 100\n1 3 600\n2 3 200",
+        expectedOutput: "700",
+        displayInput: "n=4, src=0, dst=3, k=1",
+        displayOutput: "700",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "3 0 2 1\n0 1 100\n1 2 100\n0 2 500",
+        expectedOutput: "200",
+        displayInput: "n=3, src=0, dst=2, k=1",
+        displayOutput: "200",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "3 0 2 0\n0 1 100\n1 2 100\n0 2 500",
+        expectedOutput: "500",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "4 0 3 0\n0 1 100\n1 3 100",
+        expectedOutput: "-1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "5 0 4 2\n0 1 100\n1 2 100\n2 3 100\n3 4 100\n0 3 500",
+        expectedOutput: "400",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Network Delay Time",
+    slug: "network-delay-time",
+    difficulty: "hard",
+    link: "https://leetcode.com/problems/network-delay-time/",
+    description: `You are given a network of n nodes, labeled from 1 to n. You are also given times, a list of travel times as directed edges where times[i] = (ui, vi, wi) and wi is the time it takes for a signal to travel from node ui to node vi.
+
+We will send a signal from a given node k. Return the minimum time it takes for all the n nodes to receive the signal. If it is impossible for all the n nodes to receive the signal, return -1.`,
+    tags: ["Graph", "Shortest Path", "Dijkstra", "Heap"],
+    companies: ["Amazon", "Google", "Facebook"],
+    examples: [
+      `Input: times = [[2,1,1],[2,3,1],[3,4,1]], n = 4, k = 2\nOutput: 2`,
+      `Input: times = [[1,2,1]], n = 2, k = 1\nOutput: 1`,
+    ],
+    editorial: `Single-source shortest path from node k using Dijkstra's algorithm.
+Use a min-heap of (distance, node). Start with (0, k).
+Relax edges greedily — always process the closest unvisited node first.
+After processing all reachable nodes, find max(dist[1..n]).
+If any node has dist = infinity it is unreachable — return -1.
+Time complexity: O((V + E) log V), Space complexity: O(V + E).`,
+    aiHints: `This is single-source shortest path — Dijkstra from node k\nUse a min-heap to always process the node with the current smallest distance\nThe answer is the maximum shortest path across all nodes — the "last" node to receive the signal`,
+    testCases: [
+      {
+        input: "4 2 3\n2 1 1\n2 3 1\n3 4 1",
+        expectedOutput: "2",
+        displayInput: "n=4, k=2, times=[[2,1,1],[2,3,1],[3,4,1]]",
+        displayOutput: "2",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "2 1 1\n1 2 1",
+        expectedOutput: "1",
+        displayInput: "n=2, k=1, times=[[1,2,1]]",
+        displayOutput: "1",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "2 2 1\n1 2 1",
+        expectedOutput: "-1",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3 1 3\n1 2 1\n2 3 2\n1 3 4",
+        expectedOutput: "3",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "5 1 4\n1 2 3\n1 3 10\n2 3 4\n2 4 5\n3 4 2\n4 5 1",
+        expectedOutput: "9",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Reconstruct Itinerary",
+    slug: "reconstruct-itinerary",
+    difficulty: "hard",
+    link: "https://leetcode.com/problems/reconstruct-itinerary/",
+    description: `You are given a list of airline tickets represented by pairs of departure and arrival airports [from, to]. Reconstruct the itinerary in order and return it.
+
+All of the tickets must be used exactly once. The itinerary must begin with "JFK". If there are multiple valid itineraries, return the itinerary that has the smallest lexical order when read as a single string.`,
+    tags: ["Graph", "DFS", "Eulerian Path"],
+    companies: ["Google", "Amazon", "Uber"],
+    examples: [
+      `Input: tickets = [["MUC","LHR"],["JFK","MUC"],["SFO","SJC"],["LHR","SFO"]]\nOutput: ["JFK","MUC","LHR","SFO","SJC"]`,
+      `Input: tickets = [["JFK","SFO"],["JFK","ATL"],["SFO","ATL"],["ATL","JFK"],["ATL","SFO"]]\nOutput: ["JFK","ATL","JFK","SFO","ATL","SFO"]`,
+    ],
+    editorial: `Hierholzer's algorithm for Eulerian path.
+Build adjacency list with sorted neighbors (lexical order).
+DFS from JFK: greedily visit smallest neighbor. After exhausting all edges from a node, append it to the result.
+Reverse the result at the end.
+The post-order append handles dead-ends correctly — a dead-end is always the last segment of the path.
+Time complexity: O(E log E), Space complexity: O(E).`,
+    aiHints: `Sort each airport's destinations lexicographically — always visit the smallest option first\nUse Hierholzer's algorithm: DFS and only add a node to the result AFTER all its outgoing edges are used\nReverse the result at the end — this handles dead-ends automatically`,
+    testCases: [
+      {
+        input: "4\nMUC LHR\nJFK MUC\nSFO SJC\nLHR SFO",
+        expectedOutput: "JFK MUC LHR SFO SJC",
+        displayInput: "tickets = [[MUC,LHR],[JFK,MUC],[SFO,SJC],[LHR,SFO]]",
+        displayOutput: "[JFK,MUC,LHR,SFO,SJC]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "5\nJFK SFO\nJFK ATL\nSFO ATL\nATL JFK\nATL SFO",
+        expectedOutput: "JFK ATL JFK SFO ATL SFO",
+        displayInput:
+          "tickets = [[JFK,SFO],[JFK,ATL],[SFO,ATL],[ATL,JFK],[ATL,SFO]]",
+        displayOutput: "[JFK,ATL,JFK,SFO,ATL,SFO]",
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1\nJFK AAA",
+        expectedOutput: "JFK AAA",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "3\nJFK KUL\nJFK NRT\nNRT JFK",
+        expectedOutput: "JFK NRT JFK KUL",
+        visibility: "PRIVATE",
+      },
+      {
+        input: "4\nJFK AAA\nJFK BBB\nAAA JFK\nBBB CCC",
+        expectedOutput: "JFK AAA JFK BBB CCC",
+        visibility: "PRIVATE",
+      },
+    ],
+  },
+  {
+    title: "Alien Dictionary",
+    slug: "alien-dictionary",
+    difficulty: "hard",
+    link: "https://leetcode.com/problems/alien-dictionary/",
+    description: `There is a new alien language that uses the English alphabet. However, the order of the letters is unknown to you.
+
+You are given a list of strings words from the alien language's dictionary, where the strings in words are sorted lexicographically by the rules of this new language.
+
+Return a string of the unique letters in the new language sorted in the rules of this language. If there is no solution, return "". If there are multiple solutions, return any of them.`,
+    tags: ["Graph", "Topological Sort", "DFS", "BFS", "String"],
+    companies: ["Google", "Facebook", "Airbnb", "Amazon", "Twitter"],
+    examples: [
+      `Input: words = ["wrt","wrf","er","ett","rftt"]\nOutput: "wertf"`,
+      `Input: words = ["z","x"]\nOutput: "zx"`,
+    ],
+    editorial: `Extract ordering constraints by comparing adjacent words character by character.
+For words[i] and words[i+1], find the first position where they differ — that character in words[i] comes before the character in words[i+1] in the alien alphabet.
+Edge case: if words[i+1] is a prefix of words[i], return "" (invalid).
+Build directed graph of these constraints. Run topological sort (Kahn's BFS or DFS).
+If a cycle is found, return "". Otherwise return the topological order.
+Time complexity: O(C) where C = total characters across all words.`,
+    aiHints: `Compare adjacent word pairs to extract character ordering constraints\nEach constraint is a directed edge in a graph — find the FIRST differing character between consecutive words\nRun topological sort on the constraint graph; a cycle means the input is invalid`,
+    testCases: [
+      {
+        input: "5\nwrt\nwrf\ner\nett\nrftt",
+        expectedOutput: "wertf",
+        displayInput: 'words = ["wrt","wrf","er","ett","rftt"]',
+        displayOutput: '"wertf"',
+        visibility: "PUBLIC",
+      },
+      {
+        input: "2\nz\nx",
+        expectedOutput: "zx",
+        displayInput: 'words = ["z","x"]',
+        displayOutput: '"zx"',
+        visibility: "PUBLIC",
+      },
+      {
+        input: "1\na",
         expectedOutput: "a",
-        displayInput: 's = "a", t = "a"',
-        displayOutput: "a",
-        visibility: "PUBLIC",
+        visibility: "PRIVATE",
       },
       {
-        input: "a\naa",
+        input: "2\nabc\nab",
         expectedOutput: "",
         visibility: "PRIVATE",
       },
-    ],
-  },
-  {
-    title: "Sliding Window Maximum",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/sliding-window-maximum/",
-    description: `You are given an array of integers nums, there is a sliding window of size k which is moving from the very left of the array to the very right. You can only see the k numbers in the window. Each time the sliding window moves right by one position.
-
-Return the max sliding window.`,
-    tags: ["Array", "Queue", "Sliding Window", "Heap", "Monotonic Queue"],
-    companies: ["Amazon", "Google", "Meta", "Microsoft"],
-    examples: [
-      `Input: nums = [1,3,-1,-3,5,3,6,7], k = 3
-Output: [3,3,5,5,6,7]
-Explanation:
-Window position                Max
----------------               -----
-[1  3  -1] -3  5  3  6  7       3
- 1 [3  -1  -3] 5  3  6  7       3
- 1  3 [-1  -3  5] 3  6  7       5
- 1  3  -1 [-3  5  3] 6  7       5
- 1  3  -1  -3 [5  3  6] 7       6
- 1  3  -1  -3  5 [3  6  7]      7`,
-      `Input: nums = [1], k = 1
-Output: [1]`,
-    ],
-    editorial: `Monotonic deque maintaining indices of useful elements
-Maintain a deque of indices in decreasing order of their values
-For each new element, remove from back of deque all indices with smaller values (they can never be the max)
-Remove from front of deque indices that have fallen outside the window
-The front of the deque is always the index of the current window maximum
-Time complexity: O(n), Space complexity: O(k)`,
-    aiHints: `A monotonic deque efficiently tracks the maximum of the current window
-Elements smaller than the new element can never be future maximums — remove them
-How do you know when an element in the deque has left the window?`,
-    testCases: [
       {
-        input: "[1,3,-1,-3,5,3,6,7]\n3",
-        expectedOutput: "[3,3,5,5,6,7]",
-        displayInput: "nums = [1,3,-1,-3,5,3,6,7], k = 3",
-        displayOutput: "[3,3,5,5,6,7]",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1]\n1",
-        expectedOutput: "[1]",
-        displayInput: "nums = [1], k = 1",
-        displayOutput: "[1]",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[9,11]\n2",
-        expectedOutput: "[11]",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Trapping Rain Water",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/trapping-rain-water/",
-    description: `Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.`,
-    tags: ["Array", "Two Pointers", "Dynamic Programming", "Stack", "Monotonic Stack"],
-    companies: ["Amazon", "Google", "Meta", "Apple", "Microsoft"],
-    examples: [
-      `Input: height = [0,1,0,2,1,0,1,3,2,1,2,1]
-Output: 6
-Explanation: The above elevation map traps 6 units of rain water.`,
-      `Input: height = [4,2,0,3,2,5]
-Output: 9`,
-    ],
-    editorial: `Two pointers from both ends, tracking left and right max heights
-Maintain leftMax and rightMax as the tallest bar seen from each side
-If leftMax < rightMax, process the left pointer: water at left = leftMax - height[left]
-Otherwise process the right pointer: water at right = rightMax - height[right]
-Move the processed pointer inward
-Water at a position = min(leftMax, rightMax) - height[i]
-Time complexity: O(n), Space complexity: O(1)`,
-    aiHints: `Water trapped at any position depends on the shorter of the two surrounding walls
-Two pointers let you process from both ends simultaneously
-The side with the smaller max height determines how much water is trapped there`,
-    testCases: [
-      {
-        input: "[0,1,0,2,1,0,1,3,2,1,2,1]",
-        expectedOutput: "6",
-        displayInput: "height = [0,1,0,2,1,0,1,3,2,1,2,1]",
-        displayOutput: "6",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[4,2,0,3,2,5]",
-        expectedOutput: "9",
-        displayInput: "height = [4,2,0,3,2,5]",
-        displayOutput: "9",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[4,2,3]",
-        expectedOutput: "1",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Minimum Number of K Consecutive Bit Flips",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/minimum-number-of-k-consecutive-bit-flips/",
-    description: `You are given a binary array nums and an integer k.
-
-A k-bit flip is choosing a subarray of length k from nums and simultaneously changing every 0 in the subarray to 1, and every 1 in the subarray to 0.
-
-Return the minimum number of k-bit flips required so that there are no 0's in the array. If it is not possible, return -1.`,
-    tags: ["Array", "Bit Manipulation", "Queue", "Sliding Window", "Prefix Sum"],
-    companies: ["Google", "Amazon"],
-    examples: [
-      `Input: nums = [0,1,0], k = 1
-Output: 2
-Explanation: Flip nums[0], then flip nums[2].`,
-      `Input: nums = [1,1,0], k = 2
-Output: -1
-Explanation: No matter how we flip subarrays of size 2, we can't make the array become [1,1,1].`,
-      `Input: nums = [0,0,0,1,0,1,1,0], k = 3
-Output: 3`,
-    ],
-    editorial: `Sliding window to track cumulative flips without re-flipping
-Use a difference array or a queue to track active flips at each index
-flipped[i] = 1 means a flip starting at i is still active
-The current effective bit at index i = (nums[i] + sum of active flips) % 2
-If effective bit is 0, we must flip starting at i — check if i + k <= n, otherwise return -1
-Maintain a running flip count using a sliding window of size k
-Time complexity: O(n), Space complexity: O(n)`,
-    aiHints: `Greedily flip at the leftmost 0 you encounter
-Repeatedly re-flipping is expensive — track the effect of past flips using a difference array
-The total number of flips affecting position i can be tracked with a prefix sum`,
-    testCases: [
-      {
-        input: "[0,1,0]\n1",
-        expectedOutput: "2",
-        displayInput: "nums = [0,1,0], k = 1",
-        displayOutput: "2",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,1,0]\n2",
-        expectedOutput: "-1",
-        displayInput: "nums = [1,1,0], k = 2",
-        displayOutput: "-1",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[0,0,0,1,0,1,1,0]\n3",
-        expectedOutput: "3",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Longest Repeating Character Replacement",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/longest-repeating-character-replacement/",
-    description: `You are given a string s and an integer k. You can choose any character of the string and change it to any other uppercase English character. You can perform this operation at most k times.
-
-Return the length of the longest substring containing the same letter you can get after performing the above operations.`,
-    tags: ["Hash Table", "String", "Sliding Window"],
-    companies: ["Amazon", "Google", "Meta", "Bloomberg"],
-    examples: [
-      `Input: s = "ABAB", k = 2
-Output: 4
-Explanation: Replace the two 'A's with two 'B's or vice versa.`,
-      `Input: s = "AABABBA", k = 1
-Output: 4
-Explanation: Replace the one 'A' in the middle with 'B' and form "AABBBBA". The substring "BBBB" has the longest repeating letters, which is 4.`,
-    ],
-    editorial: `Sliding window tracking the most frequent character in the window
-Expand the right pointer and update the frequency map
-Window is valid if (window size - max frequency) <= k (replacements needed)
-If window becomes invalid, shrink from the left (but max frequency never decreases — a key insight)
-The window size never shrinks below the best valid size found so far
-Time complexity: O(n), Space complexity: O(1) — 26 letters`,
-    aiHints: `The number of characters to replace in the window = window size - count of most frequent char
-If replacements needed exceed k, the window is invalid — shrink from left
-Why does the maximum frequency in the window never need to decrease?`,
-    testCases: [
-      {
-        input: "ABAB\n2",
-        expectedOutput: "4",
-        displayInput: 's = "ABAB", k = 2',
-        displayOutput: "4",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "AABABBA\n1",
-        expectedOutput: "4",
-        displayInput: 's = "AABABBA", k = 1',
-        displayOutput: "4",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "AAAA\n0",
-        expectedOutput: "4",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Subarrays with K Different Integers",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/subarrays-with-k-different-integers/",
-    description: `Given an integer array nums and an integer k, return the number of good subarrays of nums.
-
-A good array is an array where the number of different integers in that array is exactly k.
-
-For example, [1,2,3,1,2] has 3 different integers: 1, 2, and 3.`,
-    tags: ["Array", "Hash Table", "Sliding Window", "Counting"],
-    companies: ["Amazon", "Google"],
-    examples: [
-      `Input: nums = [1,2,1,2,3], k = 2
-Output: 7
-Explanation: Subarrays formed with exactly 2 different integers: [1,2], [2,1], [1,2], [2,3], [1,2,1], [2,1,2], [1,2,1,2].`,
-      `Input: nums = [1,2,1,3,4], k = 3
-Output: 3`,
-    ],
-    editorial: `Exactly k = at most k minus at most (k-1)
-atMost(k) counts subarrays with at most k distinct integers using a sliding window
-For each right pointer, left shrinks while distinct count exceeds k
-Number of valid subarrays ending at right = right - left + 1
-Answer = atMost(k) - atMost(k-1)
-Time complexity: O(n), Space complexity: O(n)`,
-    aiHints: `Exactly k distinct = at most k distinct minus at most (k-1) distinct
-Sliding window for "at most k" is straightforward — how does it extend to "exactly k"?
-Count valid subarrays ending at each right pointer position`,
-    testCases: [
-      {
-        input: "[1,2,1,2,3]\n2",
-        expectedOutput: "7",
-        displayInput: "nums = [1,2,1,2,3], k = 2",
-        displayOutput: "7",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,2,1,3,4]\n3",
-        expectedOutput: "3",
-        displayInput: "nums = [1,2,1,3,4], k = 3",
-        displayOutput: "3",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[1,1,1,1]\n1",
-        expectedOutput: "10",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Count of Range Sum",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/count-of-range-sum/",
-    description: `Given an integer array nums and two integers lower and upper, return the number of range sums that lie in [lower, upper] inclusive.
-
-Range sum S(i, j) is defined as the sum of the elements in nums between indices i and j inclusive, where i <= j.`,
-    tags: ["Array", "Binary Search", "Divide and Conquer", "Sorting", "Prefix Sum"],
-    companies: ["Google", "Amazon"],
-    examples: [
-      `Input: nums = [-2,5,-1], lower = -2, upper = 2
-Output: 3
-Explanation: The three ranges are: [0,0], [2,2], and [0,2] and their respective sums are: -2, -1, 2.`,
-      `Input: nums = [0], lower = 0, upper = 0
-Output: 1`,
-    ],
-    editorial: `Prefix sums + merge sort (or sorted list with binary search)
-Compute prefix sums array where prefixSum[i] is sum of nums[0..i-1]
-Range sum S(i,j) = prefixSum[j+1] - prefixSum[i]
-Need to count pairs (i,j) where lower <= prefixSum[j] - prefixSum[i] <= upper
-Use merge sort on prefix sums: during merge, count valid pairs across left and right halves
-Two pointers find the count of valid right indices for each left index
-Time complexity: O(n log n), Space complexity: O(n)`,
-    aiHints: `Express range sums using prefix sums: S(i,j) = prefix[j+1] - prefix[i]
-You need to count pairs with a specific difference range — think merge sort
-During the merge step, sorted halves allow two pointers to count valid pairs efficiently`,
-    testCases: [
-      {
-        input: "[-2,5,-1]\n-2\n2",
-        expectedOutput: "3",
-        displayInput: "nums = [-2,5,-1], lower = -2, upper = 2",
-        displayOutput: "3",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[0]\n0\n0",
-        expectedOutput: "1",
-        displayInput: "nums = [0], lower = 0, upper = 0",
-        displayOutput: "1",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "[-2,5,-1,3]\n-2\n4",
-        expectedOutput: "6",
-        visibility: "PRIVATE",
-      },
-    ],
-  },
-  {
-    title: "Minimum Size Subarray Sum",
-    difficulty: "hard",
-    link: "https://leetcode.com/problems/minimum-size-subarray-sum/",
-    description: `Given an array of positive integers nums and a positive integer target, return the minimal length of a subarray whose sum is greater than or equal to target. If there is no such subarray, return 0 instead.
-
-Follow up: If you have figured out the O(n) solution, try coding another solution of which the time complexity is O(n log(n)).`,
-    tags: ["Array", "Binary Search", "Sliding Window", "Prefix Sum"],
-    companies: ["Amazon", "Google", "Microsoft", "Facebook"],
-    examples: [
-      `Input: target = 7, nums = [2,3,1,2,4,3]
-Output: 2
-Explanation: The subarray [4,3] has the minimal length under the problem constraint.`,
-      `Input: target = 4, nums = [1,4,4]
-Output: 1`,
-      `Input: target = 11, nums = [1,1,1,1,1,1,1,1]
-Output: 0`,
-    ],
-    editorial: `Variable sliding window shrinking when sum meets target
-Expand right pointer adding elements to running sum
-When sum >= target, record current window length and shrink from left
-Continue shrinking left while sum remains >= target, updating minimum length
-Track global minimum window length throughout
-Time complexity: O(n) for sliding window, O(n log n) for binary search on prefix sums`,
-    aiHints: `Expand the window until the sum meets the target
-Once met, try to shrink from the left to find the smallest valid window
-All numbers are positive — this guarantees the sliding window approach works`,
-    testCases: [
-      {
-        input: "7\n[2,3,1,2,4,3]",
-        expectedOutput: "2",
-        displayInput: "target = 7, nums = [2,3,1,2,4,3]",
-        displayOutput: "2",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "4\n[1,4,4]",
-        expectedOutput: "1",
-        displayInput: "target = 4, nums = [1,4,4]",
-        displayOutput: "1",
-        visibility: "PUBLIC",
-      },
-      {
-        input: "11\n[1,1,1,1,1,1,1,1]",
-        expectedOutput: "0",
+        input: "4\nz\nz",
+        expectedOutput: "z",
         visibility: "PRIVATE",
       },
     ],
@@ -1255,23 +999,26 @@ All numbers are positive — this guarantees the sliding window approach works`,
 // ─────────────────────────────────────────────────────────────────
 
 const SHEET_CONFIG = {
-  title: "Sliding Window & Two Pointer Problems",
+  title: "Graph Problems",
   description:
-    "A curated collection of sliding window and two pointer problems covering fixed and variable windows, two-pointer on sorted arrays, and advanced techniques like monotonic deques and prefix sums.",
+    "A curated collection of graph problems for interview prep and SDE OAs — covering BFS, DFS, topological sort, Union-Find, shortest paths, and Eulerian paths across easy, medium, and hard difficulties.",
   sections: [
     {
       title: "Easy Problems",
-      description: "Foundational two pointer and fixed sliding window problems to build core intuition.",
+      description:
+        "Foundational graph problems covering basic BFS/DFS traversal, connected components, and grid graphs.",
       difficulty: "easy" as const,
     },
     {
       title: "Medium Problems",
-      description: "Intermediate sliding window and two pointer challenges including variable windows, frequency maps, and prefix sums.",
+      description:
+        "Intermediate graph challenges including topological sort, multi-source BFS, and cycle detection.",
       difficulty: "medium" as const,
     },
     {
       title: "Hard Problems",
-      description: "Advanced problems requiring monotonic deques, multi-window tricks, and combined prefix sum techniques.",
+      description:
+        "Advanced graph problems combining shortest path algorithms, Eulerian paths, and constraint-based graph construction.",
       difficulty: "hard" as const,
     },
   ],
@@ -1279,8 +1026,6 @@ const SHEET_CONFIG = {
 // ─────────────────────────────────────────────────────────────────
 // SHEET CONFIGURATION - Customize this to create your desired sheet
 // ─────────────────────────────────────────────────────────────────
-
-
 
 // ─────────────────────────────────────────────────────────────────
 // MAIN SEED FUNCTION

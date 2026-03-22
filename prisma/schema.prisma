@@ -139,8 +139,9 @@ model Problem {
   examples   Json?
   editorial String?
   aiHints String?
+  inputFormat Json?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt  
+  updatedAt   DateTime @updatedAt
   // relation
   sectionProblems SectionProblem[]
   userProblems    UserProblem[]
@@ -198,6 +199,7 @@ model SectionProblem {
 }
 
 
+
 model UserProblem {
   id          String   @id @default(cuid())
   userId      String
@@ -215,6 +217,7 @@ model UserProblem {
 
   bookmark Boolean @default(false)
   confidenceV2 ConfidenceV2 @default(LOW)
+  problemHardness Int @default(1)
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
