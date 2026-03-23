@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Serif_Display, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 
 const dmSerif = DM_Serif_Display({
@@ -38,6 +39,7 @@ export default async function RootLayout({
           "antialiased",
         )}
       >
+        <GoogleAnalytics />
         {children}
       </body>
     </html>

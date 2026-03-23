@@ -1,11 +1,5 @@
 # BaseCase — Full-Stack DSA Learning Platform
 
-![Next.js](https://img.shields.io/badge/Next.js-App%20Router-000000?logo=nextdotjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?logo=postgresql&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-Deploy-000000?logo=vercel&logoColor=white)
 
 BaseCase is a **Take U Forward–style DSA practice platform** designed to help users transition from random problem-solving to a structured, goal-oriented learning experience. With a focus on **data structures and algorithms (DSA)**, BaseCase offers curated problem sheets, progress tracking, and analytics to ensure learners stay consistent and motivated.
 
@@ -69,6 +63,18 @@ BaseCase is a comprehensive platform for mastering DSA through:
 
 10. **Progress Syncing**:
     - Automatically syncs progress across sheets and problems.
+
+11. **Judge0 Hosting**:
+    - Integrated Judge0 instance hosted on DigitalOcean for secure and scalable code execution.
+
+12. **OAuth Authentication**:
+    - Supports Google OAuth for seamless and secure user login.
+
+13. **AI-Driven Interview Analysis**:
+    - AI-powered feedback for mock interviews, including clarity, depth, and confidence metrics.
+
+14. **Background Workers**:
+    - Utilizes BullMQ for efficient interview analysis and report generation.
 
 ### Engineering Features
 
