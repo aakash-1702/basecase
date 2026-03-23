@@ -188,32 +188,42 @@ async function* interviewMentor(data: {
   | { text: string; isMeta: false }
   | { isComplete: boolean; isEnding: boolean; isMeta: true }
 > {
+  console.log(`[interviewMentor] Starting stream for transcript length: ${data.transcript.length}`);
+
   const conversationHistory = data.transcript.map((text, i) => ({
     role: i % 2 === 0 ? "model" : "user",
     parts: [{ text }],
   }));
 
-  const stream = await ai.models.generateContentStream({
-    model: process.env.GEMINI_MODEL_NAME!,
-    config: {
-      systemInstruction: SYSTEM_PROMPT.replace(
-        "{{plan}}",
-        JSON.stringify(data.plan, null, 2),
-      ),
-    },
-    contents: conversationHistory,
-  });
+  try {
+    const stream = await ai.models.generateContentStream({
+      model: process.env.GEMINI_MODEL_NAME!,
+      config: {
+        systemInstruction: SYSTEM_PROMPT.replace(
+          "{{plan}}",
+          JSON.stringify(data.plan, null, 2),
+        ),
+      },
+      contents: conversationHistory,
+    });
 
-  let fullResponse = "";
-  let sentenceBuffer = "";
-  let insideMessage = false;
-  let messageDone = false; // ← tracks when message value is fully consumed
+    console.log(`[interviewMentor] Gemini stream initialized`);
 
-  for await (const chunk of stream) {
-    const token = chunk.text ?? "";
-    if (!token) continue;
+    let fullResponse = "";
+    let sentenceBuffer = "";
+    let insideMessage = false;
+    let messageDone = false; // ← tracks when message value is fully consumed
+    let chunkCount = 0;
 
-    fullResponse += token;
+    for await (const chunk of stream) {
+      chunkCount++;
+      const token = chunk.text ?? "";
+      if (!token) {
+        console.log(`[interviewMentor] Skipping empty chunk ${chunkCount}`);
+        continue;
+      }
+
+      fullResponse += token;
 
     // once message is fully extracted, just collect fullResponse for meta — skip all processing
     if (messageDone) continue;
@@ -224,6 +234,7 @@ async function* interviewMentor(data: {
       if (startIdx !== -1) {
         const afterKey = sentenceBuffer.indexOf('"', startIdx + 10);
         if (afterKey !== -1) {
+          console.log(`[interviewMentor] Found message field at chunk ${chunkCount}`);
           insideMessage = true;
           // only keep what's AFTER the opening quote of message value
           sentenceBuffer = sentenceBuffer.slice(afterKey + 1);
@@ -258,18 +269,51 @@ async function* interviewMentor(data: {
       const match = sentenceBuffer.match(/^(.*?[.!?])(?:\s|$)/s);
       if (!match) break;
       const sentence = match[1].trim();
-      if (sentence) yield { text: sentence, isMeta: false };
+      if (sentence) {
+        console.log(`[interviewMentor] Yielding sentence: "${sentence.substring(0, 50)}..."`);
+        yield { text: sentence, isMeta: false };
+      }
       sentenceBuffer = sentenceBuffer.slice(match[0].length);
     }
   }
+
+  console.log(`[interviewMentor] Stream loop completed. insideMessage: ${insideMessage}, messageDone: ${messageDone}`);
 
   // flush remaining sentence buffer — only if it's clean message content
   // messageDone ensures this is never JSON tail
   if (messageDone || insideMessage) {
     const remaining = sentenceBuffer.trim();
     // extra safety: reject if it looks like JSON leakage
-    if (remaining && !remaining.includes('"') && !remaining.includes('{')) {
+    if (remaining && !remaining.includes('"') && !remaining.includes("{")) {
+      console.log(`[interviewMentor] Yielding remaining: "${remaining}"`);
       yield { text: remaining, isMeta: false };
+    }
+  }
+
+  console.log(`[interviewMentor] Stream completed. Total chunks: ${chunkCount}, Full response length: ${fullResponse.length}`);
+
+  // CRITICAL FALLBACK: If we never found a message field, try to extract it from fullResponse
+  if (!insideMessage && !messageDone && fullResponse.length > 0) {
+    console.warn(`[interviewMentor] WARNING: Never found message field in stream! Attempting manual extraction from fullResponse`);
+    console.log(`[interviewMentor] Full response preview: ${fullResponse.substring(0, 200)}`);
+
+    try {
+      // Try to parse the full response as JSON and extract message
+      const cleaned = fullResponse.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (parsed.message) {
+        console.log(`[interviewMentor] FALLBACK: Extracted message from fullResponse`);
+        yield { text: parsed.message, isMeta: false };
+      } else {
+        console.error(`[interviewMentor] FALLBACK FAILED: No message field in parsed JSON`);
+      }
+    } catch (error) {
+      console.error(`[interviewMentor] FALLBACK FAILED: Could not parse fullResponse as JSON - treating as plain text`);
+      // ULTIMATE FALLBACK: Gemini returned plain text instead of JSON - just use it directly
+      if (fullResponse.length > 0) {
+        console.log(`[interviewMentor] Using fullResponse as plain text`);
+        yield { text: fullResponse, isMeta: false };
+      }
     }
   }
 
@@ -277,13 +321,20 @@ async function* interviewMentor(data: {
   try {
     const cleaned = fullResponse.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
+    console.log(`[interviewMentor] Parsed meta - isComplete: ${parsed.isComplete}, isEnding: ${parsed.isEnding}`);
     yield {
       isComplete: parsed.isComplete ?? false,
       isEnding: parsed.isEnding ?? false,
       isMeta: true,
     };
-  } catch {
+  } catch (error) {
+    console.error(`[interviewMentor] Failed to parse meta from response - assuming plain text response (not ending)`);
+    // If it's plain text, it's not the final message
     yield { isComplete: false, isEnding: false, isMeta: true };
+  }
+  } catch (error) {
+    console.error(`[interviewMentor] Stream error:`, error);
+    throw error;
   }
 }
 
@@ -333,19 +384,48 @@ export async function PATCH(
     );
   }
 
-  const interviewSession = await appendToTranscript(interviewId, userResponse);
+  let interviewSession;
+  try {
+    interviewSession = await appendToTranscript(interviewId, userResponse);
+  } catch (error) {
+    console.error("Failed to append to transcript:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Failed to save your response. Please try again.",
+      },
+      { status: 500 },
+    );
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
+      console.log(`[Room Stream] Starting for interview ${interviewId}`);
       let fullMessage = "";
       let seq = 0;
       const ttsPromises: Promise<void>[] = []; // track all in-flight TTS calls
+      let streamTimedOut = false;
+
+      // Timeout wrapper - if stream takes longer than 60 seconds, abort
+      const timeoutId = setTimeout(() => {
+        streamTimedOut = true;
+        console.error(`[Room Stream] TIMEOUT after 60s for interview ${interviewId}`);
+        controller.enqueue(
+          sseChunk({
+            type: "error",
+            message: "Response timed out. Please try again.",
+          }),
+        );
+        controller.close();
+      }, 60000); // 60 second timeout
 
       try {
         for await (const chunk of interviewMentor({
           plan: interviewSession.plan,
           transcript: interviewSession.transcript,
         })) {
+          if (streamTimedOut) break; // Stop processing if timeout occurred
           if (chunk.isMeta === false) {
             fullMessage += chunk.text + " ";
             const currentSeq = seq++;
@@ -362,7 +442,8 @@ export async function PATCH(
                   }),
                 );
               })
-              .catch(() => {
+              .catch((error) => {
+                console.error(`[TTS] Failed for seq ${currentSeq}:`, error.message);
                 controller.enqueue(
                   sseChunk({
                     type: "chunk",
@@ -377,10 +458,38 @@ export async function PATCH(
           }
 
           if (chunk.isMeta === true) {
+            clearTimeout(timeoutId); // Clear timeout on successful completion
+            console.log(`[Room Stream] Meta received - isComplete: ${chunk.isComplete}, isEnding: ${chunk.isEnding}`);
+
+            // CRITICAL CHECK: Did we actually send any chunks?
+            if (seq === 0) {
+              console.error(`[Room Stream] ERROR: Stream completed but NO chunks were sent! This is a parsing failure.`);
+              controller.enqueue(
+                sseChunk({
+                  type: "error",
+                  message: "Failed to generate response. Please try again.",
+                }),
+              );
+              controller.close();
+              return;
+            }
+
             // wait for ALL TTS calls to finish before closing
             await Promise.allSettled(ttsPromises);
+            console.log(`[Room Stream] All TTS promises settled. Total chunks sent: ${seq}`);
 
-            await appendToTranscript(interviewId, fullMessage.trim());
+            try {
+              await appendToTranscript(interviewId, fullMessage.trim());
+              console.log(`[Room Stream] AI response saved to transcript`);
+            } catch (error) {
+              console.error("Failed to save AI response to transcript:", error);
+              controller.enqueue(
+                sseChunk({
+                  type: "error",
+                  message: "Failed to save response. Interview state may be inconsistent.",
+                }),
+              );
+            }
 
             controller.enqueue(
               sseChunk({
@@ -390,11 +499,13 @@ export async function PATCH(
               }),
             );
 
+            console.log(`[Room Stream] Stream completed successfully for interview ${interviewId}`);
             controller.close();
           }
         }
       } catch (error) {
-        console.error("Stream error:", error);
+        clearTimeout(timeoutId); // Clear timeout on error
+        console.error(`[Room Stream] Stream error for interview ${interviewId}:`, error);
         controller.enqueue(
           sseChunk({ type: "error", message: "Stream failed" }),
         );
