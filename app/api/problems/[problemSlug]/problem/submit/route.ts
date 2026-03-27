@@ -74,6 +74,7 @@ export async function POST(
       if (compileErrored) {
         results.push({
           passed: false,
+          isPublic: tc.visibility === "PUBLIC",
           input: null,
           expected: null,
           got: null,
@@ -104,6 +105,7 @@ export async function POST(
       if (!token) {
         results.push({
           passed: false,
+          isPublic: tc.visibility === "PUBLIC",
           input:
             tc.visibility === "PUBLIC" ? (tc.displayInput ?? tc.input) : null,
           expected:
@@ -131,6 +133,7 @@ export async function POST(
       if (!result) {
         results.push({
           passed: false,
+          isPublic: tc.visibility === "PUBLIC",
           input:
             tc.visibility === "PUBLIC" ? (tc.displayInput ?? tc.input) : null,
           expected:
@@ -158,6 +161,7 @@ export async function POST(
 
       results.push({
         passed,
+        isPublic: tc.visibility === "PUBLIC",
         input:
           tc.visibility === "PUBLIC" ? (tc.displayInput ?? tc.input) : null,
         expected:
