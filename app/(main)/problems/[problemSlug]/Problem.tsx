@@ -906,7 +906,9 @@ function SolveDialog({
     "You're building something incredible — one solve at a time.",
     "The best coders aren't born, they're forged.",
   ];
-  const motiveRef = useRef(motivationalLines[Math.floor(Math.random() * motivationalLines.length)]);
+  const motiveRef = useRef(
+    motivationalLines[Math.floor(Math.random() * motivationalLines.length)],
+  );
 
   useEffect(() => {
     if (!difficulty) return;
@@ -934,24 +936,66 @@ function SolveDialog({
   ];
 
   const diffSelectedStyle: Record<string, React.CSSProperties> = {
-    TOO_EASY: { background: "rgba(16,185,129,0.08)", borderColor: "rgba(16,185,129,0.3)", color: "#10b981", boxShadow: "0 0 12px rgba(16,185,129,0.1)" },
-    EASY: { background: "rgba(16,185,129,0.06)", borderColor: "rgba(16,185,129,0.25)", color: "#10b981" },
-    JUST_RIGHT: { background: "rgba(249,115,22,0.08)", borderColor: "rgba(249,115,22,0.3)", color: "#f97316", boxShadow: "0 0 12px rgba(249,115,22,0.1)" },
-    HARD: { background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.25)", color: "#ef4444" },
-    VERY_HARD: { background: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.35)", color: "#ef4444", boxShadow: "0 0 12px rgba(239,68,68,0.1)" },
+    TOO_EASY: {
+      background: "rgba(16,185,129,0.08)",
+      borderColor: "rgba(16,185,129,0.3)",
+      color: "#10b981",
+      boxShadow: "0 0 12px rgba(16,185,129,0.1)",
+    },
+    EASY: {
+      background: "rgba(16,185,129,0.06)",
+      borderColor: "rgba(16,185,129,0.25)",
+      color: "#10b981",
+    },
+    JUST_RIGHT: {
+      background: "rgba(249,115,22,0.08)",
+      borderColor: "rgba(249,115,22,0.3)",
+      color: "#f97316",
+      boxShadow: "0 0 12px rgba(249,115,22,0.1)",
+    },
+    HARD: {
+      background: "rgba(239,68,68,0.06)",
+      borderColor: "rgba(239,68,68,0.25)",
+      color: "#ef4444",
+    },
+    VERY_HARD: {
+      background: "rgba(239,68,68,0.1)",
+      borderColor: "rgba(239,68,68,0.35)",
+      color: "#ef4444",
+      boxShadow: "0 0 12px rgba(239,68,68,0.1)",
+    },
   };
   const confSelectedStyle: Record<string, React.CSSProperties> = {
-    LOW: { background: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.28)", color: "#ef4444" },
-    MEDIUM: { background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.28)", color: "#f59e0b" },
-    HIGH: { background: "rgba(16,185,129,0.08)", borderColor: "rgba(16,185,129,0.28)", color: "#10b981" },
+    LOW: {
+      background: "rgba(239,68,68,0.08)",
+      borderColor: "rgba(239,68,68,0.28)",
+      color: "#ef4444",
+    },
+    MEDIUM: {
+      background: "rgba(245,158,11,0.08)",
+      borderColor: "rgba(245,158,11,0.28)",
+      color: "#f59e0b",
+    },
+    HIGH: {
+      background: "rgba(16,185,129,0.08)",
+      borderColor: "rgba(16,185,129,0.28)",
+      color: "#10b981",
+    },
   };
 
   const btnBase: React.CSSProperties = {
-    fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700,
-    textTransform: "uppercase", letterSpacing: "0.07em",
-    padding: "7px 14px", borderRadius: 6, cursor: "pointer",
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: 9,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.07em",
+    padding: "7px 14px",
+    borderRadius: 6,
+    cursor: "pointer",
     transition: "all 180ms ease-out",
-    border: "1px solid #1c1f26", background: "rgba(255,255,255,0.02)", color: "#4b5563",
+    border: "1px solid #1c1f26",
+    background: "rgba(255,255,255,0.02)",
+    color: "#4b5563",
   };
 
   return (
@@ -974,138 +1018,512 @@ function SolveDialog({
         @keyframes sdSpin { to { transform: rotate(360deg); } }
         @keyframes sdFadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div style={{ background: "#0d0f14", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 16, width: 520, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto", position: "relative", animation: "dialogEntrance 280ms cubic-bezier(0.16, 1, 0.3, 1)" }}>
-
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.75)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100,
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div
+          style={{
+            background: "#0d0f14",
+            border: "1px solid rgba(249,115,22,0.2)",
+            borderRadius: 16,
+            width: 520,
+            maxWidth: "92vw",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            position: "relative",
+            animation: "dialogEntrance 280ms cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        >
           {/* Top highlight line (green for success) */}
-          <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg, transparent, rgba(16,185,129,0.5), transparent)", pointerEvents: "none" }} />
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: "15%",
+              right: "15%",
+              height: 1,
+              background:
+                "linear-gradient(90deg, transparent, rgba(16,185,129,0.5), transparent)",
+              pointerEvents: "none",
+            }}
+          />
 
           {phase === "saving" && (
-            <div style={{ padding: "80px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-              <div style={{ width: 32, height: 32, border: "2.5px solid #1c1f26", borderTopColor: "#f97316", borderRadius: "50%", animation: "sdSpin 0.8s linear infinite" }} />
-              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#6b7280", letterSpacing: "0.04em" }}>Saving progress…</p>
+            <div
+              style={{
+                padding: "80px 32px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  border: "2.5px solid #1c1f26",
+                  borderTopColor: "#f97316",
+                  borderRadius: "50%",
+                  animation: "sdSpin 0.8s linear infinite",
+                }}
+              />
+              <p
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 12,
+                  color: "#6b7280",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                Saving progress…
+              </p>
             </div>
           )}
 
           {phase === "saved" && (
-            <div style={{ padding: "64px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, animation: "sdFadeUp 400ms ease-out" }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+            <div
+              style={{
+                padding: "64px 32px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                animation: "sdFadeUp 400ms ease-out",
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  background: "rgba(16,185,129,0.08)",
+                  border: "1.5px solid rgba(16,185,129,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 8,
+                }}
+              >
                 <CheckCircle size={28} color="#10b981" />
               </div>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 20, fontWeight: 600, color: "#e5e7eb", letterSpacing: "-0.01em" }}>Enjoy solving! 🚀</p>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#6b7280", textAlign: "center", maxWidth: 340, lineHeight: 1.6 }}>{motiveRef.current}</p>
+              <p
+                style={{
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontSize: 20,
+                  fontWeight: 600,
+                  color: "#e5e7eb",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Enjoy solving! 🚀
+              </p>
+              <p
+                style={{
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontSize: 13,
+                  color: "#6b7280",
+                  textAlign: "center",
+                  maxWidth: 340,
+                  lineHeight: 1.6,
+                }}
+              >
+                {motiveRef.current}
+              </p>
             </div>
           )}
 
           {phase === "form" && (
-          <>
-          {/* ── SECTION 1: SUCCESS HEADER ── */}
-          <div style={{ padding: "32px 32px 24px", textAlign: "center", borderBottom: "1px solid #1c1f26" }}>
-            {/* Layered checkmark rings */}
-            <div style={{ width: 72, height: 72, borderRadius: "50%", border: "1.5px solid rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.04)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <div style={{ width: 54, height: 54, borderRadius: "50%", border: "1.5px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <CheckCircle size={26} color="#10b981" />
+            <>
+              {/* ── SECTION 1: SUCCESS HEADER ── */}
+              <div
+                style={{
+                  padding: "32px 32px 24px",
+                  textAlign: "center",
+                  borderBottom: "1px solid #1c1f26",
+                }}
+              >
+                {/* Layered checkmark rings */}
+                <div
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: "50%",
+                    border: "1.5px solid rgba(16,185,129,0.2)",
+                    background: "rgba(16,185,129,0.04)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 20px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: "50%",
+                      border: "1.5px solid rgba(16,185,129,0.35)",
+                      background: "rgba(16,185,129,0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <CheckCircle size={26} color="#10b981" />
+                  </div>
+                </div>
+                <p
+                  style={{
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                    letterSpacing: "-0.01em",
+                    marginBottom: 6,
+                  }}
+                >
+                  All Tests Passed!
+                </p>
+                <p
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 11,
+                    color: "#6b7280",
+                    letterSpacing: "0.04em",
+                    marginBottom: 10,
+                  }}
+                >
+                  {problemTitle}
+                </p>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "rgba(16,185,129,0.08)",
+                    border: "1px solid rgba(16,185,129,0.2)",
+                    borderRadius: 20,
+                    padding: "4px 14px",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#10b981",
+                  }}
+                >
+                  {total > 0
+                    ? `${passed} / ${total} test cases passed`
+                    : "All tests passed"}
+                </span>
               </div>
-            </div>
-            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 22, fontWeight: 600, color: "#e5e7eb", letterSpacing: "-0.01em", marginBottom: 6 }}>All Tests Passed!</p>
-            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#6b7280", letterSpacing: "0.04em", marginBottom: 10 }}>{problemTitle}</p>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 20, padding: "4px 14px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, color: "#10b981" }}>
-              {total > 0 ? `${passed} / ${total} test cases passed` : "All tests passed"}
-            </span>
-          </div>
 
-          {/* ── SECTION 2: FORM BODY ── */}
-          <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* ── SECTION 2: FORM BODY ── */}
+              <div
+                style={{
+                  padding: "24px 32px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 24,
+                }}
+              >
+                {/* Difficulty */}
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#9ca3b8",
+                      marginBottom: 10,
+                    }}
+                  >
+                    How hard did this feel?
+                  </p>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {diffOpts.map((o) => {
+                      const active = difficulty === o.value;
+                      return (
+                        <button
+                          key={o.value}
+                          className="sd-pill"
+                          data-active={active}
+                          onClick={() => setDifficulty(o.value)}
+                          style={{
+                            ...btnBase,
+                            ...(active ? diffSelectedStyle[o.value] : {}),
+                          }}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            {/* Difficulty */}
-            <div>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#9ca3b8", marginBottom: 10 }}>How hard did this feel?</p>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {diffOpts.map((o) => {
-                  const active = difficulty === o.value;
-                  return (
-                    <button key={o.value} className="sd-pill" data-active={active}
-                      onClick={() => setDifficulty(o.value)}
-                      style={{ ...btnBase, ...(active ? diffSelectedStyle[o.value] : {}) }}>
-                      {o.label}
-                    </button>
-                  );
-                })}
+                <div style={{ height: 1, background: "#1c1f26" }} />
+
+                {/* Confidence */}
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#9ca3b8",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Your confidence level?
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      animation: confFlash
+                        ? "confPulse 300ms ease-out"
+                        : undefined,
+                    }}
+                  >
+                    {confOpts.map((o) => {
+                      const active = confidence === o.value;
+                      return (
+                        <button
+                          key={o.value}
+                          className="sd-pill"
+                          data-active={active}
+                          onClick={() => {
+                            setConfidence(o.value);
+                            if (!userToggledRef.current)
+                              setReviewEnabled(o.value !== "HIGH");
+                          }}
+                          style={{
+                            ...btnBase,
+                            ...(active ? confSelectedStyle[o.value] : {}),
+                          }}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: "#1c1f26" }} />
+
+                {/* Key insight */}
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#9ca3b8",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Key insight? (optional)
+                  </p>
+                  <textarea
+                    className="sd-textarea"
+                    value={insight}
+                    onChange={(e) => setInsight(e.target.value)}
+                    maxLength={280}
+                    placeholder="What was the key idea? What pattern did you recognize?"
+                    style={{
+                      width: "100%",
+                      minHeight: 80,
+                      maxHeight: 160,
+                      resize: "vertical",
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid #1c1f26",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontSize: 13,
+                      color: "#c9d1e0",
+                      lineHeight: 1.6,
+                      outline: "none",
+                      transition: "all 200ms ease-out",
+                    }}
+                  />
+                  <p
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      color: "#374151",
+                      textAlign: "right",
+                      marginTop: 4,
+                    }}
+                  >
+                    {insight.length}/280
+                  </p>
+                </div>
+
+                <div style={{ height: 1, background: "#1c1f26" }} />
+
+                {/* Toggle */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 16px",
+                    background: "rgba(255,255,255,0.02)",
+                    border: "1px solid #1c1f26",
+                    borderRadius: 10,
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#c9d1e0",
+                      }}
+                    >
+                      Remind me to review this
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 10,
+                        color: "#4b5563",
+                      }}
+                    >
+                      We&apos;ll schedule a review based on your confidence
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      userToggledRef.current = true;
+                      setReviewEnabled(!reviewEnabled);
+                    }}
+                    style={{
+                      width: 40,
+                      height: 22,
+                      borderRadius: 11,
+                      border: reviewEnabled
+                        ? "1px solid rgba(249,115,22,0.5)"
+                        : "1px solid #2a2d35",
+                      cursor: "pointer",
+                      background: reviewEnabled ? "#f97316" : "#1c1f26",
+                      position: "relative",
+                      transition: "all 200ms ease-out",
+                      padding: 0,
+                      flexShrink: 0,
+                      boxShadow: reviewEnabled
+                        ? "0 0 10px rgba(249,115,22,0.25)"
+                        : "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        left: reviewEnabled ? 20 : 2,
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        background: "white",
+                        transition: "all 200ms ease-out",
+                        boxShadow: reviewEnabled
+                          ? "0 0 6px rgba(249,115,22,0.4)"
+                          : "none",
+                      }}
+                    />
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div style={{ height: 1, background: "#1c1f26" }} />
+              <div style={{ height: 1, background: "#1c1f26" }} />
 
-            {/* Confidence */}
-            <div>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#9ca3b8", marginBottom: 10 }}>Your confidence level?</p>
-              <div style={{ display: "flex", gap: 6, animation: confFlash ? "confPulse 300ms ease-out" : undefined }}>
-                {confOpts.map((o) => {
-                  const active = confidence === o.value;
-                  return (
-                    <button key={o.value} className="sd-pill" data-active={active}
-                      onClick={() => { setConfidence(o.value); if (!userToggledRef.current) setReviewEnabled(o.value !== "HIGH"); }}
-                      style={{ ...btnBase, ...(active ? confSelectedStyle[o.value] : {}) }}>
-                      {o.label}
-                    </button>
-                  );
-                })}
+              {/* ── SECTION 3: ACTIONS ── */}
+              <div
+                style={{
+                  padding: "20px 32px 28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <button
+                  className="sd-skip"
+                  onClick={onClose}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "#4b5563",
+                    cursor: "pointer",
+                    padding: "8px 4px",
+                    transition: "color 150ms",
+                  }}
+                >
+                  Skip for now
+                </button>
+                <button
+                  className="sd-save"
+                  disabled={!difficulty}
+                  onClick={async () => {
+                    if (!difficulty || !confidence) return;
+                    setPhase("saving");
+                    try {
+                      await onSave({
+                        difficulty,
+                        confidence,
+                        insight,
+                        enableReview: reviewEnabled,
+                      });
+                      setPhase("saved");
+                      setTimeout(() => onClose(), 2000);
+                    } catch {
+                      setPhase("form");
+                    }
+                  }}
+                  style={{
+                    padding: "10px 24px",
+                    borderRadius: 8,
+                    background: "linear-gradient(135deg, #f97316, #ea580c)",
+                    border: "none",
+                    color: "#000",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    cursor: !difficulty ? "not-allowed" : "pointer",
+                    boxShadow: difficulty
+                      ? "0 0 20px rgba(249,115,22,0.25)"
+                      : "none",
+                    transition: "all 200ms ease-out",
+                    opacity: difficulty ? 1 : 0.35,
+                  }}
+                >
+                  Save &amp; Continue
+                </button>
               </div>
-            </div>
-
-            <div style={{ height: 1, background: "#1c1f26" }} />
-
-            {/* Key insight */}
-            <div>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#9ca3b8", marginBottom: 10 }}>Key insight? (optional)</p>
-              <textarea className="sd-textarea" value={insight} onChange={(e) => setInsight(e.target.value)} maxLength={280}
-                placeholder="What was the key idea? What pattern did you recognize?"
-                style={{ width: "100%", minHeight: 80, maxHeight: 160, resize: "vertical", background: "rgba(255,255,255,0.02)", border: "1px solid #1c1f26", borderRadius: 8, padding: "12px 14px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "#c9d1e0", lineHeight: 1.6, outline: "none", transition: "all 200ms ease-out" }}
-              />
-              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "#374151", textAlign: "right", marginTop: 4 }}>{insight.length}/280</p>
-            </div>
-
-            <div style={{ height: 1, background: "#1c1f26" }} />
-
-            {/* Toggle */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid #1c1f26", borderRadius: 10 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 500, color: "#c9d1e0" }}>Remind me to review this</span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#4b5563" }}>We&apos;ll schedule a review based on your confidence</span>
-              </div>
-              <button onClick={() => { userToggledRef.current = true; setReviewEnabled(!reviewEnabled); }}
-                style={{ width: 40, height: 22, borderRadius: 11, border: reviewEnabled ? "1px solid rgba(249,115,22,0.5)" : "1px solid #2a2d35", cursor: "pointer", background: reviewEnabled ? "#f97316" : "#1c1f26", position: "relative", transition: "all 200ms ease-out", padding: 0, flexShrink: 0, boxShadow: reviewEnabled ? "0 0 10px rgba(249,115,22,0.25)" : "none" }}>
-                <span style={{ position: "absolute", top: 2, left: reviewEnabled ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "all 200ms ease-out", boxShadow: reviewEnabled ? "0 0 6px rgba(249,115,22,0.4)" : "none" }} />
-              </button>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: "#1c1f26" }} />
-
-          {/* ── SECTION 3: ACTIONS ── */}
-          <div style={{ padding: "20px 32px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <button className="sd-skip" onClick={onClose}
-              style={{ background: "none", border: "none", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#4b5563", cursor: "pointer", padding: "8px 4px", transition: "color 150ms" }}>
-              Skip for now
-            </button>
-            <button className="sd-save" disabled={!difficulty}
-              onClick={async () => {
-                if (!difficulty || !confidence) return;
-                setPhase("saving");
-                try {
-                  await onSave({ difficulty, confidence, insight, enableReview: reviewEnabled });
-                  setPhase("saved");
-                  setTimeout(() => onClose(), 2000);
-                } catch {
-                  setPhase("form");
-                }
-              }}
-              style={{ padding: "10px 24px", borderRadius: 8, background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", color: "#000", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", cursor: !difficulty ? "not-allowed" : "pointer", boxShadow: difficulty ? "0 0 20px rgba(249,115,22,0.25)" : "none", transition: "all 200ms ease-out", opacity: difficulty ? 1 : 0.35 }}>
-              Save &amp; Continue
-            </button>
-          </div>
-          </>
+            </>
           )}
         </div>
       </div>
@@ -1130,7 +1548,9 @@ export default function ProblemPage({
   const examples = (Array.isArray(p.examples) ? p.examples : []) as string[];
   const companies = (Array.isArray(p.companies) ? p.companies : []) as string[];
   const tags = (Array.isArray(p.tags) ? p.tags : []) as string[];
-  const defaultStdin = (p.testCases as any[])?.find((tc) => tc.visibility === "PUBLIC")?.input ?? "";
+  const defaultStdin =
+    (p.testCases as any[])?.find((tc) => tc.visibility === "PUBLIC")?.input ??
+    "";
 
   // Parse input format from first test case
   const inputFormatItems = React.useMemo(() => {
@@ -1169,7 +1589,9 @@ export default function ProblemPage({
   const [activeTab, setActiveTab] = useState<"testcase" | "output">("testcase");
   const [stdinValue, setStdinValue] = useState(() => {
     if (p.testCases && p.testCases.length > 0) {
-      const tc = (p.testCases as any[]).find((t) => t.visibility === "PUBLIC") || p.testCases[0];
+      const tc =
+        (p.testCases as any[]).find((t) => t.visibility === "PUBLIC") ||
+        p.testCases[0];
       return tc.input || "";
     }
     return defaultStdin;
@@ -1292,7 +1714,11 @@ export default function ProblemPage({
         setStdout(data.error);
         setOutputType("error");
         setErrorType("Runtime Error");
-        setRunOutput({ stdout: data.error, outputType: "error", errorType: "Runtime Error" });
+        setRunOutput({
+          stdout: data.error,
+          outputType: "error",
+          errorType: "Runtime Error",
+        });
         return;
       }
       const status = (data.status || "").toLowerCase();
@@ -1301,7 +1727,11 @@ export default function ProblemPage({
         setStdout(msg);
         setOutputType("error");
         setErrorType("Compile Error");
-        setRunOutput({ stdout: msg, outputType: "error", errorType: "Compile Error" });
+        setRunOutput({
+          stdout: msg,
+          outputType: "error",
+          errorType: "Compile Error",
+        });
       } else if (
         status.includes("error") ||
         status.includes("time limit") ||
@@ -1311,18 +1741,30 @@ export default function ProblemPage({
         setStdout(msg);
         setOutputType("error");
         setErrorType("Runtime Error");
-        setRunOutput({ stdout: msg, outputType: "error", errorType: "Runtime Error" });
+        setRunOutput({
+          stdout: msg,
+          outputType: "error",
+          errorType: "Runtime Error",
+        });
       } else {
         setStdout(data.stdout ?? "");
         setOutputType("success");
         setErrorType(null);
-        setRunOutput({ stdout: data.stdout ?? "", outputType: "success", errorType: null });
+        setRunOutput({
+          stdout: data.stdout ?? "",
+          outputType: "success",
+          errorType: null,
+        });
       }
     } catch {
       setStdout("Something went wrong. Try again.");
       setOutputType("error");
       setErrorType("Runtime Error");
-      setRunOutput({ stdout: "Something went wrong. Try again.", outputType: "error", errorType: "Runtime Error" });
+      setRunOutput({
+        stdout: "Something went wrong. Try again.",
+        outputType: "error",
+        errorType: "Runtime Error",
+      });
     } finally {
       setRunning(false);
     }
@@ -1341,46 +1783,92 @@ export default function ProblemPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: currentCode, language: currentLang }),
       });
-      const data = await res.json();
-      if (data.compileError) {
-        setSubmitOutput({ accepted: false, passed: 0, total: data.total || 0, compileError: data.compileError, results: [] });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        setSubmitOutput({
+          accepted: false,
+          passed: 0,
+          total: 0,
+          compileError: json.message || "Submission failed",
+          results: [],
+        });
         return;
       }
+
+      const data = json.data;
       const results = (data.results || []).map((r: any) => ({
-        passed: r.passed, isPublic: r.isPublic ?? true,
-        input: r.input || null, displayInput: r.displayInput || null,
-        expected: r.expected || null, displayOutput: r.displayOutput || null,
-        got: r.got || null, status: r.status || (r.passed ? "Accepted" : "Wrong Answer"),
+        passed: r.passed,
+        isPublic: r.isPublic ?? true,
+        input: r.input || null,
+        displayInput: r.displayInput || null,
+        expected: r.expected || null,
+        displayOutput: r.displayOutput || null,
+        got: r.got || null,
+        status: r.status || (r.passed ? "Accepted" : "Wrong Answer"),
         error: r.error || null,
       }));
-      const passedCount = results.filter((r: any) => r.passed).length;
-      const output = { accepted: data.accepted ?? passedCount === results.length, passed: passedCount, total: results.length, results };
+
+      const output = {
+        accepted: data.accepted,
+        passed: data.passed,
+        total: data.total,
+        results,
+      };
       setSubmitOutput(output);
       if (output.accepted) setShowSolveDialog(true);
     } catch {
-      setSubmitOutput({ accepted: false, passed: 0, total: 0, compileError: "Something went wrong. Try again.", results: [] });
+      setSubmitOutput({
+        accepted: false,
+        passed: 0,
+        total: 0,
+        compileError: "Something went wrong. Try again.",
+        results: [],
+      });
     } finally {
       setSubmitting(false);
     }
   }, [p.slug]); // eslint-disable-line
 
-  const handleSolveDialogSave = useCallback(async (data: { difficulty: string; confidence: string; insight: string; enableReview: boolean }) => {
-    try {
-      const res = await fetch(`/api/problems/${p.slug}/problem`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ solved: true, confidenceV2: data.confidence, perceivedDifficulty: data.difficulty, keyInsight: data.insight, enableReview: data.enableReview }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(json?.message ?? "Save failed");
-      setProgress((prev) => ({ ...prev, solved: true, confidenceV2: data.confidence as ConfidenceV2 }));
-      setCommitted((prev) => ({ ...prev, solved: true, confidenceV2: data.confidence as ConfidenceV2 }));
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to save progress");
-      throw err; // re-throw so dialog reverts to form
-    }
-  }, [p.slug]); // eslint-disable-line
+  const handleSolveDialogSave = useCallback(
+    async (data: {
+      difficulty: string;
+      confidence: string;
+      insight: string;
+      enableReview: boolean;
+    }) => {
+      try {
+        const res = await fetch(`/api/problems/${p.slug}/problem`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            solved: true,
+            confidenceV2: data.confidence,
+            perceivedDifficulty: data.difficulty,
+            keyInsight: data.insight,
+            enableReview: data.enableReview,
+          }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(json?.message ?? "Save failed");
+        setProgress((prev) => ({
+          ...prev,
+          solved: true,
+          confidenceV2: data.confidence as ConfidenceV2,
+        }));
+        setCommitted((prev) => ({
+          ...prev,
+          solved: true,
+          confidenceV2: data.confidence as ConfidenceV2,
+        }));
+      } catch (err: any) {
+        toast.error(err?.message ?? "Failed to save progress");
+        throw err; // re-throw so dialog reverts to form
+      }
+    },
+    [p.slug],
+  ); // eslint-disable-line
 
   // Collapsible states
   const [editorialOpen, setEditorialOpen] = useState(false);
@@ -3086,9 +3574,39 @@ export default function ProblemPage({
                 </div>
               )}
               {inputFormat && (
-                <div style={{ marginTop: inputFormatItems.length > 0 ? 12 : 20 }}>
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4b5563", display: "block", marginBottom: 8 }}>Input Format</span>
-                  <div style={{ background: "rgba(249,115,22,0.03)", border: "1px solid #1c1f26", borderLeft: "2px solid rgba(249,115,22,0.3)", borderRadius: 6, padding: "10px 14px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#9ca3b8", lineHeight: 1.7, whiteSpace: "pre-line" }}>{inputFormat}</div>
+                <div
+                  style={{ marginTop: inputFormatItems.length > 0 ? 12 : 20 }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 9,
+                      fontWeight: 600,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "#4b5563",
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Input Format
+                  </span>
+                  <div
+                    style={{
+                      background: "rgba(249,115,22,0.03)",
+                      border: "1px solid #1c1f26",
+                      borderLeft: "2px solid rgba(249,115,22,0.3)",
+                      borderRadius: 6,
+                      padding: "10px 14px",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 12,
+                      color: "#9ca3b8",
+                      lineHeight: 1.7,
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {inputFormat}
+                  </div>
                 </div>
               )}
             </div>
@@ -3197,67 +3715,245 @@ export default function ProblemPage({
 
               <div
                 ref={ioStripRef}
-                style={{ height: `${ioHeight}px`, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "rgba(0,0,0,0.15)", borderTop: "1px solid var(--border-subtle)" }}
+                style={{
+                  height: `${ioHeight}px`,
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                  background: "rgba(0,0,0,0.15)",
+                  borderTop: "1px solid var(--border-subtle)",
+                }}
               >
                 {/* Tab header */}
-                <div style={{ height: 36, borderBottom: "1px solid #1c1f26", padding: "0 14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+                <div
+                  style={{
+                    height: 36,
+                    borderBottom: "1px solid #1c1f26",
+                    padding: "0 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexShrink: 0,
+                  }}
+                >
                   <div style={{ display: "flex", gap: 6 }}>
                     {(["testcase", "output"] as const).map((tab) => (
-                      <button key={tab} onClick={() => setActiveTab(tab)}
-                        style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "3px 10px", borderRadius: 5, border: activeTab === tab ? "1px solid rgba(249,115,22,0.3)" : "1px solid transparent", background: activeTab === tab ? "rgba(249,115,22,0.1)" : "transparent", color: activeTab === tab ? "#f97316" : "#4b5563", cursor: "pointer", transition: "all 180ms ease-out" }}>
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 9,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          padding: "3px 10px",
+                          borderRadius: 5,
+                          border:
+                            activeTab === tab
+                              ? "1px solid rgba(249,115,22,0.3)"
+                              : "1px solid transparent",
+                          background:
+                            activeTab === tab
+                              ? "rgba(249,115,22,0.1)"
+                              : "transparent",
+                          color: activeTab === tab ? "#f97316" : "#4b5563",
+                          cursor: "pointer",
+                          transition: "all 180ms ease-out",
+                        }}
+                      >
                         {tab}
                       </button>
                     ))}
                   </div>
                   <div>
                     {activeTab === "output" && runOutput && !submitOutput && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "2px 8px", borderRadius: 4, display: "inline-block",
-                        ...(runOutput.outputType === "success" ? { background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: "#10b981" } : { background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" })
-                      }}>{runOutput.outputType === "success" ? "Accepted" : runOutput.errorType || "Error"}</span>
+                      <span
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 9,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          display: "inline-block",
+                          ...(runOutput.outputType === "success"
+                            ? {
+                                background: "rgba(16,185,129,0.1)",
+                                border: "1px solid rgba(16,185,129,0.25)",
+                                color: "#10b981",
+                              }
+                            : {
+                                background: "rgba(239,68,68,0.1)",
+                                border: "1px solid rgba(239,68,68,0.25)",
+                                color: "#ef4444",
+                              }),
+                        }}
+                      >
+                        {runOutput.outputType === "success"
+                          ? "Accepted"
+                          : runOutput.errorType || "Error"}
+                      </span>
                     )}
                     {activeTab === "output" && submitOutput && (
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280" }}>{submitOutput.passed}/{submitOutput.total} passed</span>
+                      <span
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 10,
+                          color: "#6b7280",
+                        }}
+                      >
+                        {submitOutput.passed}/{submitOutput.total} passed
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {/* Tab content */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
+                <div
+                  style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}
+                >
                   {activeTab === "testcase" ? (
                     <div>
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#4b5563", display: "block", marginBottom: 8 }}>Input</span>
+                      <span
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 9,
+                          fontWeight: 600,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "#4b5563",
+                          display: "block",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Input
+                      </span>
                       <textarea
                         value={stdinValue}
                         onChange={(e) => setStdinValue(e.target.value)}
-                        style={{ width: "100%", minHeight: 80, resize: "vertical", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: 8, padding: "10px 12px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#c9d1e0", lineHeight: 1.6, outline: "none", transition: "border-color 200ms" }}
-                        onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(249,115,22,0.3)"; }}
-                        onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
+                        style={{
+                          width: "100%",
+                          minHeight: 80,
+                          resize: "vertical",
+                          background: "rgba(255,255,255,0.02)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 12,
+                          color: "#c9d1e0",
+                          lineHeight: 1.6,
+                          outline: "none",
+                          transition: "border-color 200ms",
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor =
+                            "rgba(249,115,22,0.3)";
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor =
+                            "var(--border-subtle)";
+                        }}
                       />
-                      <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "#374151", fontStyle: "italic", marginTop: 6 }}>Edit input above to test custom cases</p>
+                      <p
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 9,
+                          color: "#374151",
+                          fontStyle: "italic",
+                          marginTop: 6,
+                        }}
+                      >
+                        Edit input above to test custom cases
+                      </p>
                     </div>
                   ) : (
                     <div>
                       {/* Running state */}
                       {(running || submitting) && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "24px 0", color: "#4b5563", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>
-                          <Loader2 size={13} className="spin" /> {submitting ? "Submitting…" : "Running…"}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                            padding: "24px 0",
+                            color: "#4b5563",
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: 11,
+                          }}
+                        >
+                          <Loader2 size={13} className="spin" />{" "}
+                          {submitting ? "Submitting…" : "Running…"}
                         </div>
                       )}
 
                       {/* Idle state */}
-                      {!running && !submitting && !runOutput && !submitOutput && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 0", color: "#374151", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontStyle: "italic" }}>
-                          Run your code to see output here
-                        </div>
-                      )}
+                      {!running &&
+                        !submitting &&
+                        !runOutput &&
+                        !submitOutput && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: "24px 0",
+                              color: "#374151",
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 11,
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Run your code to see output here
+                          </div>
+                        )}
 
                       {/* Run output */}
                       {!running && runOutput && !submitOutput && (
                         <div>
-                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "2px 8px", borderRadius: 4, display: "inline-block", marginBottom: 10,
-                            ...(runOutput.outputType === "success" ? { background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: "#10b981" } : { background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" })
-                          }}>{runOutput.outputType === "success" ? "Accepted" : runOutput.errorType || "Error"}</span>
-                          <pre style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, lineHeight: 1.6, color: runOutput.outputType === "success" ? "#10b981" : "#ef4444", whiteSpace: "pre-wrap", margin: 0, padding: 0 }}>
+                          <span
+                            style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 9,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                              display: "inline-block",
+                              marginBottom: 10,
+                              ...(runOutput.outputType === "success"
+                                ? {
+                                    background: "rgba(16,185,129,0.1)",
+                                    border: "1px solid rgba(16,185,129,0.25)",
+                                    color: "#10b981",
+                                  }
+                                : {
+                                    background: "rgba(239,68,68,0.1)",
+                                    border: "1px solid rgba(239,68,68,0.25)",
+                                    color: "#ef4444",
+                                  }),
+                            }}
+                          >
+                            {runOutput.outputType === "success"
+                              ? "Accepted"
+                              : runOutput.errorType || "Error"}
+                          </span>
+                          <pre
+                            style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 12,
+                              lineHeight: 1.6,
+                              color:
+                                runOutput.outputType === "success"
+                                  ? "#10b981"
+                                  : "#ef4444",
+                              whiteSpace: "pre-wrap",
+                              margin: 0,
+                              padding: 0,
+                            }}
+                          >
                             {runOutput.stdout || "(no output)"}
                           </pre>
                         </div>
@@ -3268,39 +3964,162 @@ export default function ProblemPage({
                         <div>
                           {/* Compile error */}
                           {submitOutput.compileError && (
-                            <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, padding: "10px 12px", marginBottom: 12 }}>
-                              <pre style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "#ef4444", whiteSpace: "pre-wrap", margin: 0 }}>{submitOutput.compileError}</pre>
+                            <div
+                              style={{
+                                background: "rgba(239,68,68,0.05)",
+                                border: "1px solid rgba(239,68,68,0.2)",
+                                borderRadius: 6,
+                                padding: "10px 12px",
+                                marginBottom: 12,
+                              }}
+                            >
+                              <pre
+                                style={{
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontSize: 11,
+                                  color: "#ef4444",
+                                  whiteSpace: "pre-wrap",
+                                  margin: 0,
+                                }}
+                              >
+                                {submitOutput.compileError}
+                              </pre>
                             </div>
                           )}
 
                           {/* Verdict header */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: submitOutput.accepted ? "#10b981" : "#ef4444" }}>
-                              {submitOutput.accepted ? "Accepted" : "Wrong Answer"}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              marginBottom: 12,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                color: submitOutput.accepted
+                                  ? "#10b981"
+                                  : "#ef4444",
+                              }}
+                            >
+                              {submitOutput.accepted
+                                ? "Accepted"
+                                : "Wrong Answer"}
                             </span>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280" }}>{submitOutput.passed} / {submitOutput.total} passed</span>
+                            <span
+                              style={{
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: 10,
+                                color: "#6b7280",
+                              }}
+                            >
+                              {submitOutput.passed} / {submitOutput.total}{" "}
+                              passed
+                            </span>
                           </div>
 
                           {/* Test case list */}
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 8,
+                            }}
+                          >
                             {submitOutput.results.map((r, i) => (
                               <div key={i}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: r.passed ? "#10b981" : "#ef4444", flexShrink: 0 }} />
-                                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: r.passed ? "#10b981" : "#ef4444" }}>
-                                    {r.isPublic ? `Test ${i + 1}` : "Hidden test"} — {r.passed ? "Accepted" : r.isPublic ? r.status : "Failed"}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: "50%",
+                                      background: r.passed
+                                        ? "#10b981"
+                                        : "#ef4444",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                  <span
+                                    style={{
+                                      fontFamily: "'IBM Plex Mono', monospace",
+                                      fontSize: 10,
+                                      color: r.passed ? "#10b981" : "#ef4444",
+                                    }}
+                                  >
+                                    {r.isPublic
+                                      ? `Test ${i + 1}`
+                                      : "Hidden test"}{" "}
+                                    —{" "}
+                                    {r.passed
+                                      ? "Accepted"
+                                      : r.isPublic
+                                        ? r.status
+                                        : "Failed"}
                                   </span>
                                 </div>
                                 {!r.passed && r.isPublic && (
-                                  <div style={{ paddingLeft: 14, marginTop: 4 }}>
-                                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280", margin: "2px 0" }}>Input: {r.displayInput || r.input || "—"}</p>
-                                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6b7280", margin: "2px 0" }}>Expected: {r.displayOutput || r.expected || "—"}</p>
-                                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#ef4444", margin: "2px 0" }}>Got: {r.got || "—"}</p>
+                                  <div
+                                    style={{ paddingLeft: 14, marginTop: 4 }}
+                                  >
+                                    <p
+                                      style={{
+                                        fontFamily:
+                                          "'IBM Plex Mono', monospace",
+                                        fontSize: 10,
+                                        color: "#6b7280",
+                                        margin: "2px 0",
+                                      }}
+                                    >
+                                      Input: {r.displayInput || r.input || "—"}
+                                    </p>
+                                    <p
+                                      style={{
+                                        fontFamily:
+                                          "'IBM Plex Mono', monospace",
+                                        fontSize: 10,
+                                        color: "#6b7280",
+                                        margin: "2px 0",
+                                      }}
+                                    >
+                                      Expected:{" "}
+                                      {r.displayOutput || r.expected || "—"}
+                                    </p>
+                                    <p
+                                      style={{
+                                        fontFamily:
+                                          "'IBM Plex Mono', monospace",
+                                        fontSize: 10,
+                                        color: "#ef4444",
+                                        margin: "2px 0",
+                                      }}
+                                    >
+                                      Got: {r.got || "—"}
+                                    </p>
                                   </div>
                                 )}
                                 {!r.passed && !r.isPublic && (
-                                  <p style={{ paddingLeft: 14, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#4b5563", marginTop: 4 }}>
-                                    A hidden test case is failing. Check edge cases.
+                                  <p
+                                    style={{
+                                      paddingLeft: 14,
+                                      fontFamily: "'IBM Plex Mono', monospace",
+                                      fontSize: 10,
+                                      color: "#4b5563",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    A hidden test case is failing. Check edge
+                                    cases.
                                   </p>
                                 )}
                               </div>
