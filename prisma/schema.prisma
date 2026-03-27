@@ -1,286 +1,336 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+  // This is your Prisma schema file,
+  // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+  // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+  // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-}
+  generator client {
+    provider = "prisma-client"
+    output   = "../generated/prisma"
+  }
 
-datasource db {
-  provider = "postgresql"
-}
+  datasource db {
+    provider = "postgresql"
+  }
 
-enum Role {
-  USER
-  ADMIN
-}
+  enum Role {
+    USER
+    ADMIN
+  }
 
-enum ConfidenceV2 {
-  LOW
-  MEDIUM
-  HIGH
-}
+  enum ConfidenceV2 {
+    LOW
+    MEDIUM
+    HIGH
+  }
 
-model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  role          Role @default(USER)
-  premium      Boolean @default(false)
-  interviewCredits Int @default(0)
-  userProblems  UserProblem[] 
-  roadmapCredits Int @default(0)
-  Interview    Interview[] 
-  expiresAt DateTime?
-  @@unique([email])
-  @@map("user")
-}
-
-
-
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([token])
-  @@index([userId])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@index([userId])
-  @@map("account")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
-}
+  model User {
+    id            String    @id
+    name          String
+    email         String
+    emailVerified Boolean   @default(false)
+    image         String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    sessions      Session[]
+    accounts      Account[]
+    role          Role @default(USER)
+    premium      Boolean @default(false)
+    interviewCredits Int @default(0)
+    userProblems  UserProblem[] 
+    roadmapCredits Int @default(0)
+    Interview    Interview[] 
+    expiresAt DateTime?
+    roadmaps     Roadmap[]
+  userRoadmaps UserRoadmap[]
+    @@unique([email])
+    @@map("user")
+  }
 
 
 
+  model Session {
+    id        String   @id
+    expiresAt DateTime
+    token     String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-enum Difficulty {
-  easy
-  medium
-  hard
-}
+    @@unique([token])
+    @@index([userId])
+    @@map("session")
+  }
 
-enum ExampleVisibility {
-  PRIVATE
+  model Account {
+    id                    String    @id
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
+
+    @@index([userId])
+    @@map("account")
+  }
+
+  model Verification {
+    id         String   @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@index([identifier])
+    @@map("verification")
+  }
+
+
+
+
+  enum Difficulty {
+    easy
+    medium
+    hard
+  }
+
+  enum ExampleVisibility {
+    PRIVATE
+    PUBLIC
+  }
+
+  model TestCase {
+    id String @id @default(cuid())
+    problemId String
+    input String
+    expectedOutput String
+    displayInput String?
+    displayOutput String?
+    order Int @default(1)
+
+    visibility ExampleVisibility @default(PRIVATE)
+    problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  }
+
+
+
+  model Problem {
+    id          String   @id @default(cuid())
+    title       String
+    slug        String   @unique
+    description String?
+    tags        String[]
+    companies   String[]
+    difficulty  Difficulty
+    isPublic    Boolean  @default(true)
+    isActive    Boolean  @default(true)
+    link        String
+    examples   Json?
+    editorial String?
+    aiHints String?
+    inputFormat Json?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    // relation
+    sectionProblems SectionProblem[]
+    userProblems    UserProblem[]
+    testCases    TestCase[]
+  }
+
+  /* ================= SHEET ================= */
+
+  model Sheet {
+    id          String   @id @default(cuid())
+    title       String
+    description String?
+    slug        String   @unique
+
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // relation
+    sections    SheetSection[]
+  }
+
+  /* ================= SECTION ================= */
+
+  model SheetSection {
+    id          String   @id @default(cuid())
+    title       String
+    description String?
+    order       Int
+
+    sheetId     String
+    sheet       Sheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+    // relation
+    problems    SectionProblem[]
+
+    @@index([sheetId, order])
+  }
+
+  /* ================= SECTION PROBLEM ================= */
+
+  model SectionProblem {
+    id         String @id @default(cuid())
+
+    sectionId  String
+    problemId  String
+
+    order      Int 
+    note       String?
+
+    section    SheetSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+    problem    Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+    @@unique([sectionId, problemId])
+    @@index([sectionId, order])
+  }
+
+
+
+  model UserProblem {
+    id          String   @id @default(cuid())
+    userId      String
+    problemId   String
+
+    solved      Boolean  @default(false)
+    
+    attempts    Int      @default(0)
+    revision   Int @default(0)
+    interval    Int      @default(1)
+    nextAttempt DateTime?
+    solvedAt    DateTime?
+    updatedAt DateTime @updatedAt @default(now())
+    notes       String?
+
+    bookmark Boolean @default(false)
+    confidenceV2 ConfidenceV2 @default(LOW)
+    problemHardness Int @default(1)
+
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, problemId])
+  }
+
+
+  model Suggestion {
+    id        String   @id @default(cuid())
+
+    message   String   @db.Text
+
+    importance String  // feature | pain | must | nice
+
+    createdAt DateTime @default(now())
+  }
+
+
+
+
+  model Interview {
+    id          String    @id @default(cuid())
+    userId      String
+    user        User      @relation(fields: [userId], references: [id])
+
+    mode        String    // 'dsa' | 'technical' | 'hr'
+    status      String    @default("notStarted") // 'processing' | 'ready' | 'failed' \ 'notStarted
+
+    startedAt   DateTime  @default(now())
+    completedAt DateTime?
+    difficulty String?  // 
+    
+    feedback    InterviewFeedback?
+    company String @default("Generic")
+
+    questionLimit  Int?      // null for DSA, number for technical/hr
+    resumeKeywords String[]  // empty array for dsa/hr, populated for technical
+
+    @@index([userId])
+  }
+
+
+
+  model InterviewFeedback {
+    id              String    @id @default(cuid())
+    interviewId     String    @unique
+    interview       Interview @relation(fields: [interviewId], references: [id] , onDelete: Cascade)
+
+    overallScore    Float
+
+    // your feedback dimensions
+    confidence      Json      // { score: 7, summary: "..." }
+    depthReview     Json      // { score: 8, summary: "..." }
+    englishQuality  Json      // { score: 9, summary: "..." }
+    technicalAccuracy Json?   // only for dsa/technical modes
+    starStructure   Json?     // only for hr mode
+
+    strongAreas     String[]
+    weakAreas       String[]
+    recommendations String[]
+    transcript     String[]
+
+    createdAt       DateTime  @default(now())
+  }
+
+  enum STATUS {
   PUBLIC
+  PRIVATE
 }
 
-model TestCase {
-  id String @id @default(cuid())
-  problemId String
-  input String
-  expectedOutput String
-  displayInput String?
-  displayOutput String?
-  order Int @default(1)
-
-  visibility ExampleVisibility @default(PRIVATE)
-  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
-
+enum PREPLEVEL {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
 }
 
-
-
-model Problem {
-  id          String   @id @default(cuid())
-  title       String
-  slug        String   @unique
-  description String?
-  tags        String[]
-  companies   String[]
-  difficulty  Difficulty
-  isPublic    Boolean  @default(true)
-  isActive    Boolean  @default(true)
-  link        String
-  examples   Json?
-  editorial String?
-  aiHints String?
-  inputFormat Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  // relation
-  sectionProblems SectionProblem[]
-  userProblems    UserProblem[]
-  testCases    TestCase[]
-}
-
-/* ================= SHEET ================= */
-
-model Sheet {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  slug        String   @unique
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // relation
-  sections    SheetSection[]
-}
-
-/* ================= SECTION ================= */
-
-model SheetSection {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  order       Int
-
-  sheetId     String
-  sheet       Sheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
-
-  // relation
-  problems    SectionProblem[]
-
-  @@index([sheetId, order])
-}
-
-/* ================= SECTION PROBLEM ================= */
-
-model SectionProblem {
-  id         String @id @default(cuid())
-
-  sectionId  String
-  problemId  String
-
-  order      Int 
-  note       String?
-
-  section    SheetSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  problem    Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
-
-  @@unique([sectionId, problemId])
-  @@index([sectionId, order])
-}
-
-
-
-model UserProblem {
-  id          String   @id @default(cuid())
-  userId      String
-  problemId   String
-
-  solved      Boolean  @default(false)
-  
-  attempts    Int      @default(0)
-  revision   Int @default(0)
-  interval    Int      @default(1)
-  nextAttempt DateTime?
-  solvedAt    DateTime?
-  updatedAt DateTime @updatedAt @default(now())
-  notes       String?
-
-  bookmark Boolean @default(false)
-  confidenceV2 ConfidenceV2 @default(LOW)
-  problemHardness Int @default(1)
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, problemId])
-}
-
-
-model Suggestion {
-  id        String   @id @default(cuid())
-
-  message   String   @db.Text
-
-  importance String  // feature | pain | must | nice
-
-  createdAt DateTime @default(now())
-}
-
-
-
-
-model Interview {
+model Roadmap {
   id          String    @id @default(cuid())
+  title       String
+  description String
+  company     String
+  prepLevel   PREPLEVEL
+  status      STATUS    @default(PRIVATE)
+  data        Json
+  createdAt   DateTime  @default(now())
+
   userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  mode        String    // 'dsa' | 'technical' | 'hr'
-  status      String    @default("notStarted") // 'processing' | 'ready' | 'failed' \ 'notStarted
-
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  difficulty String?  // 
-  
-  feedback    InterviewFeedback?
-  company String @default("Generic")
-
-  questionLimit  Int?      // null for DSA, number for technical/hr
-  resumeKeywords String[]  // empty array for dsa/hr, populated for technical
+  userRoadmaps UserRoadmap[]
 
   @@index([userId])
+  @@map("roadmap")
 }
 
+model UserRoadmap {
+  id          String    @id @default(cuid())
+  roadmapId   String
+  userId      String
+  startedAt   DateTime  @default(now())
+  currentWeek Int       @default(1)
+  currentDay  Int       @default(1)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
 
+  interviewAttempted Boolean @default(false)
+  roadmap     Roadmap   @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)  // ← this was missing
 
-model InterviewFeedback {
-  id              String    @id @default(cuid())
-  interviewId     String    @unique
-  interview       Interview @relation(fields: [interviewId], references: [id] , onDelete: Cascade)
-
-  overallScore    Float
-
-  // your feedback dimensions
-  confidence      Json      // { score: 7, summary: "..." }
-  depthReview     Json      // { score: 8, summary: "..." }
-  englishQuality  Json      // { score: 9, summary: "..." }
-  technicalAccuracy Json?   // only for dsa/technical modes
-  starStructure   Json?     // only for hr mode
-
-  strongAreas     String[]
-  weakAreas       String[]
-  recommendations String[]
-  transcript     String[]
-
-  createdAt       DateTime  @default(now())
+  @@unique([userId, roadmapId])
+  @@index([userId])
+  @@map("user_roadmap")
 }
-
