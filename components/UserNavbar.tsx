@@ -15,6 +15,7 @@ const navItems = [
   { label: "Sheets", href: "/sheets" },
   { label: "Interview", href: "/interview" },
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Roadmap", href: "/roadmap" },
 ];
 
 export default function UserNavbar({
