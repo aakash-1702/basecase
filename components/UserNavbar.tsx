@@ -48,12 +48,15 @@ export default function UserNavbar({
     <nav
       className={`sticky top-0 z-50 w-full transition-[background,border] duration-300 ${
         scrolled
-          ? "bg-background/85 backdrop-blur-xl border-b border-border"
-          : "bg-transparent border-b border-transparent"
+          ? "bg-zinc-950/92 backdrop-blur-xl border-b border-zinc-800"
+          : "bg-zinc-950/84 backdrop-blur-md border-b border-zinc-800/80"
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link href="/" className="font-mono font-bold text-lg tracking-tight">
+        <Link
+          href="/"
+          className="font-mono font-bold text-lg tracking-tight text-white"
+        >
           Base<span className="text-orange-500">Case</span>
           <span className="text-orange-500 text-xl leading-none">.</span>
         </Link>
@@ -63,7 +66,7 @@ export default function UserNavbar({
             <Link
               key={item.href}
               href={item.href}
-              className="text-sm text-muted-foreground hover:text-white transition-colors"
+              className="text-sm text-zinc-400 hover:text-white transition-colors"
             >
               {item.label}
             </Link>
@@ -76,13 +79,18 @@ export default function UserNavbar({
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+              className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white transition-colors hover:border-zinc-400 hover:bg-zinc-800 hover:text-white"
             >
               <LogOut className="h-4 w-4" /> Log out
             </Button>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="text-zinc-200 hover:bg-zinc-800 hover:text-white"
+              >
                 <Link href="/auth/sign-in">Sign In</Link>
               </Button>
               <Button
@@ -113,18 +121,21 @@ export default function UserNavbar({
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 bg-card border-border">
+          <SheetContent
+            side="left"
+            className="w-72 bg-zinc-950 border-zinc-800 text-zinc-100"
+          >
             <div className="pt-8 flex h-full flex-col">
               <div className="px-1 pb-6 font-mono font-bold text-lg tracking-tight">
                 Base<span className="text-orange-500">Case</span>
                 <span className="text-orange-500 text-xl leading-none">.</span>
               </div>
-              <div className="flex flex-col border-t border-border">
+              <div className="flex flex-col border-t border-zinc-800">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="py-3 border-b border-border text-sm text-muted-foreground hover:text-white transition-colors"
+                    className="py-3 border-b border-zinc-800 text-sm text-zinc-400 hover:text-white transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -136,13 +147,18 @@ export default function UserNavbar({
                     variant="outline"
                     size="sm"
                     onClick={handleLogout}
-                    className="justify-center border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+                    className="justify-center border-zinc-500 bg-zinc-900/70 text-white transition-colors hover:border-zinc-400 hover:bg-zinc-800 hover:text-white"
                   >
                     <LogOut className="h-4 w-4 mr-1.5" /> Log out
                   </Button>
                 ) : (
                   <>
-                    <Button asChild variant="outline" size="sm">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800"
+                    >
                       <Link href="/auth/sign-in">Sign In</Link>
                     </Button>
                     <Button

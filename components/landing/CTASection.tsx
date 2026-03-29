@@ -106,8 +106,8 @@ export default function CTASection() {
                 }}
                 whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
               >
-                <Card className="glow-hover bg-zinc-950 border-zinc-800 p-5 sm:p-6 h-full flex flex-col">
-                  <CardContent className="p-6">
+                <Card className="glow-hover bg-zinc-950 border-zinc-800 h-full flex flex-col">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex gap-0.5 mb-4">
                       {Array(5)
                         .fill(0)
@@ -173,7 +173,7 @@ export default function CTASection() {
                 <CardContent className="p-6">
                   <p className="font-semibold">Free</p>
                   <div className="mt-6 mb-6 pb-6 border-b border-zinc-800">
-                    <span className="font-mono font-bold text-3xl sm:text-4xl text-white">
+                    <span className="font-mono font-bold text-2xl sm:text-3xl md:text-4xl text-white">
                       ₹0
                     </span>
                     <span className="text-zinc-500 text-sm ml-2">
@@ -209,7 +209,7 @@ export default function CTASection() {
                   <p className="font-semibold">Pro</p>
                   <div className="mt-6 mb-6 pb-6 border-b border-zinc-800/60">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-mono font-bold text-3xl sm:text-4xl text-orange-400">
+                      <span className="font-mono font-bold text-2xl sm:text-3xl md:text-4xl text-orange-400">
                         ₹299
                       </span>
                       <span className="text-zinc-600 text-sm line-through">

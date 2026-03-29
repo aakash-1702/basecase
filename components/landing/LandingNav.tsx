@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Command, LogOut, Menu, X } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
@@ -10,10 +10,10 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const navItems = [
-  { label: "DSA Sheets", href: "#sheets", sectionId: "sheets" },
-  { label: "Problems", href: "#problems", sectionId: "problems" },
-  { label: "Roadmap", href: "#roadmap", sectionId: "roadmap" },
-  { label: "Mock Interview", href: "#interview", sectionId: "interview" },
+  { label: "DSA Sheets", href: "/sheets" },
+  { label: "Problems", href: "/problems" },
+  { label: "Roadmap", href: "/roadmap" },
+  { label: "Mock Interview", href: "/interview" },
   { label: "Dashboard", href: "/dashboard" },
 ];
 
@@ -22,13 +22,7 @@ export default function LandingNav() {
   const { data: session } = useSession();
   const [scrolled, setScrolled] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("home");
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
-
-  const sectionIds = useMemo(
-    () => ["home", "problems", "sheets", "interview", "roadmap"],
-    [],
-  );
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 16);
@@ -56,44 +50,20 @@ export default function LandingNav() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useEffect(() => {
-    const updateActive = () => {
-      let current = "home";
-      for (const id of sectionIds) {
-        const element = document.getElementById(id);
-        if (element && window.scrollY >= element.offsetTop - 140) {
-          current = id;
-        }
-      }
-      setActiveSection(current);
-    };
-
-    updateActive();
-    window.addEventListener("scroll", updateActive, { passive: true });
-    return () => window.removeEventListener("scroll", updateActive);
-  }, [sectionIds]);
-
   const dismissAnnouncement = () => {
     setAnnouncementDismissed(true);
     localStorage.setItem("bc_announcement_dismissed", "1");
   };
 
   const paletteItems = [
-    { label: "Go to Sheets", href: "#sheets", hint: "G S" },
-    { label: "Start Mock Interview", href: "#interview", hint: "G I" },
-    { label: "View Roadmap", href: "#roadmap", hint: "G R" },
-    { label: "Browse Problems", href: "#problems", hint: "G P" },
+    { label: "Go to Sheets", href: "/sheets", hint: "G S" },
+    { label: "Start Mock Interview", href: "/interview", hint: "G I" },
+    { label: "View Roadmap", href: "/roadmap", hint: "G R" },
+    { label: "Browse Problems", href: "/problems", hint: "G P" },
   ];
 
   const onPaletteSelect = (href: string) => {
     setPaletteOpen(false);
-    if (href.startsWith("#")) {
-      const target = document.querySelector(href);
-      if (target instanceof HTMLElement) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-      return;
-    }
     router.push(href);
   };
 
@@ -142,22 +112,13 @@ export default function LandingNav() {
 
           <div className="hidden md:flex items-center gap-7">
             {navItems.map((item) => {
-              const isActive =
-                item.sectionId && activeSection === item.sectionId;
               return (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`relative pb-1 text-sm transition-colors ${
-                    isActive
-                      ? "text-white"
-                      : "text-muted-foreground hover:text-white"
-                  }`}
+                  className="relative pb-1 text-sm text-muted-foreground transition-colors hover:text-white"
                 >
                   {item.label}
-                  {isActive && (
-                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full bg-orange-500" />
-                  )}
                 </Link>
               );
             })}
@@ -177,7 +138,7 @@ export default function LandingNav() {
                 variant="outline"
                 size="sm"
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+                className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white transition-colors hover:border-zinc-400 hover:bg-zinc-800 hover:text-white"
               >
                 <LogOut className="h-4 w-4" />
                 Log out
@@ -245,7 +206,7 @@ export default function LandingNav() {
                       variant="outline"
                       size="sm"
                       onClick={handleLogout}
-                      className="w-full justify-center border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+                      className="w-full justify-center border-zinc-500 bg-zinc-900/70 text-white transition-colors hover:border-zinc-400 hover:bg-zinc-800 hover:text-white"
                     >
                       <LogOut className="h-4 w-4 mr-1.5" />
                       Log out

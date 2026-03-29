@@ -1,7 +1,6 @@
 import LandingNav from "@/components/landing/LandingNav";
 import HeroSection from "@/components/landing/HeroSection";
 import TickerSection from "@/components/landing/TickerSection";
-import DifficultyDistribution from "@/components/landing/DifficultyDistribution";
 import ProblemsSection from "@/components/landing/ProblemsSection";
 import TagsBanner from "@/components/landing/TagsBanner";
 import SheetsSection from "@/components/landing/SheetsSection";
@@ -20,7 +19,6 @@ export default function LandingPage() {
       <LandingNav />
       <HeroSection />
       <TickerSection />
-      <DifficultyDistribution />
       <ProblemsSection />
       <TagsBanner />
       <SheetsSection />
