@@ -1,47 +1,309 @@
-import useScrollReveal from "@/hooks/useScrollReveal";
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Command, LogOut, Menu, X } from "lucide-react";
+import { signOut, useSession } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+
+const navItems = [
+  { label: "DSA Sheets", href: "#sheets", sectionId: "sheets" },
+  { label: "Problems", href: "#problems", sectionId: "problems" },
+  { label: "Roadmap", href: "#roadmap", sectionId: "roadmap" },
+  { label: "Mock Interview", href: "#interview", sectionId: "interview" },
+  { label: "Dashboard", href: "/dashboard" },
+];
 
 export default function LandingNav() {
-  const ref = useScrollReveal();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [scrolled, setScrolled] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("home");
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+
+  const sectionIds = useMemo(
+    () => ["home", "problems", "sheets", "interview", "roadmap"],
+    [],
+  );
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 16);
+    handler();
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("bc_announcement_dismissed");
+    if (stored === "1") {
+      setAnnouncementDismissed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const updateActive = () => {
+      let current = "home";
+      for (const id of sectionIds) {
+        const element = document.getElementById(id);
+        if (element && window.scrollY >= element.offsetTop - 140) {
+          current = id;
+        }
+      }
+      setActiveSection(current);
+    };
+
+    updateActive();
+    window.addEventListener("scroll", updateActive, { passive: true });
+    return () => window.removeEventListener("scroll", updateActive);
+  }, [sectionIds]);
+
+  const dismissAnnouncement = () => {
+    setAnnouncementDismissed(true);
+    localStorage.setItem("bc_announcement_dismissed", "1");
+  };
+
+  const paletteItems = [
+    { label: "Go to Sheets", href: "#sheets", hint: "G S" },
+    { label: "Start Mock Interview", href: "#interview", hint: "G I" },
+    { label: "View Roadmap", href: "#roadmap", hint: "G R" },
+    { label: "Browse Problems", href: "#problems", hint: "G P" },
+  ];
+
+  const onPaletteSelect = (href: string) => {
+    setPaletteOpen(false);
+    if (href.startsWith("#")) {
+      const target = document.querySelector(href);
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
+    router.push(href);
+  };
+
+  const handleLogout = async () => {
+    await signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/");
+          router.refresh();
+        },
+      },
+    });
+  };
 
   return (
-    <nav
-      ref={ref}
-      className="fixed top-0 w-full h-16 bg-neutral-950/80 backdrop-blur-xl border-b border-neutral-800/60 flex items-center justify-between px-6 z-50"
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 bg-[#f97316] rounded-md flex items-center justify-center">
-          <span className="text-[9px] font-black text-black">BC</span>
+    <>
+      {!announcementDismissed && (
+        <div className="bg-orange-500/10 border-b border-orange-500/20 py-2 px-4 flex items-center justify-center gap-3 text-xs text-orange-300">
+          <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">
+            NEW
+          </span>
+          <span>AI Roadmap Generator is now live - powered by Gemini</span>
+          <ArrowRight className="w-3 h-3" />
+          <button
+            onClick={dismissAnnouncement}
+            className="ml-auto text-orange-400/60 hover:text-orange-400 transition-colors"
+            aria-label="Dismiss announcement"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <span className="text-base font-bold text-white font-[Syne]">
-          Basecase
-        </span>
-      </div>
+      )}
 
-      {/* Navigation Links */}
-      <div className="flex items-center gap-6">
-        <a href="#" className="text-neutral-500 hover:text-white text-[13px]">
-          Problems
-        </a>
-        <a href="#" className="text-neutral-500 hover:text-white text-[13px]">
-          Sheets
-        </a>
-        <a href="#" className="text-neutral-500 hover:text-white text-[13px]">
-          Practice
-        </a>
-        <a href="#" className="text-neutral-500 hover:text-white text-[13px]">
-          Community
-        </a>
-        <a href="#" className="text-neutral-500 hover:text-white text-[13px]">
-          Sign In
-        </a>
-        <a
-          href="#"
-          className="bg-amber-500 text-black font-bold rounded-lg px-4 py-2 text-[13px]"
-        >
-          Start Free →
-        </a>
-      </div>
-    </nav>
+      <nav
+        className={`sticky top-0 z-50 w-full transition-[background,border] duration-300 ${
+          scrolled
+            ? "bg-background/85 backdrop-blur-xl border-b border-border"
+            : "bg-transparent border-b border-transparent"
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="font-mono font-bold text-lg tracking-tight">
+            Base<span className="text-orange-500">Case</span>
+            <span className="text-orange-500 text-xl leading-none">.</span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-7">
+            {navItems.map((item) => {
+              const isActive =
+                item.sectionId && activeSection === item.sectionId;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`relative pb-1 text-sm transition-colors ${
+                    isActive
+                      ? "text-white"
+                      : "text-muted-foreground hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                  {isActive && (
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full bg-orange-500" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPaletteOpen(true)}
+              className="font-mono text-xs text-zinc-100 bg-zinc-900/70 border-zinc-600 hover:bg-zinc-800 hover:text-white"
+            >
+              <Command className="h-3.5 w-3.5" /> K
+            </Button>
+            {session?.user ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+              >
+                <LogOut className="h-4 w-4" />
+                Log out
+              </Button>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800"
+                >
+                  <Link href="/auth/sign-in">Sign In</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className="group gap-1.5 bg-white text-black hover:bg-zinc-100"
+                >
+                  <Link
+                    href="/auth/sign-up"
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    Get Started
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </Button>
+              </>
+            )}
+          </div>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                className="md:hidden"
+                variant="ghost"
+                size="icon"
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 bg-card border-border">
+              <div className="pt-8 flex h-full flex-col">
+                <div className="px-1 pb-6 font-mono font-bold text-lg tracking-tight">
+                  Base<span className="text-orange-500">Case</span>
+                  <span className="text-orange-500 text-xl leading-none">
+                    .
+                  </span>
+                </div>
+                <div className="flex flex-col border-t border-border">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="py-3 border-b border-border text-sm text-muted-foreground hover:text-white transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+                <div className="pt-4 flex flex-col gap-2">
+                  {session?.user ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="w-full justify-center border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+                    >
+                      <LogOut className="h-4 w-4 mr-1.5" />
+                      Log out
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800"
+                      >
+                        <Link href="/auth/sign-in">Sign In</Link>
+                      </Button>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="w-full group bg-white text-black hover:bg-zinc-100"
+                      >
+                        <Link
+                          href="/auth/sign-up"
+                          className="inline-flex items-center justify-center gap-1.5"
+                        >
+                          Get Started
+                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                        </Link>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </nav>
+
+      <Dialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+        <DialogContent className="max-w-xl border-zinc-800 bg-zinc-950 p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Command Palette</DialogTitle>
+          <div className="border-b border-zinc-800 px-4 py-3 font-mono text-xs text-zinc-500">
+            BaseCase Command Palette
+          </div>
+          <div className="p-2">
+            {paletteItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => onPaletteSelect(item.href)}
+                className="w-full rounded-md px-3 py-2.5 text-left flex items-center justify-between hover:bg-zinc-900 transition-colors"
+              >
+                <span className="text-sm text-zinc-200">{item.label}</span>
+                <span className="font-mono text-[11px] text-zinc-500">
+                  {item.hint}
+                </span>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -1,21 +1,19 @@
-// components/UserNavbar.tsx
 "use client";
 
-import React from "react";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { LogOut } from "lucide-react";
-import { signOut } from "@/lib/auth-client";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, LogOut, Menu } from "lucide-react";
+import { signOut, useSession } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-import { useSession } from "@/lib/auth-client";
 const navItems = [
+  { label: "DSA Sheets", href: "/sheets" },
   { label: "Problems", href: "/problems" },
-  { label: "Sheets", href: "/sheets" },
-  { label: "Interview", href: "/interview" },
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Roadmap", href: "/roadmap" },
+  { label: "Mock Interview", href: "/interview" },
+  { label: "Dashboard", href: "/dashboard" },
 ];
 
 export default function UserNavbar({
@@ -26,6 +24,14 @@ export default function UserNavbar({
   const router = useRouter();
   const { data: sessionFromHook } = useSession();
   const session = sessionProp ?? sessionFromHook;
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 16);
+    handler();
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   const handleLogout = async () => {
     await signOut({
@@ -40,102 +46,124 @@ export default function UserNavbar({
 
   return (
     <nav
-      className={cn(
-        "sticky top-0 z-50 w-full border-b border-amber-900/30",
-        "bg-neutral-950/75 backdrop-blur-xl backdrop-saturate-125",
-        "transition-all duration-300",
-      )}
+      className={`sticky top-0 z-50 w-full transition-[background,border] duration-300 ${
+        scrolled
+          ? "bg-background/85 backdrop-blur-xl border-b border-border"
+          : "bg-transparent border-b border-transparent"
+      }`}
     >
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6 sm:px-6 lg:px-8">
-        {/* Logo */}
-        <Link
-          href="/"
-          className={cn(
-            "group flex items-center gap-1.5 text-xl font-bold tracking-tight",
-            "text-white transition-all duration-300 ease-out",
-            "hover:scale-105 hover:text-amber-400/90 active:scale-100",
-          )}
-        >
-          Base
-          <span className="text-amber-500/90 transition-colors duration-300 ease-out group-hover:text-amber-400">
-            Case
-          </span>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <Link href="/" className="font-mono font-bold text-lg tracking-tight">
+          Base<span className="text-orange-500">Case</span>
+          <span className="text-orange-500 text-xl leading-none">.</span>
         </Link>
 
-        {/* Nav links */}
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden md:flex items-center gap-6">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "group relative px-1 py-1.5 text-sm font-medium text-neutral-300",
-                "transition-all duration-300 ease-out",
-                "hover:text-white hover:-translate-y-0.5",
-              )}
+              className="text-sm text-muted-foreground hover:text-white transition-colors"
             >
               {item.label}
-              <span
-                className={cn(
-                  "absolute bottom-0 left-1/2 h-0.5 w-0 -translate-x-1/2",
-                  "bg-linear-to-r from-amber-500 to-orange-600 rounded-full",
-                  "transition-all duration-400 ease-out group-hover:w-3/4 group-hover:opacity-100",
-                  "opacity-70",
-                )}
-              />
             </Link>
           ))}
         </div>
 
-        {/* Auth / User section */}
-        <div className="flex items-center gap-3 pr-2 sm:pr-4 lg:pr-6">
+        <div className="hidden md:flex items-center gap-2">
           {session?.user ? (
             <Button
+              variant="outline"
+              size="sm"
               onClick={handleLogout}
-              variant="ghost"
-              className={cn(
-                "gap-2 px-5 sm:px-6 py-2 text-sm font-medium text-neutral-300",
-                "transition-all duration-300 ease-out",
-                "hover:bg-rose-950/30 hover:text-rose-300 hover:border-rose-800/40 hover:shadow-sm",
-                "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-                "border border-transparent",
-                "min-w-25",
-              )}
+              className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
             >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <LogOut className="h-4 w-4" /> Log out
             </Button>
           ) : (
             <>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "px-5 text-neutral-300 text-sm font-medium",
-                  "transition-all duration-300 ease-out",
-                  "hover:bg-amber-950/30 hover:text-amber-200 hover:-translate-y-0.5",
-                  "active:translate-y-0 active:scale-[0.98]",
-                )}
-                asChild
-              >
+              <Button asChild variant="ghost" size="sm">
                 <Link href="/auth/sign-in">Sign In</Link>
               </Button>
-
               <Button
-                className={cn(
-                  "bg-linear-to-r from-amber-600 to-orange-600",
-                  "hover:from-amber-500 hover:to-orange-500",
-                  "px-6 py-1.5 text-sm font-semibold shadow-sm shadow-amber-900/30",
-                  "transition-all duration-300 ease-out",
-                  "hover:shadow-md hover:shadow-amber-800/40",
-                  "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-                )}
                 asChild
+                size="sm"
+                className="group gap-1.5 bg-white text-black hover:bg-zinc-100"
               >
-                <Link href="/auth/sign-up">Get Started</Link>
+                <Link
+                  href="/auth/sign-up"
+                  className="inline-flex items-center gap-1.5"
+                >
+                  Get Started{" "}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
               </Button>
             </>
           )}
         </div>
+
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              className="md:hidden"
+              variant="ghost"
+              size="icon"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 bg-card border-border">
+            <div className="pt-8 flex h-full flex-col">
+              <div className="px-1 pb-6 font-mono font-bold text-lg tracking-tight">
+                Base<span className="text-orange-500">Case</span>
+                <span className="text-orange-500 text-xl leading-none">.</span>
+              </div>
+              <div className="flex flex-col border-t border-border">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="py-3 border-b border-border text-sm text-muted-foreground hover:text-white transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+              <div className="pt-4 flex flex-col gap-2">
+                {session?.user ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="justify-center border-zinc-500 bg-zinc-900/70 text-white hover:bg-zinc-800"
+                  >
+                    <LogOut className="h-4 w-4 mr-1.5" /> Log out
+                  </Button>
+                ) : (
+                  <>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/auth/sign-in">Sign In</Link>
+                    </Button>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="w-full group bg-white text-black hover:bg-zinc-100"
+                    >
+                      <Link
+                        href="/auth/sign-up"
+                        className="inline-flex items-center justify-center gap-1.5"
+                      >
+                        Get Started{" "}
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </nav>
   );
