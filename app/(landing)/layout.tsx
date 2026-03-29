@@ -19,13 +19,12 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Basecase — Master DSA Through Code",
+  title: "BaseCase - Structured DSA Learning & AI Interview Prep",
   description:
-    "500+ handpicked DSA problems, curated sheets, streaks and leaderboards. Stop reading tutorials. Start solving.",
+    "500+ curated DSA problems, SM-2 spaced repetition, AI voice mock interviews powered by Gemini. Stop grinding randomly.",
   openGraph: {
-    title: "Basecase — Master DSA Through Code",
-    description:
-      "500+ handpicked DSA problems, curated sheets, streaks and leaderboards. Stop reading tutorials. Start solving.",
+    title: "BaseCase",
+    description: "Structured DSA learning that actually works.",
     url: "https://basecase.example.com",
     images: [
       {
@@ -38,10 +37,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Basecase — Master DSA Through Code",
-    description:
-      "500+ handpicked DSA problems, curated sheets, streaks and leaderboards. Stop reading tutorials. Start solving.",
+    title: "BaseCase",
+    description: "Structured DSA learning that actually works.",
     images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
   },
 };
 
