@@ -3,15 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 const feed = [
-  { initials: "AK", problem: "Two Sum", difficulty: "Easy" },
-  {
-    initials: "PS",
-    problem: "Longest Substring Without Repeating",
-    difficulty: "Medium",
-  },
-  { initials: "RM", problem: "Merge Intervals", difficulty: "Medium" },
-  { initials: "DV", problem: "Valid Parentheses", difficulty: "Easy" },
-  { initials: "SK", problem: "Number of Islands", difficulty: "Hard" },
+  { initials: "AK", problem: "Two Sum", difficulty: "Easy", color: "text-emerald-400" },
+  { initials: "PS", problem: "Longest Substring Without Repeating", difficulty: "Medium", color: "text-amber-400" },
+  { initials: "RM", problem: "Merge Intervals", difficulty: "Medium", color: "text-amber-400" },
+  { initials: "DV", problem: "Valid Parentheses", difficulty: "Easy", color: "text-emerald-400" },
+  { initials: "SK", problem: "Number of Islands", difficulty: "Hard", color: "text-rose-400" },
 ];
 
 export default function RecentlySolvedFeed() {
@@ -21,21 +17,18 @@ export default function RecentlySolvedFeed() {
   useEffect(() => {
     let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const initialTimer = setTimeout(() => {
+    const show = () => {
       setVisible(true);
       hideTimer = setTimeout(() => {
         setVisible(false);
-        setIndex((prev) => (prev + 1) % feed.length);
+        setTimeout(() => {
+          setIndex((prev) => (prev + 1) % feed.length);
+        }, 400); // wait for exit animation
       }, 5000);
-    }, 3000);
+    };
 
-    const cycleTimer = setInterval(() => {
-      setVisible(true);
-      hideTimer = setTimeout(() => {
-        setVisible(false);
-        setIndex((prev) => (prev + 1) % feed.length);
-      }, 5000);
-    }, 8000);
+    const initialTimer = setTimeout(show, 3000);
+    const cycleTimer = setInterval(show, 8000);
 
     return () => {
       clearTimeout(initialTimer);
@@ -46,17 +39,26 @@ export default function RecentlySolvedFeed() {
 
   const item = useMemo(() => feed[index], [index]);
 
-  if (!visible) return null;
-
   return (
-    <div className="fixed bottom-4 left-4 z-50 hidden sm:flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-      <div className="h-7 w-7 rounded-full bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-300 flex items-center justify-center">
+    <div
+      className={`fixed bottom-4 left-4 z-50 hidden sm:flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/95 backdrop-blur-sm px-3.5 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-all duration-400 ${
+        visible
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 translate-y-3 pointer-events-none"
+      }`}
+    >
+      <div className="h-7 w-7 rounded-full bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-300 flex items-center justify-center shrink-0">
         {item.initials}
       </div>
-      <p className="font-mono text-xs text-zinc-400">
-        <span className="text-zinc-200">just solved</span> {item.problem} ·{" "}
-        {item.difficulty}
-      </p>
+      <div className="flex flex-col">
+        <p className="font-mono text-xs text-zinc-300 leading-tight">
+          <span className="text-zinc-500">just solved</span>{" "}
+          {item.problem}
+        </p>
+        <span className={`text-[10px] font-mono ${item.color}`}>
+          {item.difficulty}
+        </span>
+      </div>
     </div>
   );
 }

@@ -6,8 +6,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Dashboard — BaseCase",
-  description: "Track your coding progress, revision schedule, and sheet completion.",
+  title: "Dashboard",
+  description:
+    "Track your coding progress, revision schedule, and sheet completion.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 const page = async () => {
@@ -47,4 +52,3 @@ const page = async () => {
 };
 
 export default page;
-

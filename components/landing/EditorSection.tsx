@@ -172,7 +172,7 @@ export default function EditorSection() {
 
                     <Badge
                       variant="outline"
-                      className={`text-[10px] px-1.5 py-0 hidden sm:flex ${
+                      className={`text-[10px] px-1 sm:px-1.5 py-0 ${
                         row.difficulty === "Easy"
                           ? "border-green-500/20 text-green-400 bg-green-400/5"
                           : row.difficulty === "Medium"

@@ -102,7 +102,7 @@ export default function GamificationSection() {
                   key={s.label}
                   className="flex items-center gap-3 mb-2.5 last:mb-0"
                 >
-                  <span className="text-zinc-500 text-xs w-32 shrink-0">
+                  <span className="text-zinc-500 text-xs w-20 sm:w-32 shrink-0">
                     {s.label}
                   </span>
                   <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">

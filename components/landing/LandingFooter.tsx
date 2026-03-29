@@ -15,28 +15,21 @@ export default function LandingFooter() {
               DSA learning and interview prep for engineers who want structure,
               not noise.
             </p>
-            <div className="mt-4 flex items-center gap-3 text-zinc-600">
-              <Link
-                href="#"
-                aria-label="GitHub"
-                className="hover:text-zinc-300 transition-colors"
-              >
-                <Github className="h-4 w-4" />
-              </Link>
-              <Link
-                href="#"
-                aria-label="X"
-                className="hover:text-zinc-300 transition-colors"
-              >
-                <Twitter className="h-4 w-4" />
-              </Link>
-              <Link
-                href="#"
-                aria-label="LinkedIn"
-                className="hover:text-zinc-300 transition-colors"
-              >
-                <Linkedin className="h-4 w-4" />
-              </Link>
+            <div className="mt-4 flex items-center gap-2">
+              {[
+                { Icon: Github, label: "GitHub" },
+                { Icon: Twitter, label: "X" },
+                { Icon: Linkedin, label: "LinkedIn" },
+              ].map(({ Icon, label }) => (
+                <Link
+                  key={label}
+                  href="#"
+                  aria-label={label}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-all duration-200"
+                >
+                  <Icon className="h-4 w-4" />
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -74,7 +67,7 @@ export default function LandingFooter() {
 
         <div className="border-t border-zinc-800/60 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-600">
           <p>© 2026 BaseCase. Built for engineers, by engineers.</p>
-          <p>Made with ♥ in India</p>
+          <p>Made with <span className="text-orange-500">♥</span> in India</p>
         </div>
       </div>
     </footer>

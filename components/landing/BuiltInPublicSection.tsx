@@ -1,19 +1,32 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, Github } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Github, GitCommit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+const fadeUp = {
+  initial: { opacity: 0, y: 28 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-60px" },
+  transition: {
+    duration: 0.55,
+    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
+  },
+};
+
 const commits = [
-  "feat: add SM-2 spaced repetition · 2 days ago",
-  "fix: voice interview race condition · 4 days ago",
-  "feat: roadmap generator v1 · 1 week ago",
+  { type: "feat", msg: "add SM-2 spaced repetition", time: "2 days ago" },
+  { type: "fix", msg: "voice interview race condition", time: "4 days ago" },
+  { type: "feat", msg: "roadmap generator v1", time: "1 week ago" },
 ];
 
 export default function BuiltInPublicSection() {
   return (
-    <section className="py-10 border-y border-zinc-800/60 bg-zinc-950/40">
+    <section className="py-12 sm:py-14 border-y border-zinc-800/60 bg-zinc-950/40">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
+        <motion.div className="text-center" {...fadeUp}>
           <Badge
             variant="outline"
             className="border-zinc-700 text-zinc-400 bg-zinc-900"
@@ -31,7 +44,7 @@ export default function BuiltInPublicSection() {
               asChild
               variant="outline"
               size="sm"
-              className="font-mono text-xs border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800"
+              className="font-mono text-xs border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800 hover:border-zinc-500 transition-all"
             >
               <Link
                 href="https://github.com/aakash-1702/basecase"
@@ -44,20 +57,41 @@ export default function BuiltInPublicSection() {
               </Link>
             </Button>
           </div>
+        </motion.div>
 
-          <div className="mt-7 mx-auto max-w-3xl rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-left">
-            {commits.map((item, index) => (
-              <p
-                key={item}
-                className={`font-mono text-xs sm:text-sm text-zinc-500 ${
-                  index > 0 ? "mt-2" : ""
-                }`}
-              >
-                {item}
-              </p>
-            ))}
-          </div>
-        </div>
+        <motion.div
+          {...fadeUp}
+          transition={{ ...fadeUp.transition, delay: 0.15 }}
+          className="mt-7 mx-auto max-w-2xl rounded-xl border border-zinc-800 bg-zinc-950/80 overflow-hidden"
+        >
+          {commits.map((item, index) => (
+            <div
+              key={item.msg}
+              className={`flex items-center gap-3 px-4 py-3 hover:bg-zinc-900/50 transition-colors ${
+                index > 0 ? "border-t border-zinc-800/40" : ""
+              }`}
+            >
+              <GitCommit className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                    item.type === "feat"
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-amber-500/10 text-amber-400"
+                  }`}
+                >
+                  {item.type}
+                </span>
+                <span className="font-mono text-xs sm:text-sm text-zinc-300 truncate">
+                  {item.msg}
+                </span>
+              </div>
+              <span className="text-[10px] sm:text-xs text-zinc-600 font-mono shrink-0">
+                {item.time}
+              </span>
+            </div>
+          ))}
+        </motion.div>
       </div>
     </section>
   );

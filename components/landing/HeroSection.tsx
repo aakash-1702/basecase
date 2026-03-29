@@ -269,7 +269,7 @@ export default function HeroSection() {
         <motion.div
           {...fadeIn}
           transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
-          className="mt-16 sm:mt-20 w-full max-w-170 mx-auto px-4 sm:px-0 animate-float"
+          className="mt-12 sm:mt-16 md:mt-20 w-full max-w-full sm:max-w-170 mx-auto px-2 sm:px-4 md:px-0 animate-float overflow-hidden"
         >
           <Card className="rounded-2xl border border-zinc-800 bg-zinc-950 shadow-[0_0_80px_rgba(249,115,22,0.12),0_40px_80px_rgba(0,0,0,0.6)] overflow-hidden">
             <CardContent className="p-0">

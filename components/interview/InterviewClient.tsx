@@ -155,8 +155,6 @@ const InterviewClient = () => {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&display=swap');
-
         @keyframes wavePulse {
           0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
           50% { transform: scaleY(1); opacity: 1; }

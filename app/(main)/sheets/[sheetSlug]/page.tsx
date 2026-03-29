@@ -1,7 +1,52 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import prisma from "@/lib/prisma";
 import SheetDetailPage from "./SheetDetail";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ sheetSlug: string }>;
+}): Promise<Metadata> {
+  const { sheetSlug } = await params;
+
+  const sheet = await prisma.sheet.findUnique({
+    where: { slug: sheetSlug },
+    select: { title: true, description: true, slug: true },
+  });
+
+  if (!sheet) {
+    return {
+      title: "Sheet Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const description =
+    sheet.description ||
+    `Track progress on ${sheet.title} with structured sections and revision-friendly workflow.`;
+
+  return {
+    title: sheet.title,
+    description,
+    alternates: {
+      canonical: `/sheets/${sheet.slug}`,
+    },
+    openGraph: {
+      title: `${sheet.title} | BaseCase`,
+      description,
+      images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${sheet.title} | BaseCase`,
+      description,
+      images: ["/opengraph-image"],
+    },
+  };
+}
 
 const Page = async ({ params }: { params: Promise<{ sheetSlug: string }> }) => {
   const session = await auth.api.getSession({
@@ -38,13 +83,21 @@ const Page = async ({ params }: { params: Promise<{ sheetSlug: string }> }) => {
     .map((up: { problemId: string }) => up.problemId);
 
   const confidenceMap: Record<string, string | null> = Object.fromEntries(
-    userProblems.map((up: { problemId: string; confidenceV2: string | null }) => [
-      up.problemId,
-      up.confidenceV2,
-    ]),
+    userProblems.map(
+      (up: { problemId: string; confidenceV2: string | null }) => [
+        up.problemId,
+        up.confidenceV2,
+      ],
+    ),
   );
 
-  return <SheetDetailPage data={sheet} initialSolvedIds={solvedProblemIds} initialConfidenceMap={confidenceMap} />;
+  return (
+    <SheetDetailPage
+      data={sheet}
+      initialSolvedIds={solvedProblemIds}
+      initialConfidenceMap={confidenceMap}
+    />
+  );
 };
 
 export default Page;
