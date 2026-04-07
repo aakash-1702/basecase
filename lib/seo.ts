@@ -1,4 +1,4 @@
-export const SITE_NAME = "BaseCase";
+﻿export const SITE_NAME = "BaseCase";
 
 export const SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://basecase.example.com";

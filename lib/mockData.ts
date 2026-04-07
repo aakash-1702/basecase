@@ -1,4 +1,4 @@
-// Mock data for AI Interviewer system
+﻿// Mock data for AI Interviewer system
 
 export interface InterviewMetrics {
   confidence: number; // 0-100

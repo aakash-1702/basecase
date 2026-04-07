@@ -1,25 +1,29 @@
-import "./globals.css";
 import { cn } from "@/lib/utils";
-import { Syne, JetBrains_Mono } from "next/font/google";
+import { Nunito, Fira_Code } from "next/font/google";
 
-const syne = Syne({ variable: "--font-syne", subsets: ["latin"] });
-const jetBrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
+  weight: ["600", "700", "800", "900"],
 });
 
-export default async function RootLayout({
+const firaCode = Fira_Code({
+  variable: "--font-fira",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+export default function LandingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={cn(syne.variable, jetBrainsMono.variable, "antialiased")}
-      >
-        {children}
-      </body>
-    </html>
+    <div
+      className={cn(nunito.variable, firaCode.variable, "antialiased")}
+      style={{ fontFamily: "var(--font-nunito), sans-serif" }}
+    >
+      {children}
+    </div>
   );
 }

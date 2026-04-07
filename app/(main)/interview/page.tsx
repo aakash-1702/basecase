@@ -18,23 +18,30 @@ export const metadata: Metadata = {
 };
 
 export default async function InterviewDashboard() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) redirect("/auth/sign-in");
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user) redirect("/auth/sign-in");
 
-  const user = await prisma.user.findFirst({
-    where: { id: session.user.id },
-    select: {
-      premium: true,
-      interviewCredits: true,
-      expiresAt: true,
-    },
-  });
+    const user = await prisma.user.findFirst({
+      where: { id: session.user.id },
+      select: {
+        premium: true,
+        interviewCredits: true,
+        expiresAt: true,
+      },
+    });
 
-  return (
-    <InterviewLanding
-      isPremium={user?.premium ?? false}
-      initialCredits={user?.interviewCredits ?? 0}
-      expiresAt={user?.expiresAt?.toISOString() ?? null}
-    />
-  );
+    return (
+      <InterviewLanding
+        isPremium={user?.premium ?? false}
+        initialCredits={user?.interviewCredits ?? 0}
+        expiresAt={user?.expiresAt?.toISOString() ?? null}
+      />
+    );
+  } catch (error) {
+    console.error("Failed to load interview dashboard:", error);
+    return (
+      <InterviewLanding isPremium={false} initialCredits={0} expiresAt={null} />
+    );
+  }
 }

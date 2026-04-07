@@ -690,3 +690,292 @@
 .delay-1000 {
   animation-delay: 1000ms;
 }
+
+/* ============================================
+   BASECASE LANDING PAGE v5 DESIGN SYSTEM
+   TakeUForward-inspired: Nunito + Fira Code
+   ============================================ */
+
+:root {
+  --bc-bg: #0f1117;
+  --bc-bg2: #161b22;
+  --bc-bg3: #1c2333;
+  --bc-card: #1e2736;
+  --bc-border: #2d3748;
+  --bc-orange: #f97316;
+  --bc-orange-light: #fb923c;
+  --bc-orange-dark: #ea580c;
+  --bc-orange-glow: rgba(249, 115, 22, 0.15);
+  --bc-text: #e2e8f0;
+  --bc-text-muted: #94a3b8;
+  --bc-text-dim: #64748b;
+  --bc-green: #22c55e;
+  --bc-yellow: #eab308;
+  --bc-red: #ef4444;
+  --bc-blue: #3b82f6;
+}
+
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Shimmer banner animation */
+@keyframes bcShimmerBanner {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.bc-shimmer-banner {
+  background-size: 200% auto !important;
+  animation: bcShimmerBanner 3s linear infinite;
+}
+
+/* Pulsing dot (hero badge, recording) */
+@keyframes bcPulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.bc-pulse-dot {
+  animation: bcPulseDot 2s ease-in-out infinite;
+}
+
+/* Topic ticker */
+@keyframes bcTicker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.bc-ticker-container {
+  animation: bcTicker 40s linear infinite;
+}
+
+/* Nav link hover text */
+.bc-nav-link-hover:hover {
+  color: var(--bc-text) !important;
+}
+
+/* Footer link hover */
+.bc-footer-link:hover {
+  color: var(--bc-text) !important;
+}
+
+/* ============================================
+   RESPONSIVE – LANDING v5
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .bc-hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-hero-card {
+    display: none !important;
+  }
+  .bc-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+  }
+  .bc-features-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bc-features-grid > div:nth-child(n+5) {
+    border-bottom: none !important;
+  }
+  .bc-features-grid > div:nth-child(even) {
+    border-right: none !important;
+  }
+  .bc-steps-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-testimonials-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bc-footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .bc-nav-center {
+    display: none !important;
+  }
+  .bc-nav-right {
+    display: none !important;
+  }
+  .bc-navbar-hamburger {
+    display: block !important;
+  }
+  .bc-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bc-features-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-features-grid > div {
+    border-right: none !important;
+  }
+  .bc-testimonials-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-pricing-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-footer-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bc-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Counter tabular numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   BASECASE LANDING - MASTER PROMPT OVERRIDES
+   ============================================ */
+
+:root {
+  --bg: #0f1117;
+  --bg2: #161b22;
+  --bg3: #1c2333;
+  --card: #1e2736;
+  --border: #2d3748;
+  --orange: #f97316;
+  --orange-light: #fb923c;
+  --orange-dark: #ea580c;
+  --orange-glow: rgba(249, 115, 22, 0.15);
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --blue: #3b82f6;
+
+  --font-nunito: "Nunito";
+  --font-fira: "Fira Code";
+
+  --bc-bg: var(--bg);
+  --bc-bg2: var(--bg2);
+  --bc-bg3: var(--bg3);
+  --bc-card: var(--card);
+  --bc-border: var(--border);
+  --bc-orange: var(--orange);
+  --bc-orange-light: var(--orange-light);
+  --bc-orange-dark: var(--orange-dark);
+  --bc-orange-glow: var(--orange-glow);
+  --bc-text: var(--text);
+  --bc-text-muted: var(--text-muted);
+  --bc-text-dim: var(--text-dim);
+  --bc-green: var(--green);
+  --bc-yellow: var(--yellow);
+  --bc-red: var(--red);
+  --bc-blue: var(--blue);
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: "Nunito", sans-serif;
+}
+
+body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: "Nunito", sans-serif;
+}
+
+body,
+#__next,
+main {
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Force shadcn primitives to match dark theme for landing */
+[data-slot="card"] {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+[data-state="open"] .accordion-trigger {
+  color: var(--orange) !important;
+}
+
+.accordion-trigger {
+  text-decoration: none !important;
+}
+
+.bc-interactive,
+a,
+button {
+  transition: all 0.2s ease;
+}
+
+.bc-ticker-wrap:hover .bc-ticker-container {
+  animation-play-state: paused !important;
+}
+
+.bc-interview-tab[data-state="active"] {
+  background: var(--orange) !important;
+  color: #fff !important;
+  border-color: var(--orange) !important;
+}
+
+/* ============================================
+   BASECASE LANDING PAGE v6 ADDITIONS
+   ============================================ */
+
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-card-dark: #161616;
+  --accent-orange: #f97316;
+  --accent-orange-glow: rgba(249, 115, 22, 0.3);
+  --accent-orange-dim: #c2531a;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted-lp: #6b7280;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(255, 255, 255, 0.04);
+}
+
+/* Custom scrollbar — thin dark track, orange thumb */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111111;
+}
+::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #fb923c;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 #111111;
+}
+
+/* Orange text selection */
+::selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: #ffffff;
+}
+::-moz-selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: #ffffff;
+}

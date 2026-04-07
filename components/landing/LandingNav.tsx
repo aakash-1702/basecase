@@ -3,67 +3,48 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Command, LogOut, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-const navItems = [
-  { label: "DSA Sheets", href: "/sheets" },
+const NAV_LINKS = [
   { label: "Problems", href: "/problems" },
+  { label: "Sheets", href: "/sheets" },
+  { label: "Interview", href: "/interview" },
   { label: "Roadmap", href: "/roadmap" },
-  { label: "Mock Interview", href: "/interview" },
   { label: "Dashboard", href: "/dashboard" },
 ];
+
+function FlameIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 2C12 2 8 6 8 10C8 12.2 9.3 14.1 11 15.2C10.4 14.2 10 13.1 10 12C10 10 11.5 8.2 13 7C13 7 12.8 9.5 14 11C15 12.3 16 13.5 16 15C16 18.3 14.2 20 12 20C9.8 20 8 18.3 8 16C8 15.3 8.2 14.6 8.5 14C7.5 14.8 7 16 7 17.5C7 20.5 9.2 23 12 23C14.8 23 17 20.5 17 17.5C17 14.5 14 11 14 11C14 11 16 10 16 7C16 5 14.5 3 12 2Z"
+        fill="#f97316"
+      />
+    </svg>
+  );
+}
 
 export default function LandingNav() {
   const router = useRouter();
   const { data: session } = useSession();
   const [scrolled, setScrolled] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 16);
-    handler();
-    window.addEventListener("scroll", handler, { passive: true });
-    return () => window.removeEventListener("scroll", handler);
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("bc_announcement_dismissed");
-    if (stored === "1") {
-      setAnnouncementDismissed(true);
+  const scrollTo = (href: string) => {
+    setMobileOpen(false);
+    if (href.startsWith("#")) {
+      const el = document.querySelector(href);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPaletteOpen(true);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  const dismissAnnouncement = () => {
-    setAnnouncementDismissed(true);
-    localStorage.setItem("bc_announcement_dismissed", "1");
-  };
-
-  const paletteItems = [
-    { label: "Go to Sheets", href: "/sheets", hint: "G S" },
-    { label: "Start Mock Interview", href: "/interview", hint: "G I" },
-    { label: "View Roadmap", href: "/roadmap", hint: "G R" },
-    { label: "Browse Problems", href: "/problems", hint: "G P" },
-  ];
-
-  const onPaletteSelect = (href: string) => {
-    setPaletteOpen(false);
     router.push(href);
   };
 
@@ -71,6 +52,7 @@ export default function LandingNav() {
     await signOut({
       fetchOptions: {
         onSuccess: () => {
+          setMobileOpen(false);
           router.push("/");
           router.refresh();
         },
@@ -80,191 +62,287 @@ export default function LandingNav() {
 
   return (
     <>
-      {!announcementDismissed && (
-        <div className="bg-orange-500/10 border-b border-orange-500/20 py-2 px-4 flex items-center justify-center gap-3 text-xs text-orange-300">
-          <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">
-            NEW
-          </span>
-          <span>AI Roadmap Generator is now live - powered by Gemini</span>
-          <ArrowRight className="w-3 h-3" />
-          <button
-            onClick={dismissAnnouncement}
-            className="ml-auto text-orange-400/60 hover:text-orange-400 transition-colors"
-            aria-label="Dismiss announcement"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       <nav
-        className={`sticky top-0 z-50 w-full transition-[background,border] duration-300 ${
-          scrolled
-            ? "bg-background/85 backdrop-blur-xl border-b border-border"
-            : "bg-transparent border-b border-transparent"
-        }`}
+        id="landing-navbar"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          background: scrolled
+            ? "rgba(10,10,10,0.92)"
+            : "rgba(10,10,10,0.6)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          transition: "background 0.3s ease",
+        }}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="font-mono font-bold text-lg tracking-tight">
-            Base<span className="text-orange-500">Case</span>
-            <span className="text-orange-500 text-xl leading-none">.</span>
+        <div
+          style={{
+            maxWidth: 1280,
+            margin: "0 auto",
+            padding: "0 48px",
+            height: 64,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          {/* Logo */}
+          <Link
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              textDecoration: "none",
+              flexShrink: 0,
+            }}
+          >
+            <FlameIcon />
+            <span
+              style={{
+                fontSize: 18,
+                fontWeight: 800,
+                color: "#ffffff",
+                letterSpacing: "-0.3px",
+                fontFamily: "var(--font-nunito), sans-serif",
+              }}
+            >
+              BaseCase
+            </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-7">
-            {navItems.map((item) => {
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="relative pb-1 text-sm text-muted-foreground transition-colors hover:text-white"
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+          {/* Center nav — desktop */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+            className="bc-nav-desktop"
+          >
+            {NAV_LINKS.map((link) => (
+              <button
+                key={link.label}
+                onClick={() => scrollTo(link.href)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  padding: "8px 16px",
+                  borderRadius: 6,
+                  transition: "color 0.2s ease",
+                  fontFamily: "var(--font-nunito), sans-serif",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "#ffffff")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "#9ca3af")
+                }
+              >
+                {link.label}
+              </button>
+            ))}
           </div>
 
-          <div className="hidden md:flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaletteOpen(true)}
-              className="font-mono text-xs text-zinc-100 bg-zinc-900/70 border-zinc-600 hover:bg-zinc-800 hover:text-white"
-            >
-              <Command className="h-3.5 w-3.5" /> K
-            </Button>
+          {/* Right actions — desktop */}
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 12 }}
+            className="bc-nav-desktop"
+          >
             {session?.user ? (
-              <Button
-                variant="outline"
-                size="sm"
+              <button
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 border-zinc-500 bg-zinc-900/70 text-white transition-colors hover:border-zinc-400 hover:bg-zinc-800 hover:text-white"
+                style={{
+                  background: "rgba(249,115,22,0.14)",
+                  color: "#fb923c",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(249,115,22,0.35)",
+                  transition: "all 0.2s ease",
+                  fontFamily: "var(--font-nunito), sans-serif",
+                  cursor: "pointer",
+                }}
               >
-                <LogOut className="h-4 w-4" />
-                Log out
-              </Button>
+                Logout
+              </button>
             ) : (
               <>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800"
+                <Link
+                  href="/auth/sign-in"
+                  style={{
+                    color: "#f97316",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    transition: "opacity 0.2s ease",
+                    fontFamily: "var(--font-nunito), sans-serif",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                 >
-                  <Link href="/auth/sign-in">Sign In</Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  className="group gap-1.5 bg-white text-black hover:bg-zinc-100"
+                  Sign In
+                </Link>
+                <Link
+                  href="/auth/sign-up"
+                  id="nav-cta-sign-up"
+                  style={{
+                    background: "#f97316",
+                    color: "#ffffff",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: "10px 20px",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 0 0 0 rgba(249,115,22,0)",
+                    fontFamily: "var(--font-nunito), sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      "0 0 24px rgba(249,115,22,0.5), 0 0 8px rgba(249,115,22,0.3)";
+                    e.currentTarget.style.background = "#ea6c0a";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 0 rgba(249,115,22,0)";
+                    e.currentTarget.style.background = "#f97316";
+                  }}
                 >
-                  <Link
-                    href="/auth/sign-up"
-                    className="inline-flex items-center gap-1.5"
-                  >
-                    Get Started
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                </Button>
+                  Sign Up
+                </Link>
               </>
             )}
           </div>
 
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                className="md:hidden"
-                variant="ghost"
-                size="icon"
-                aria-label="Open menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-card border-border">
-              <div className="pt-8 flex h-full flex-col">
-                <div className="px-1 pb-6 font-mono font-bold text-lg tracking-tight">
-                  Base<span className="text-orange-500">Case</span>
-                  <span className="text-orange-500 text-xl leading-none">
-                    .
-                  </span>
-                </div>
-                <div className="flex flex-col border-t border-border">
-                  {navItems.map((item) => (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      className="py-3 border-b border-border text-sm text-muted-foreground hover:text-white transition-colors"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-                <div className="pt-4 flex flex-col gap-2">
-                  {session?.user ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="w-full justify-center border-zinc-500 bg-zinc-900/70 text-white transition-colors hover:border-zinc-400 hover:bg-zinc-800 hover:text-white"
-                    >
-                      <LogOut className="h-4 w-4 mr-1.5" />
-                      Log out
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="border-zinc-600 bg-zinc-900/60 text-white hover:bg-zinc-800"
-                      >
-                        <Link href="/auth/sign-in">Sign In</Link>
-                      </Button>
-                      <Button
-                        asChild
-                        size="sm"
-                        className="w-full group bg-white text-black hover:bg-zinc-100"
-                      >
-                        <Link
-                          href="/auth/sign-up"
-                          className="inline-flex items-center justify-center gap-1.5"
-                        >
-                          Get Started
-                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                        </Link>
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+          {/* Mobile hamburger */}
+          <button
+            className="bc-nav-mobile"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            style={{
+              background: "none",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 6,
+              padding: 6,
+              cursor: "pointer",
+              color: "#ffffff",
+              display: "none",
+            }}
+            aria-label="Toggle navigation"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
-      </nav>
 
-      <Dialog open={paletteOpen} onOpenChange={setPaletteOpen}>
-        <DialogContent className="max-w-xl border-zinc-800 bg-zinc-950 p-0 overflow-hidden">
-          <DialogTitle className="sr-only">Command Palette</DialogTitle>
-          <div className="border-b border-zinc-800 px-4 py-3 font-mono text-xs text-zinc-500">
-            BaseCase Command Palette
-          </div>
-          <div className="p-2">
-            {paletteItems.map((item) => (
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div
+            style={{
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              padding: "16px 24px 24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            {NAV_LINKS.map((link) => (
               <button
-                key={item.label}
-                onClick={() => onPaletteSelect(item.href)}
-                className="w-full rounded-md px-3 py-2.5 text-left flex items-center justify-between hover:bg-zinc-900 transition-colors"
+                key={link.label}
+                onClick={() => scrollTo(link.href)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  padding: "12px 0",
+                  textAlign: "left",
+                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  fontFamily: "var(--font-nunito), sans-serif",
+                }}
               >
-                <span className="text-sm text-zinc-200">{item.label}</span>
-                <span className="font-mono text-[11px] text-zinc-500">
-                  {item.hint}
-                </span>
+                {link.label}
               </button>
             ))}
+            <div style={{ paddingTop: 16, display: "flex", gap: 12 }}>
+              {session?.user ? (
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    width: "100%",
+                    background: "rgba(249,115,22,0.14)",
+                    color: "#fb923c",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: "10px 0",
+                    borderRadius: 8,
+                    border: "1px solid rgba(249,115,22,0.35)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Logout
+                </button>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/sign-in"
+                    style={{
+                      color: "#f97316",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      flex: 1,
+                      textAlign: "center",
+                      padding: "10px 0",
+                      border: "1px solid rgba(249,115,22,0.3)",
+                      borderRadius: 8,
+                    }}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth/sign-up"
+                    style={{
+                      background: "#f97316",
+                      color: "#fff",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      flex: 1,
+                      textAlign: "center",
+                      padding: "10px 0",
+                      borderRadius: 8,
+                    }}
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </nav>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .bc-nav-desktop { display: none !important; }
+          .bc-nav-mobile { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .bc-nav-mobile { display: none !important; }
+        }
+      `}</style>
     </>
   );
 }

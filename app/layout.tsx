@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, DM_Mono } from "next/font/google";
-import "./globals.css";
+import { DM_Serif_Display, DM_Mono, Fira_Code, Nunito } from "next/font/google";
+import  "./globals.css";
 import { cn } from "@/lib/utils";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import {
@@ -20,6 +20,18 @@ const dmMono = DM_Mono({
   variable: "--font-dm-mono",
   subsets: ["latin"],
   weight: ["400", "500"],
+});
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+  weight: ["600", "700", "800", "900"],
+});
+
+const firaCode = Fira_Code({
+  variable: "--font-fira",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -81,7 +93,7 @@ export default async function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(dmSerif.variable, dmMono.variable, "antialiased")}>
+      <body className={cn(dmSerif.variable, dmMono.variable, nunito.variable, firaCode.variable, "antialiased")}>
         <GoogleAnalytics />
         {children}
       </body>
