@@ -1,4 +1,4 @@
-import { Project, SourceFile, SyntaxKind } from "ts-morph";
+﻿import { Project, SourceFile, SyntaxKind } from "ts-morph";
 
 export interface Chunk {
   filePath: string;

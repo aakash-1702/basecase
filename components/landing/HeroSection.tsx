@@ -2,363 +2,320 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  BarChart3,
-  ChevronRight,
-  ExternalLink,
-  LayoutGrid,
-  Map,
-  Settings,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import SpatialHeroVisual from "@/components/landing/SpatialHeroVisual";
 
 const fadeUp = {
-  initial: { opacity: 0, y: 28 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-60px" },
-  transition: {
-    duration: 0.55,
-    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
-  },
+  hidden: { opacity: 0, y: 28 },
+  visible: (delay = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, ease: "easeOut" as const, delay },
+  }),
 };
-
-const scaleUp = {
-  initial: { opacity: 0, scale: 0.88 },
-  whileInView: { opacity: 1, scale: 1 },
-  viewport: { once: true },
-  transition: {
-    duration: 0.45,
-    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
-  },
-};
-
-const fadeIn = {
-  initial: { opacity: 0 },
-  whileInView: { opacity: 1 },
-  viewport: { once: true },
-  transition: { duration: 0.6, ease: "easeOut" as const },
-};
-
-const rows = [
-  {
-    title: "Sort 0s, 1s & 2s",
-    difficulty: "Easy",
-    confidence: "Confident",
-    dot: "bg-emerald-500",
-  },
-  {
-    title: "Stock Buy & Sell",
-    difficulty: "Easy",
-    confidence: "Confident",
-    dot: "bg-emerald-500",
-  },
-  {
-    title: "Next Permutation",
-    difficulty: "Medium",
-    confidence: "Shaky",
-    dot: "bg-amber-500",
-  },
-  {
-    title: "Kadane's Algorithm",
-    difficulty: "Medium",
-    confidence: "Shaky",
-    dot: "bg-amber-500",
-  },
-  {
-    title: "Merge Overlapping Intervals",
-    difficulty: "Medium",
-    confidence: "-",
-    dot: "bg-zinc-500",
-    status: "unsolved",
-  },
-];
-
-function DifficultyBadge({ difficulty }: { difficulty: string }) {
-  if (difficulty === "Easy")
-    return (
-      <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
-        Easy
-      </Badge>
-    );
-  if (difficulty === "Medium")
-    return (
-      <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30">
-        Medium
-      </Badge>
-    );
-  return (
-    <Badge className="bg-rose-500/15 text-rose-300 border-rose-500/30">
-      Hard
-    </Badge>
-  );
-}
 
 export default function HeroSection() {
-  const lines = [
-    "Master DSA with structured sheets and spaced repetition.",
-    "Practice voice mock interviews powered by Gemini AI.",
-    "Generate a personalized roadmap to your target company.",
-  ];
-
-  const [lineIndex, setLineIndex] = useState(0);
-  const [typedText, setTypedText] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    const currentLine = lines[lineIndex];
-    const speed = isDeleting ? 24 : 48;
-
-    const timer = setTimeout(() => {
-      if (!isDeleting && typedText.length < currentLine.length) {
-        setTypedText(currentLine.slice(0, typedText.length + 1));
-        return;
-      }
-
-      if (!isDeleting && typedText.length === currentLine.length) {
-        setTimeout(() => setIsDeleting(true), 2500);
-        return;
-      }
-
-      if (isDeleting && typedText.length > 0) {
-        setTypedText(currentLine.slice(0, typedText.length - 1));
-        return;
-      }
-
-      if (isDeleting && typedText.length === 0) {
-        setIsDeleting(false);
-        setLineIndex((prev) => (prev + 1) % lines.length);
-      }
-    }, speed);
-
-    return () => clearTimeout(timer);
-  }, [typedText, isDeleting, lineIndex, lines]);
-
   return (
     <section
       id="home"
-      className="relative min-h-[94vh] hero-grid flex flex-col items-center justify-center overflow-hidden py-16 md:py-24 lg:py-32"
+      style={{
+        minHeight: "100vh",
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        /* Single unified background — no separation between left & right */
+        background: "#0a0a0a",
+        paddingTop: 80,
+      }}
     >
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-50 bg-orange-500/8 blur-[80px] rounded-full -z-10 pointer-events-none" />
-      <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-background/90 -z-10 pointer-events-none" />
+      {/* Subtle uniform mesh grid — covers the FULL section */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="text-center z-10">
-          <motion.div {...scaleUp}>
-            <Badge
-              variant="outline"
-              className="border-orange-500/35 text-orange-400 bg-orange-500/5 text-xs font-medium px-3 py-1.5 gap-2 cursor-default hover:bg-orange-500/10 transition-colors"
-            >
-              <span>🔥</span>
-              <span>Trusted by 1,000+ developers</span>
-              <span className="text-orange-500/50 mx-1">·</span>
-              <span className="underline underline-offset-2">
-                See what's inside
-              </span>
-              <ChevronRight className="w-3 h-3" />
-            </Badge>
+      {/* Soft center glow that bleeds across both columns */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: "40%",
+          left: "55%",
+          transform: "translate(-50%, -50%)",
+          width: "70%",
+          height: "60%",
+          background:
+            "radial-gradient(ellipse at center, rgba(249,115,22,0.07) 0%, transparent 70%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+
+      {/* Cross-column blend layer so both sides read as one continuous canvas */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at 68% 45%, rgba(249,115,22,0.09) 0%, transparent 46%), radial-gradient(circle at 32% 58%, rgba(249,115,22,0.05) 0%, transparent 50%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+
+      {/* Grid: left (text) + right (visual) */}
+      <div
+        className="bc-hero-layout"
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "0 48px",
+          width: "100%",
+          position: "relative",
+          zIndex: 1,
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          alignItems: "center",
+          minHeight: "100vh",
+          gap: 0,
+        }}
+      >
+        {/* ── LEFT: Copy ─────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            paddingRight: 32,
+            paddingTop: 80, /* compensate for nav */
+            paddingBottom: 40,
+          }}
+        >
+          {/* Learner badge */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            custom={0}
+            variants={fadeUp}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(124,45,18,0.7)",
+              border: "1px solid rgba(249,115,22,0.3)",
+              borderRadius: 999,
+              padding: "5px 14px",
+              marginBottom: 28,
+              width: "fit-content",
+            }}
+          >
+            <span style={{ fontSize: 14 }}>🔖</span>
+            <span style={{ color: "#fb923c", fontSize: 13, fontWeight: 700 }}>
+              15,000+ Learners
+            </span>
           </motion.div>
 
+          {/* Headline */}
           <motion.h1
-            {...fadeUp}
-            transition={{ ...fadeUp.transition, delay: 0.1 }}
-            className="mt-6 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-mono font-bold tracking-tight text-white"
+            initial="hidden"
+            animate="visible"
+            custom={0.08}
+            variants={fadeUp}
+            style={{
+              fontSize: "clamp(40px, 5vw, 60px)",
+              fontWeight: 900,
+              lineHeight: 1.06,
+              color: "#ffffff",
+              margin: "0 0 22px",
+              fontFamily: "var(--font-nunito), sans-serif",
+              letterSpacing: "-1px",
+            }}
           >
-            Stop grinding randomly.
-          </motion.h1>
-
-          <motion.h1
-            {...fadeUp}
-            transition={{ ...fadeUp.transition, delay: 0.18 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-mono font-bold tracking-tight text-white text-center"
-          >
-            Start learning with{" "}
-            <span className="relative inline-block">
-              <span className="text-gradient-orange">structure</span>
-              <svg
-                className="absolute -bottom-1 sm:-bottom-2 left-0 w-full overflow-visible"
-                height="8"
-                viewBox="0 0 220 8"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <motion.path
-                  d="M2 5 C40 1, 80 7, 120 4 C160 1, 200 6, 218 3"
-                  stroke="#f97316"
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-                />
-              </svg>
+            ONE STOP{" "}
+            <span
+              style={{
+                background: "linear-gradient(135deg, #f97316, #fb923c)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Learning
             </span>
-            .
+            <br />
+            Platform For{" "}
+            <span style={{ color: "#ffffff" }}>TECH</span>
+            <br />
+            Interviews
           </motion.h1>
 
+          {/* Subtext */}
           <motion.p
-            {...fadeUp}
-            transition={{ ...fadeUp.transition, delay: 0.26 }}
-            className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-xl sm:max-w-2xl mx-auto text-center mt-4 leading-relaxed"
+            initial="hidden"
+            animate="visible"
+            custom={0.18}
+            variants={fadeUp}
+            style={{
+              color: "#9ca3af",
+              fontSize: 15,
+              lineHeight: 1.75,
+              marginBottom: 36,
+              maxWidth: 460,
+            }}
           >
-            <span className="cursor-blink">{typedText}</span>
+            Master Data Structures, Algorithms, System Design, and Core CS
+            Subjects. Get personalized roadmaps, expert videos, and AI-driven
+            practice to ace your interviews.
           </motion.p>
 
+          {/* CTAs */}
           <motion.div
-            {...fadeUp}
-            transition={{ ...fadeUp.transition, delay: 0.34 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8"
+            initial="hidden"
+            animate="visible"
+            custom={0.28}
+            variants={fadeUp}
+            style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 40 }}
           >
-            <Button
-              asChild
-              size="lg"
-              className="w-full sm:w-auto group gap-2 bg-white text-zinc-950 hover:bg-zinc-100 font-semibold shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:shadow-[0_0_30px_rgba(255,255,255,0.18)] transition-all duration-300"
+            <Link
+              href="/auth/sign-up"
+              id="hero-cta-start-practicing"
+              style={{
+                background: "#f97316",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 15,
+                padding: "14px 32px",
+                borderRadius: 10,
+                textDecoration: "none",
+                transition: "all 0.2s ease",
+                display: "inline-flex",
+                alignItems: "center",
+                boxShadow: "0 0 0 0 rgba(249,115,22,0)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#ea6c0a";
+                e.currentTarget.style.boxShadow = "0 0 32px rgba(249,115,22,0.55)";
+                e.currentTarget.style.transform = "scale(1.02)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#f97316";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
             >
-              <Link
-                href="/auth/sign-up"
-                className="inline-flex items-center gap-2"
-              >
-                Start Learning Free
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="w-full sm:w-auto border-zinc-600 bg-zinc-900/65 text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all duration-300"
+              Start Practicing
+            </Link>
+
+            <Link
+              href="/interview"
+              id="hero-cta-interview"
+              style={{
+                background: "transparent",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 15,
+                padding: "14px 32px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.18)",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(249,115,22,0.45)";
+                e.currentTarget.style.background = "rgba(249,115,22,0.06)";
+                e.currentTarget.style.color = "#fb923c";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#fff";
+              }}
             >
-              <Link href="/sheets">Browse DSA Sheets</Link>
-            </Button>
+              Try Interview →
+            </Link>
           </motion.div>
 
+          {/* Feature bullets */}
           <motion.div
-            {...fadeUp}
-            transition={{ ...fadeUp.transition, delay: 0.42 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6"
+            initial="hidden"
+            animate="visible"
+            custom={0.38}
+            variants={fadeUp}
+            style={{ display: "flex", flexDirection: "column", gap: 9 }}
           >
-            <div className="flex -space-x-2.5">
-              {[
-                ["RK", "bg-zinc-600"],
-                ["PV", "bg-zinc-700"],
-                ["AS", "bg-zinc-600"],
-                ["MJ", "bg-zinc-800"],
-                ["TA", "bg-zinc-700"],
-              ].map(([name, bg]) => (
-                <div
-                  key={name}
-                  className={`w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold ${bg} text-zinc-300`}
-                >
-                  {name}
-                </div>
-              ))}
-            </div>
-            <span className="text-xs sm:text-sm text-muted-foreground">
-              Join{" "}
-              <span className="text-white font-medium">1,000+ engineers</span>{" "}
-              already on BaseCase
-            </span>
+            {[
+              { emoji: "📋", text: "Curated DSA Sheets with step-by-step guidance." },
+              { emoji: "🤖", text: "AI Voice Interviews with real-time feedback." },
+              { emoji: "🧠", text: "AI Mentor for instant doubt resolution." },
+              { emoji: "🔥", text: "Streaks, leaderboards & SM-2 spaced repetition." },
+            ].map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  color: "#9ca3af",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                }}
+              >
+                <span style={{ flexShrink: 0 }}>{item.emoji}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
           </motion.div>
         </div>
 
+        {/* ── RIGHT: Visual (no background — same as section) ─── */}
         <motion.div
-          {...fadeIn}
-          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
-          className="mt-12 sm:mt-16 md:mt-20 w-full max-w-full sm:max-w-170 mx-auto px-2 sm:px-4 md:px-0 animate-float overflow-hidden"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+          style={{
+            position: "relative",
+            /* No background here — fully inherits #0a0a0a */
+            overflow: "visible",
+            minHeight: 780,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 80,
+            paddingBottom: 40,
+          }}
         >
-          <Card className="rounded-2xl border border-zinc-800 bg-zinc-950 shadow-[0_0_80px_rgba(249,115,22,0.12),0_40px_80px_rgba(0,0,0,0.6)] overflow-hidden">
-            <CardContent className="p-0">
-              <div className="flex items-center gap-2 px-4 py-3 bg-zinc-900 border-b border-zinc-800">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                </div>
-                <span className="flex-1 text-center font-mono text-xs text-zinc-500">
-                  BaseCase - Striver's SDE Sheet
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot" />
-                  <span className="text-[10px] text-zinc-500 font-mono">
-                    live
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex">
-                <div className="hidden sm:flex flex-col gap-3 p-3 bg-zinc-900/60 border-r border-zinc-800 w-12">
-                  {[LayoutGrid, BarChart3, Map, Settings].map((Icon, i) => (
-                    <div
-                      key={i}
-                      className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                        i === 0
-                          ? "bg-orange-500/15 text-orange-400"
-                          : "text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex-1 p-4 sm:p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                    <div>
-                      <p className="text-white text-sm font-semibold">
-                        Arrays - Step 1
-                      </p>
-                      <p className="text-zinc-500 text-xs font-mono mt-0.5">
-                        42 / 191 solved
-                      </p>
-                    </div>
-                    <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/20 text-xs w-fit">
-                      22% complete
-                    </Badge>
-                  </div>
-
-                  <Progress value={22} className="h-1.5 mb-5 bg-zinc-800" />
-
-                  {rows.map((row) => (
-                    <div
-                      key={row.title}
-                      className="flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-lg hover:bg-zinc-800/60 transition-colors cursor-pointer group"
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full shrink-0 ${row.dot}`}
-                      />
-                      <span
-                        className={`flex-1 text-xs sm:text-sm font-medium truncate ${row.confidence === "-" ? "text-zinc-500" : "text-zinc-200"}`}
-                      >
-                        {row.title}
-                      </span>
-                      <DifficultyBadge difficulty={row.difficulty} />
-                      {row.confidence !== "-" && (
-                        <span
-                          className={`hidden sm:block text-[10px] px-2 py-0.5 rounded font-medium ${
-                            row.confidence === "Confident"
-                              ? "bg-green-400/8 text-green-500"
-                              : "bg-yellow-400/8 text-yellow-500"
-                          }`}
-                        >
-                          {row.confidence}
-                        </span>
-                      )}
-                      <ExternalLink className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </div>
-                  ))}
-
-                  <div className="mt-3 h-px shimmer-line rounded-full" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <SpatialHeroVisual />
         </motion.div>
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .bc-hero-layout {
+            grid-template-columns: 1fr !important;
+            padding: 60px 32px !important;
+          }
+          .bc-hero-layout > div:last-child {
+            min-height: 620px !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .bc-hero-layout {
+            padding: 40px 20px !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

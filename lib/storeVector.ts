@@ -1,4 +1,4 @@
-import { QdrantClient } from "@qdrant/js-client-rest";
+﻿import { QdrantClient } from "@qdrant/js-client-rest";
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
 import type { Chunk } from "./chunker";

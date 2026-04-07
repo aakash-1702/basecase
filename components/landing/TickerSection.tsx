@@ -1,35 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
+import { Users, Bot, Code, Gauge } from "lucide-react";
 
-const fadeUp = {
-  initial: { opacity: 0, y: 28 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-60px" },
-  transition: {
-    duration: 0.55,
-    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
-  },
-};
-
-const staggerChild = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  transition: {
-    duration: 0.5,
-    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
-  },
-};
-
-function useCounter(target: number, inView: boolean, duration = 1600) {
+function useCounter(target: number, inView: boolean, duration = 1200) {
   const [count, setCount] = useState(0);
-
   useEffect(() => {
     if (!inView) return;
     let current = 0;
-    const increment = target / (duration / 12);
-
+    const increment = target / (duration / 16);
     const timer = setInterval(() => {
       current += increment;
       if (current >= target) {
@@ -38,141 +18,123 @@ function useCounter(target: number, inView: boolean, duration = 1600) {
       } else {
         setCount(Math.floor(current));
       }
-    }, 12);
-
+    }, 16);
     return () => clearInterval(timer);
   }, [target, inView, duration]);
-
   return count;
 }
 
-export default function TickerSection() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+const statItems = [
+  { icon: Users, target: 500, suffix: "+", label: "Engineers Learning" },
+  { icon: Bot, target: 30, suffix: "+", label: "AI Interviews Daily" },
+  {
+    icon: Code,
+    target: 200,
+    prefix: "<",
+    suffix: "ms",
+    label: "Avg. Execution",
+  },
+  { icon: Gauge, target: 500, suffix: "+", label: "Curated Problems" },
+];
 
-  const stats = useMemo(
-    () => [
-      { target: 500, label: "Problems", suffix: "+" },
-      { target: 1000, label: "Active Users", suffix: "+" },
-      { target: 20, label: "Mock Interviews Conducted", suffix: "+" },
-      { target: 10, label: "Curated DSA Sheets", suffix: "+" },
-    ],
-    [],
-  );
+export default function TickerSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
     <section
       id="stats"
       ref={ref}
-      className="bg-zinc-950 border-y border-zinc-800/60 py-10 md:py-14"
+      className="w-full py-4 md:py-5"
+      style={{
+        background: "#101010",
+        borderTop: "1px solid #1E1E1E",
+        borderBottom: "1px solid #1E1E1E",
+      }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div className="grid grid-cols-2 md:grid-cols-4" {...fadeUp}>
-          {stats.map((stat, index) => (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-1">
+          {statItems.map((stat, index) => (
             <StatItem
               key={stat.label}
+              icon={stat.icon}
               target={stat.target}
-              label={stat.label}
+              prefix={stat.prefix}
               suffix={stat.suffix}
+              label={stat.label}
               inView={inView}
-              duration={1600 + index * 120}
               index={index}
+              isLast={index === statItems.length - 1}
             />
           ))}
-        </motion.div>
-
-        {/* Difficulty split — stacked bar + legend */}
-        <motion.div
-          {...fadeUp}
-          transition={{ ...fadeUp.transition, delay: 0.3 }}
-          className="mt-6 pt-6 border-t border-zinc-800/40"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-            <span className="text-zinc-600 text-[11px] font-mono uppercase tracking-widest shrink-0">
-              Difficulty
-            </span>
-
-            {/* Stacked bar */}
-            <div className="w-full sm:flex-1 max-w-xs h-1.5 rounded-full bg-zinc-800/60 overflow-hidden flex">
-              {[
-                { pct: 62, color: "bg-emerald-500" },
-                { pct: 31, color: "bg-amber-500" },
-                { pct: 7, color: "bg-rose-500" },
-              ].map((seg, i) => (
-                <motion.div
-                  key={i}
-                  className={`h-full ${seg.color}`}
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${seg.pct}%` }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.4 + i * 0.1,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Legend chips */}
-            <div className="flex items-center gap-4 sm:gap-5 shrink-0">
-              {[
-                { label: "Easy", count: 312, color: "bg-emerald-500", text: "text-emerald-400" },
-                { label: "Medium", count: 156, color: "bg-amber-500", text: "text-amber-400" },
-                { label: "Hard", count: 32, color: "bg-rose-500", text: "text-rose-400" },
-              ].map((d) => (
-                <div key={d.label} className="flex items-center gap-1.5">
-                  <div className={`w-1.5 h-1.5 rounded-full ${d.color}`} />
-                  <span className={`text-[11px] sm:text-xs font-mono font-medium ${d.text}`}>
-                    {d.count}
-                  </span>
-                  <span className="text-zinc-600 text-[11px] sm:text-xs">{d.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
 }
 
 function StatItem({
+  icon: Icon,
   target,
-  label,
+  prefix,
   suffix,
+  label,
   inView,
-  duration,
   index,
+  isLast,
 }: {
+  icon: React.ElementType;
   target: number;
-  label: string;
+  prefix?: string;
   suffix: string;
+  label: string;
   inView: boolean;
-  duration: number;
   index: number;
+  isLast: boolean;
 }) {
-  const value = useCounter(target, inView, duration);
-
-  // Mobile 2×2 grid: remove right border on 2nd/4th items, remove bottom border on 3rd/4th
-  const borderClasses = [
-    "border-r border-b md:border-b-0 md:border-r",          // 1st: right + bottom on mobile
-    "border-b md:border-b-0 md:border-r",                   // 2nd: no right on mobile
-    "border-r md:border-r",                                  // 3rd: right, no bottom
-    "",                                                       // 4th: no borders
-  ][index] ?? "";
+  const value = useCounter(target, inView, 1200 + index * 100);
 
   return (
     <motion.div
-      {...staggerChild}
-      transition={{ ...staggerChild.transition, delay: index * 0.1 }}
-      className={`flex flex-col items-center justify-center py-6 sm:py-8 px-3 sm:px-4 text-center border-zinc-800/60 ${borderClasses}`}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{
+        duration: 0.6,
+        delay: index * 0.1,
+        ease: [0.16, 1, 0.3, 1],
+      }}
+      className="flex flex-col items-center justify-center py-3 px-3 text-center relative"
     >
-      <p className="text-2xl sm:text-3xl md:text-4xl font-bold font-mono text-white tabular-nums tracking-tight">
+      {!isLast && (
+        <div
+          className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-px h-12"
+          style={{ background: "#1E1E1E" }}
+        />
+      )}
+
+      <Icon
+        className="w-4 h-4 mb-1.5"
+        style={{ color: "rgba(255,255,255,0.35)" }}
+      />
+      <p
+        className="text-2xl sm:text-3xl md:text-[38px] font-bold tabular-nums tracking-tight"
+        style={{
+          fontFamily: "var(--font-syne), sans-serif",
+          color: "#E8490F",
+        }}
+      >
+        {prefix}
         {value.toLocaleString()}
-        <span className="text-orange-500">{suffix}</span>
+        {suffix && <span style={{ color: "#E8490F" }}>{suffix}</span>}
       </p>
-      <p className="text-[11px] sm:text-xs md:text-sm text-zinc-500 mt-1.5 font-medium">
+      <p
+        className="text-[11px] sm:text-xs mt-0.5"
+        style={{
+          color: "#A0A0A0",
+          fontFamily: "var(--font-dm-sans), sans-serif",
+        }}
+      >
         {label}
       </p>
     </motion.div>

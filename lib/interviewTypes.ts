@@ -1,4 +1,4 @@
-export type InterviewType =
+﻿export type InterviewType =
   | "system_design"
   | "frontend"
   | "backend"
@@ -47,6 +47,6 @@ export const INTERVIEW_CONFIGS: Record<
     systemPrompt:
       "You are a senior full-stack engineer conducting a technical interview.",
     focusInstruction:
-      "Cover the full stack — frontend components, backend APIs, data flow end-to-end, auth, and how the layers communicate. Ask about integration points and tradeoffs across the stack.",
+      "Cover the full stack â€” frontend components, backend APIs, data flow end-to-end, auth, and how the layers communicate. Ask about integration points and tradeoffs across the stack.",
   },
 };

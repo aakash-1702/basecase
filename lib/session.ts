@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+﻿import { Redis } from "@upstash/redis";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -26,7 +26,7 @@ const TTL_INTERVIEW = 60 * 60 * 24; // 2hours , so that background jobs can be c
 
 
 
-// ─── INTERVIEW SESSION ─────────────────────────────────────────
+// â”€â”€â”€ INTERVIEW SESSION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type InterviewSession = {
   plan: any;
@@ -41,7 +41,7 @@ type InterviewSession = {
 
 const interviewKey = (interviewId: string) => `interviewSession:${interviewId}`;
 
-// called ONCE at join room — creates the session
+// called ONCE at join room â€” creates the session
 export async function saveInterviewSession(
   interviewId: string,
   sessionData: InterviewSession,
@@ -58,7 +58,7 @@ export async function getInterviewSession(
   return await redis.get<InterviewSession>(interviewKey(interviewId));
 }
 
-// called on every turn — appends without overwriting
+// called on every turn â€” appends without overwriting
 export async function appendToTranscript(interviewId: string, message: string) {
   const session = await getInterviewSession(interviewId);
   if (!session) throw new Error(`Interview session not found: ${interviewId}`);
@@ -80,7 +80,7 @@ export async function appendToTranscript(interviewId: string, message: string) {
   return session;
 }
 
-// called when interview completes — clean up Redis
+// called when interview completes â€” clean up Redis
 export async function deleteInterviewSession(interviewId: string) {
   return await redis.del(interviewKey(interviewId));
 }
