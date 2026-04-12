@@ -32,7 +32,6 @@ export async function POST(
       );
     }
 
-    // Fetch problem with ALL test cases including visibility
     const problem = await prisma.problem.findUnique({
       where: { slug: problemSlug },
       select: {
@@ -64,86 +63,90 @@ export async function POST(
       );
     }
 
-    // Encode code once outside loop
     const encodedCode = Buffer.from(code).toString("base64");
 
-    const results = [];
-    let compileErrored = false;
+    // 1. Submit all test cases in parallel
+    const tokens = await Promise.all(
+      problem.testCases.map(async (tc) => {
+        const cleanInput = tc.input.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        const encodedStdin = Buffer.from(cleanInput).toString("base64");
 
-    for (const tc of problem.testCases) {
-      if (compileErrored) {
-        results.push({
-          passed: false,
-          isPublic: tc.visibility === "PUBLIC",
-          input: null,
-          expected: null,
-          got: null,
-          status: "Skipped",
-        });
-        continue;
-      }
+        const submitRes = await fetch(
+          `${JUDGE0_URL}/submissions?base64_encoded=true&wait=false`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              source_code: encodedCode,
+              language_id: languageId,
+              stdin: encodedStdin,
+            }),
+          },
+        );
 
-      const cleanInput = tc.input.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-      const encodedStdin = Buffer.from(cleanInput).toString("base64");
+        const data = await submitRes.json();
+        return data.token as string | null;
+      }),
+    );
 
-      // Submit to Judge0
-      const submitRes = await fetch(
-        `${JUDGE0_URL}/submissions?base64_encoded=true&wait=false`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            source_code: encodedCode,
-            language_id: languageId,
-            stdin: encodedStdin,
-          }),
-        },
-      );
+    // 2. Poll all tokens in parallel
+    const pollResult = async (token: string | null) => {
+      if (!token) return null;
 
-      const { token } = await submitRes.json();
-
-      if (!token) {
-        results.push({
-          passed: false,
-          isPublic: tc.visibility === "PUBLIC",
-          input:
-            tc.visibility === "PUBLIC" ? (tc.displayInput ?? tc.input) : null,
-          expected:
-            tc.visibility === "PUBLIC"
-              ? (tc.displayOutput ?? tc.expectedOutput)
-              : null,
-          got: null,
-          status: "Submission Failed",
-        });
-        continue;
-      }
-
-      // Poll for result
-      let result = null;
       for (let i = 0; i < 10; i++) {
         await new Promise((r) => setTimeout(r, 1000));
         const pollRes = await fetch(
           `${JUDGE0_URL}/submissions/${token}?base64_encoded=true&fields=stdout,stderr,compile_output,status`,
           { method: "GET" },
         );
-        result = await pollRes.json();
-        if (result.status.id !== 1 && result.status.id !== 2) break;
+        const result = await pollRes.json();
+        if (result.status.id !== 1 && result.status.id !== 2) return result;
+      }
+
+      return null;
+    };
+
+    const rawResults = await Promise.all(tokens.map(pollResult));
+
+    // 3. Process results
+    let compileErrored = false;
+    const results = rawResults.map((result, idx) => {
+      const tc = problem.testCases[idx];
+      const isPublic = tc.visibility === "PUBLIC";
+      const publicInput = isPublic ? (tc.displayInput ?? tc.input) : null;
+      const publicExpected = isPublic ? (tc.displayOutput ?? tc.expectedOutput) : null;
+
+      if (compileErrored) {
+        return {
+          passed: false,
+          isPublic,
+          input: null,
+          expected: null,
+          got: null,
+          status: "Skipped",
+        };
+      }
+
+      if (!tokens[idx]) {
+        return {
+          passed: false,
+          isPublic,
+          input: publicInput,
+          expected: publicExpected,
+          got: null,
+          status: "Submission Failed",
+        };
       }
 
       if (!result) {
-        results.push({
+        return {
           passed: false,
-          isPublic: tc.visibility === "PUBLIC",
-          input:
-            tc.visibility === "PUBLIC" ? (tc.displayInput ?? tc.input) : null,
-          expected:
-            tc.visibility === "PUBLIC"
-              ? (tc.displayOutput ?? tc.expectedOutput)
-              : null,
+          isPublic,
+          input: publicInput,
+          expected: publicExpected,
           got: null,
           status: "Time Limit Exceeded",
-        });
-        continue;
+        };
       }
 
       const compileOutput = decode(result.compile_output);
@@ -156,31 +159,26 @@ export async function POST(
       if (compileOutput) {
         status = "Compile Error";
         compileErrored = true;
-      } else if (stderr) status = "Runtime Error";
-      else if (!passed) status = "Wrong Answer";
+      } else if (stderr) {
+        status = "Runtime Error";
+      } else if (!passed) {
+        status = "Wrong Answer";
+      }
 
-      results.push({
+      return {
         passed,
-        isPublic: tc.visibility === "PUBLIC",
-        input:
-          tc.visibility === "PUBLIC" ? (tc.displayInput ?? tc.input) : null,
-        expected:
-          tc.visibility === "PUBLIC"
-            ? (tc.displayOutput ?? tc.expectedOutput)
-            : null,
-        got: tc.visibility === "PUBLIC" ? stdout : null,
+        isPublic,
+        input: publicInput,
+        expected: publicExpected,
+        got: isPublic ? stdout : null,
         status,
-        error:
-          tc.visibility === "PUBLIC" && (compileOutput || stderr)
-            ? compileOutput || stderr
-            : null,
-      });
-    }
+        error: isPublic && (compileOutput || stderr) ? compileOutput || stderr : null,
+      };
+    });
 
     const allPassed = results.every((r) => r.passed);
     const passedCount = results.filter((r) => r.passed).length;
 
-    // Update UserProblem in database
     await prisma.userProblem.upsert({
       where: {
         userId_problemId: {
@@ -190,10 +188,7 @@ export async function POST(
       },
       update: {
         attempts: { increment: 1 },
-        ...(allPassed && {
-          solved: true,
-          solvedAt: new Date(),
-        }),
+        ...(allPassed && { solved: true, solvedAt: new Date() }),
       },
       create: {
         userId: session.user.id,

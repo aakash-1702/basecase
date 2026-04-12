@@ -1,114 +1,63 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 
-type LanguageBadge = {
+type FeatureCard = {
   id: string;
-  label: string;
-  icon: string;
+  title: string;
+  short: string;
+  detail: string;
   color: string;
+  isLink?: boolean;
+  href?: string;
   position: CSSProperties;
-  delay: number;
 };
 
-const languageBadges: LanguageBadge[] = [
+const featureCards: FeatureCard[] = [
   {
-    id: "python",
-    label: "Py",
-    icon: "PY",
+    id: "ai-interview",
+    title: "AI Interview",
+    short: "voice + realtime feedback",
+    detail: "Mock interview room with instant scoring and guidance.",
     color: "#3b82f6",
-    position: { top: "18%", right: "10%" },
-    delay: 0,
+    position: { top: "17%", right: "5%" },
   },
   {
-    id: "cpp",
-    label: "C++",
-    icon: "C++",
+    id: "judge0-ide",
+    title: "Judge0 IDE",
+    short: "multi-language coding",
+    detail: "Browser IDE with compile-run powered by Judge0.",
     color: "#60a5fa",
-    position: { bottom: "18%", right: "6%" },
-    delay: 0.7,
+    position: { bottom: "14%", right: "2%" },
   },
   {
-    id: "java",
-    label: "Java",
-    icon: "JV",
+    id: "ai-mentor",
+    title: "AI Mentor",
+    short: "always-on doubt solver",
+    detail: "Personalized hints and coaching for every problem.",
     color: "#f97316",
-    position: { top: "24%", left: "6%" },
-    delay: 0.35,
+    position: { top: "24%", left: "2%" },
   },
   {
-    id: "js",
-    label: "JS",
-    icon: "JS",
+    id: "sm2",
+    title: "SM-2 Algorithm",
+    short: "spaced repetition engine",
+    detail: "Adaptive revision schedule tuned by your performance.",
     color: "#facc15",
-    position: { bottom: "22%", left: "10%" },
-    delay: 1,
+    position: { bottom: "18%", left: "8%" },
+  },
+  {
+    id: "linkedin",
+    title: "LinkedIn",
+    short: "creator profile",
+    detail: "linkedin.com/in/aakash49",
+    color: "#38bdf8",
+    isLink: true,
+    href: "https://linkedin.com/in/aakash49",
+    position: { top: "52%", right: "-1%" },
   },
 ];
-
-function FloatingLanguageBadge({ badge }: { badge: LanguageBadge }) {
-  return (
-    <motion.div
-      animate={{
-        y: [0, -10, 0],
-        rotate: [0, 1, 0],
-      }}
-      transition={{
-        duration: 4.2,
-        delay: badge.delay,
-        repeat: Infinity,
-        ease: "easeInOut",
-      }}
-      style={{
-        position: "absolute",
-        width: 84,
-        borderRadius: 14,
-        border: `1px solid ${badge.color}55`,
-        background: "rgba(16,16,16,0.82)",
-        backdropFilter: "blur(10px)",
-        boxShadow: `0 12px 28px rgba(0,0,0,0.55), 0 0 18px ${badge.color}22`,
-        padding: "10px 8px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        zIndex: 6,
-        ...badge.position,
-      }}
-    >
-      <div
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 10,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: `${badge.color}20`,
-          border: `1px solid ${badge.color}55`,
-          color: badge.color,
-          fontSize: 10,
-          fontWeight: 800,
-          fontFamily: "var(--font-fira), monospace",
-        }}
-      >
-        {badge.icon}
-      </div>
-      <span
-        style={{
-          color: "#f8fafc",
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.02em",
-          fontFamily: "var(--font-nunito), sans-serif",
-        }}
-      >
-        {badge.label}
-      </span>
-    </motion.div>
-  );
-}
 
 function HeroPanel() {
   return (
@@ -237,6 +186,9 @@ function HeroPanel() {
 }
 
 export default function SpatialHeroVisual() {
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const isPaused = hoveredCard !== null;
+
   return (
     <div
       id="spatial-hero-visual"
@@ -279,8 +231,8 @@ export default function SpatialHeroVisual() {
 
       <motion.div
         aria-hidden
-        animate={{ opacity: [0.32, 0.56, 0.32], scale: [1, 1.04, 1] }}
-        transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ opacity: [0.25, 0.5, 0.25], scale: [1, 1.03, 1] }}
+        transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}
         style={{
           position: "absolute",
           width: 560,
@@ -291,6 +243,43 @@ export default function SpatialHeroVisual() {
         }}
       />
 
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      >
+        <div
+          className={`bc-orbit ${isPaused ? "paused" : ""}`}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: 570,
+            height: 570,
+            transform: "translate(-50%, -50%)",
+            border: "1px solid rgba(148,163,184,0.22)",
+            borderRadius: "50%",
+          }}
+        />
+        <div
+          className={`bc-orbit bc-orbit-slow ${isPaused ? "paused" : ""}`}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: 460,
+            height: 460,
+            transform: "translate(-50%, -50%)",
+            border: "1px solid rgba(148,163,184,0.15)",
+            borderRadius: "50%",
+          }}
+        />
+      </div>
+
       <div style={{ position: "relative", width: "100%", minHeight: 700, zIndex: 2 }}>
         <div
           style={{
@@ -298,17 +287,123 @@ export default function SpatialHeroVisual() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
+            zIndex: 30,
           }}
         >
           <HeroPanel />
         </div>
 
-        {languageBadges.map((badge) => (
-          <FloatingLanguageBadge key={badge.id} badge={badge} />
+        {featureCards.map((card, idx) => (
+          <motion.div
+            key={card.id}
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.45, delay: 0.2 + idx * 0.06, ease: "easeOut" }}
+            className={isPaused ? "paused" : ""}
+            onMouseEnter={() => setHoveredCard(card.id)}
+            onMouseLeave={() => setHoveredCard(null)}
+            style={{
+              position: "absolute",
+              width: hoveredCard === card.id ? 220 : 170,
+              borderRadius: 14,
+              border: `1px solid ${card.color}55`,
+              background: "rgba(10,10,10,0.82)",
+              backdropFilter: "blur(8px)",
+              boxShadow: `0 12px 32px rgba(0,0,0,0.45), 0 0 16px ${card.color}22`,
+              padding: "11px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              zIndex: 8,
+              transition: "width 0.2s ease, border-color 0.2s ease",
+              ...card.position,
+              animationName: "bcCardFloat",
+              animationDuration: "4.3s",
+              animationTimingFunction: "ease-in-out",
+              animationIterationCount: "infinite",
+              animationDelay: `${idx * 0.4}s`,
+              animationPlayState: isPaused ? "paused" : "running",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span
+                style={{
+                  color: "#f8fafc",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: "0.01em",
+                }}
+              >
+                {card.title}
+              </span>
+              <span
+                style={{
+                  borderRadius: 999,
+                  border: `1px solid ${card.color}66`,
+                  background: `${card.color}1e`,
+                  color: card.color,
+                  fontSize: 9,
+                  fontWeight: 800,
+                  padding: "3px 8px",
+                  textTransform: "uppercase",
+                }}
+              >
+                live
+              </span>
+            </div>
+
+            <span style={{ color: "#94a3b8", fontSize: 10, lineHeight: 1.4 }}>{card.short}</span>
+
+            <div
+              style={{
+                maxHeight: hoveredCard === card.id ? 54 : 0,
+                opacity: hoveredCard === card.id ? 1 : 0,
+                overflow: "hidden",
+                transition: "max-height 0.2s ease, opacity 0.2s ease",
+                color: "#cbd5e1",
+                fontSize: 10,
+                lineHeight: 1.45,
+              }}
+            >
+              {card.isLink ? (
+                <a
+                  href={card.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#7dd3fc", textDecoration: "underline" }}
+                >
+                  {card.detail}
+                </a>
+              ) : (
+                card.detail
+              )}
+            </div>
+          </motion.div>
         ))}
       </div>
 
       <style>{`
+        .bc-orbit {
+          animation: bcOrbitSpin 22s linear infinite;
+          transform-origin: center;
+          animation-play-state: running;
+        }
+        .bc-orbit.bc-orbit-slow {
+          animation-duration: 32s;
+          animation-direction: reverse;
+        }
+        .bc-orbit.paused {
+          animation-play-state: paused !important;
+        }
+        @keyframes bcOrbitSpin {
+          from { transform: translate(-50%, -50%) rotate(0deg); }
+          to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        @keyframes bcCardFloat {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+          100% { transform: translateY(0px); }
+        }
         @media (max-width: 1200px) {
           #spatial-hero-visual { min-height: 620px !important; }
           #spatial-hero-visual > div:last-child { transform: scale(0.9); transform-origin: center; }

@@ -168,6 +168,7 @@ export const chunkFiles = (
   const allChunks: Chunk[] = [];
 
   for (const file of files) {
+    if(!file.content || file.content.trim() === "") continue; // agar file khaali hai to usko skip kr do
     const ext = "." + file.path?.split(".").pop()?.toLowerCase();
     let chunks: Chunk[] = [];
 

@@ -9,11 +9,10 @@ import { embedAndStoreChunks, searchSimilarChunk } from "@/lib/storeVector";
 import { v4 as uuidv4 } from "uuid";
 import { INTERVIEW_CONFIGS, type InterviewType } from "@/lib/interviewTypes";
 import { fetchQuestions } from "@/agents/github.scraper.agent";
+import { setInterviewQuestions, getInterviewDetails } from "@/lib/session";
 
 import { Project, ScriptTarget } from "ts-morph";
 import { success } from "zod";
-
-const interview = "backend";
 
 const ALLOWED_EXTENSIONS = new Set([
   ".js",
@@ -151,7 +150,39 @@ export async function POST(req: NextRequest) {
     
     */
 
-  const { repoLink } = await req.json();
+  const userDetails = await prisma.user.findFirst({
+    where: {
+      id: session.user.id,
+    },
+    select: {
+      interviewCredits: true,
+    },
+  });
+
+  if (!userDetails || userDetails.interviewCredits < 3) {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message:
+          "Github Interview requires at least 3 credits, please recharge your account to start the interview",
+      },
+      {
+        status: 402,
+      },
+    );
+  }
+
+  const { repoLink, roleInProject, roleForInterview, userLevel } =
+    await req.json();
+
+  const config = INTERVIEW_CONFIGS[roleForInterview as InterviewType];
+  if (!config) {
+    return NextResponse.json(
+      { success: false, data: null, message: "Invalid interviewType" },
+      { status: 400 },
+    );
+  }
 
   const repoInfo = parseGithubURL(repoLink);
 
@@ -188,6 +219,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // here the processing and test if the last interview for the same repo by teh same user was withing last 7 days , so just fetch the questions for the user and start the interview , no noeed to process the vectors and all
+  const repoId = repoInfo.repo + repoInfo.owner;
+  const userId = session.user.id;
+
   // taking or extracting the useful files from  the entire tree
 
   const relevantFiles = fileData.tree
@@ -205,19 +240,8 @@ export async function POST(req: NextRequest) {
     }),
   );
 
-  const repoId = uuidv4();
-  const userId = session.user.id;
-
   const chunks = chunkFiles(fileContents); // { path, content }[] → Chunk[]
   await embedAndStoreChunks(chunks, repoId, userId);
-
-  const config = INTERVIEW_CONFIGS[interview as InterviewType];
-  if (!config) {
-    return NextResponse.json(
-      { success: false, data: null, message: "Invalid interviewType" },
-      { status: 400 },
-    );
-  }
 
   const retrieveData = await searchSimilarChunk(config.searchQuery, repoId, 8);
 
@@ -225,7 +249,11 @@ export async function POST(req: NextRequest) {
 
   const fetchedQuestions = await fetchQuestions(
     retrieveData,
-    config.searchQuery + config.focusInstruction,
+    config.searchQuery +
+      config.focusInstruction +
+      config.systemPrompt +
+      roleInProject +
+      userLevel,
   );
 
   if (!fetchedQuestions) {
@@ -241,18 +269,60 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // now based on these vectors ineed to generate questions and the flow of how the interview should proceed
+  // now we have questions ready , now we are required to create an interview entry in the database creating new interview
+  //creating new interview
+  const [newInterview, updateUserDetails] = await prisma.$transaction([
+    prisma.interview2.create({
+      data: {
+        userId: userId,
+        repoId: repoId,
+        interviewType: "GITHUB",
+        repoLink: repoLink,
+      },
+    }),
+
+    prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        interviewCredits: {
+          decrement: 3,
+        },
+      },
+      select: {
+        interviewCredits: true,
+      },
+    }),
+  ]);
+
+  if (!newInterview) {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Failed to create interview at the moment",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+
+  // need to add the questions to the redis database
+  await setInterviewQuestions(fetchedQuestions, newInterview.id, userId);
 
   return NextResponse.json(
     {
       success: true,
-      data: fetchedQuestions,
-      message: "Repo details fetched successfully",
+      data: {
+        id: newInterview.id,
+        interviewCredits: updateUserDetails.interviewCredits,
+      },
+      message: "Interview created successfully",
     },
     {
-      status: 200,
+      status: 201,
     },
   );
-
-  // need to figure out the user and the repo link
 }

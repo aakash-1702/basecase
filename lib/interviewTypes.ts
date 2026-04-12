@@ -2,7 +2,12 @@
   | "system_design"
   | "frontend"
   | "backend"
-  | "fullstack";
+  | "fullstack"
+  | "ai_engineer"
+  | "devops_engineer"
+  | "ml_engineer"
+  | "data_engineer";
+  
 
 export const INTERVIEW_CONFIGS: Record<
   InterviewType,
@@ -48,5 +53,41 @@ export const INTERVIEW_CONFIGS: Record<
       "You are a senior full-stack engineer conducting a technical interview.",
     focusInstruction:
       "Cover the full stack â€” frontend components, backend APIs, data flow end-to-end, auth, and how the layers communicate. Ask about integration points and tradeoffs across the stack.",
+  },
+  ai_engineer: {
+    label: "AI Engineer",
+    searchQuery:
+      "machine learning, deep learning, neural network, NLP, computer vision, model training, deployment, optimization",
+    systemPrompt:
+      "You are a senior AI engineer conducting a technical interview.",
+    focusInstruction:
+      "Focus on machine learning concepts, deep learning architectures, NLP and computer vision applications, model evaluation, and deployment strategies.",
+  },
+  devops_engineer: {
+    label: "DevOps Engineer",
+    searchQuery:
+      "CI/CD, containerization, orchestration, monitoring, logging, infrastructure as code, automation, cloud platforms",
+    systemPrompt:
+      "You are a senior DevOps engineer conducting a technical interview.",
+    focusInstruction:
+      "Focus on CI/CD pipelines, container technologies like Docker and Kubernetes, infrastructure automation, monitoring and logging strategies, and cloud platform management.",
+  },
+  ml_engineer: {
+    label: "ML Engineer",
+    searchQuery:
+      "machine learning, deep learning, neural network, NLP, computer vision, model training, deployment, optimization",
+    systemPrompt:
+      "You are a senior ML engineer conducting a technical interview.",
+    focusInstruction:
+      "Focus on machine learning algorithms, deep learning architectures, NLP and computer vision techniques, model evaluation metrics, and deployment considerations.",
+  },
+  data_engineer: {
+    label: "Data Engineer",
+    searchQuery:
+      "data pipeline, ETL process, data warehouse, data lake, data modeling, data quality, data governance, big data technologies",
+    systemPrompt:
+      "You are a senior Data Engineer conducting a technical interview.",
+    focusInstruction:
+      "Focus on data pipeline design and implementation",
   },
 };

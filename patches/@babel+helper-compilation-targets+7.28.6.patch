@@ -1,0 +1,13 @@
+diff --git a/node_modules/@babel/helper-compilation-targets/lib/utils.js b/node_modules/@babel/helper-compilation-targets/lib/utils.js
+index 70270e0..e6c9d76 100644
+--- a/node_modules/@babel/helper-compilation-targets/lib/utils.js
++++ b/node_modules/@babel/helper-compilation-targets/lib/utils.js
+@@ -28,7 +28,7 @@ function semverify(version) {
+   while ((pos = version.indexOf(".", pos + 1)) > 0) {
+     num++;
+   }
+-  return version + ".0".repeat(2 - num);
++  return version + ".0".repeat(Math.max(0, 2 - num));
+ }
+ function isUnreleasedVersion(version, env) {
+   const unreleasedLabel = _targets.unreleasedLabels[env];

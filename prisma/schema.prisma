@@ -43,6 +43,7 @@
     expiresAt DateTime?
     roadmaps     Roadmap[]
   userRoadmaps UserRoadmap[]
+  interview2 Interview2[]
     @@unique([email])
     @@map("user")
   }
@@ -261,6 +262,41 @@
 
     @@index([userId])
   }
+  
+  enum INTERVIEWTYPES {
+    DSA
+    SYSTEM_DESIGN
+    RESUME
+    GITHUB
+  }
+
+
+  
+
+
+  enum InterviewProgress{
+    NOT_STARTED 
+    IN_PROGRESS 
+    ANALYSIS_PENDING
+    COMPLETED
+  }
+
+
+  model Interview2 {
+    id String @id @default(cuid())
+    userId String
+    user User @relation(fields: [userId], references: [id])
+    interviewType INTERVIEWTYPES
+    repoLink String?
+    repoId String?
+    createdAt     DateTime       @default(now())  
+    status InterviewProgress @default(NOT_STARTED)           
+    @@index([userId])
+  }
+
+  // review for this interviewV2 would be present in the mongodb micnroservice and linked via interviewId file 
+
+  
 
 
 
@@ -290,6 +326,8 @@
   PUBLIC
   PRIVATE
 }
+
+
 
 enum PREPLEVEL {
   BEGINNER

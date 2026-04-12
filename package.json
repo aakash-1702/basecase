@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
-    "worker": "tsx --tsconfig tsconfig.json -r tsconfig-paths/register workers/analysisWorker.ts"
+    "worker": "tsx --tsconfig tsconfig.json -r tsconfig-paths/register workers/analysisWorker.ts",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -77,6 +78,7 @@
     "@types/slug": "^5.0.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "patch-package": "^8.0.1",
     "prisma": "^7.4.0",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",

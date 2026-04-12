@@ -22,65 +22,63 @@ export async function saveHistory(
   await redis.set(key, history, { ex: TTL_MENTOR });
 }
 
-const TTL_INTERVIEW = 60 * 60 * 24; // 2hours , so that background jobs can be completed
+// this is for interview related data and session management , we can use it 
+const keyGenerator = (interviewId : string , userId : string) => {
+  return `interview:${interviewId}:${userId}`;
+}
 
+// lib/types/interview.ts
+export interface InterviewSession {
+  interviewId: string;
+  userId: string;
+  questions: GeneratedQuestion[];     // all questions from RAG pipeline
+  currentQuestionIndex: number;       // which main question we're on (0-based)
+  followupCountForCurrent: number;    // followups asked for current question (max 3)
+  transcript: Turn[];                 // last N turns (rolling window)
+  rollingTranscript: Turn[];          // last 5 turns raw
+  previousSummary: string;            // compressed summary of earlier turns
+  totalTurns: number;                 // total turns across whole session
+  status: "IN_PROGRESS" | "COMPLETED";
+}
 
+export interface Turn {
+  role: "interviewer" | "candidate";
+  content: string;
+  timestamp: number;
+  questionIndex: number;              // which question this turn belongs to
+  isFollowup: boolean;
+}
+/**
+ * Sets the interview questions for a given interview session.
+ * @param {any} interviewStarting The interview starting data.
+ * @returns {Promise<void>} A promise that resolves when the questions have been set.
+ */
+interface GeneratedQuestion{
+  
 
-// â”€â”€â”€ INTERVIEW SESSION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-type InterviewSession = {
-  plan: any;
-  transcript: string[]; // alternating: even = AI, odd = User
-  isGreetingDone: boolean;
-  turnCount: number; // number of user responses so far
-  mode: string;
-  company: string;
-  difficulty: string | null;
-  questionLimit: number | null;
-};
-
-const interviewKey = (interviewId: string) => `interviewSession:${interviewId}`;
-
-// called ONCE at join room â€” creates the session
-export async function saveInterviewSession(
-  interviewId: string,
-  sessionData: InterviewSession,
-) {
-  await redis.set(interviewKey(interviewId), sessionData, {
-    ex: TTL_INTERVIEW,
+}
+const setInterviewQuestions = async (interviewStarting : any  , interviewId : string , userId : string) => {
+  
+    const key = keyGenerator(interviewId ,userId);
+  
+  await redis.set(key , JSON.stringify(interviewStarting) , {
+    ex : 12 * 60 * 60  // 12 hours of expiry time 
   });
 }
 
-// called to read current state
-export async function getInterviewSession(
-  interviewId: string,
-): Promise<InterviewSession | null> {
-  return await redis.get<InterviewSession>(interviewKey(interviewId));
+const getInterviewDetails  = async(interviewId : string , userId : string) =>{
+  const key = keyGenerator(interviewId , userId);
+
+  const data = await redis.get(key);
+  return data ? data : null; // no requirement for parsing as the upstash arleady return parsed data
+
 }
 
-// called on every turn â€” appends without overwriting
-export async function appendToTranscript(interviewId: string, message: string) {
-  const session = await getInterviewSession(interviewId);
-  if (!session) throw new Error(`Interview session not found: ${interviewId}`);
 
-  session.transcript.push(message);
+export { setInterviewQuestions , getInterviewDetails };
 
-  // if message is from user (odd index after push) increment turnCount
-  if (session.transcript.length % 2 === 0) {
-    session.turnCount += 1;
-  }
 
-  // if this was user's first real answer, mark greeting as done
-  if (!session.isGreetingDone && session.turnCount === 1) {
-    session.isGreetingDone = true;
-  }
 
-  await redis.set(interviewKey(interviewId), session, { ex: TTL_INTERVIEW });
 
-  return session;
-}
 
-// called when interview completes â€” clean up Redis
-export async function deleteInterviewSession(interviewId: string) {
-  return await redis.del(interviewKey(interviewId));
-}
+
