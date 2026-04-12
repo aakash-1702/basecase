@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest) {
 
 
   // now decide what should be done next in the interview
- const nextAIAction = getNextAction(interviewDetails )
+
 
 
   
