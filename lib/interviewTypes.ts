@@ -7,15 +7,14 @@
   | "devops_engineer"
   | "ml_engineer"
   | "data_engineer";
-  
 
 export const INTERVIEW_CONFIGS: Record<
   InterviewType,
   {
     label: string;
-    searchQuery: string; // semantic query sent to Qdrant
-    systemPrompt: string; // role given to Gemini
-    focusInstruction: string; // what to ask about
+    searchQuery: string;
+    systemPrompt: string;
+    focusInstruction: string;
   }
 > = {
   system_design: {
@@ -52,7 +51,7 @@ export const INTERVIEW_CONFIGS: Record<
     systemPrompt:
       "You are a senior full-stack engineer conducting a technical interview.",
     focusInstruction:
-      "Cover the full stack â€” frontend components, backend APIs, data flow end-to-end, auth, and how the layers communicate. Ask about integration points and tradeoffs across the stack.",
+      "Cover the full stack - frontend components, backend APIs, data flow end-to-end, auth, and how the layers communicate. Ask about integration points and tradeoffs across the stack.",
   },
   ai_engineer: {
     label: "AI Engineer",
@@ -87,7 +86,6 @@ export const INTERVIEW_CONFIGS: Record<
       "data pipeline, ETL process, data warehouse, data lake, data modeling, data quality, data governance, big data technologies",
     systemPrompt:
       "You are a senior Data Engineer conducting a technical interview.",
-    focusInstruction:
-      "Focus on data pipeline design and implementation",
+    focusInstruction: "Focus on data pipeline design and implementation",
   },
 };
