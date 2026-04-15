@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type InterviewMode = "dsa" | "systemdesign" | "resume" | "github";
@@ -231,6 +232,45 @@ export function StartInterviewModal({
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // ── GitHub mode: POST to github endpoint → redirect to ready page ──
+    if (selectedMode === "github") {
+      try {
+        const res = await fetch("/api/interview/new-interview/github", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repoLink: repoUrl,
+            roleInProject: repoRole,
+            roleForInterview: repoTargetRole,
+            userLevel: difficulty,
+          }),
+        });
+
+        const json = await res.json();
+
+        if (!json.success) {
+          setSubmitError(json.message || "Failed to create interview");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const interviewId = json.data?.id || json.data;
+        const readyParams = new URLSearchParams({
+          repo: repoUrl,
+          questions: "8",
+          difficulty,
+          role: repoTargetRole || "Full Stack",
+        });
+        onClose();
+        router.push(`/interview/${interviewId}/ready?${readyParams.toString()}`);
+      } catch {
+        setSubmitError("Something went wrong. Please try again.");
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // ── Non-GitHub modes (legacy path) ──
     try {
       const res = await fetch("/api/interview/new-interview", {
         method: "POST",
@@ -469,7 +509,14 @@ export function StartInterviewModal({
             >
               <button
                 onClick={() => {
-                  if (selectedMode && hasEnoughCredits) setPage(2);
+                  if (!selectedMode || !hasEnoughCredits) return;
+                  if (selectedMode !== "github") {
+                    toast.info("Coming soon — only GitHub Deep Dive is available right now", {
+                      duration: 3000,
+                    });
+                    return;
+                  }
+                  setPage(2);
                 }}
                 disabled={!selectedMode || !hasEnoughCredits}
                 style={{

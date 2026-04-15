@@ -22,22 +22,24 @@ export async function saveHistory(
   await redis.set(key, history, { ex: TTL_MENTOR });
 }
 
-// this is for interview related data and session management , we can use it 
-const keyGenerator = (interviewId : string , userId : string) => {
+// this is for interview related data and session management , we can use it
+const keyGenerator = (interviewId: string, userId: string) => {
   return `interview:${interviewId}:${userId}`;
-}
+};
 
 // lib/types/interview.ts
 export interface InterviewSession {
   interviewId: string;
   userId: string;
-  questions: GeneratedQuestion[];     // all questions from RAG pipeline
-  currentQuestionIndex: number;       // which main question we're on (0-based)
-  followupCountForCurrent: number;    // followups asked for current question (max 3)
-  transcript: Turn[];                 // last N turns (rolling window)
-  rollingTranscript: Turn[];          // last 5 turns raw
-  previousSummary: string;            // compressed summary of earlier turns
-  totalTurns: number;                 // total turns across whole session
+  repoLink: string;
+  repoId: string;
+  questions: GeneratedQuestion[]; // all questions from RAG pipeline
+  currentQuestionIndex: number; // which main question we're on (0-based) , -1 represent that we are at ice-breaker
+  followupCountForCurrent: number; // followups asked for current question (max 3)
+  transcript: Turn[]; // last N turns (rolling window)
+  rollingTranscript: Turn[]; // last 5 turns raw
+  previousSummary: string; // compressed summary of earlier turns
+  totalTurns: number; // total turns across whole session
   status: "IN_PROGRESS" | "COMPLETED";
 }
 
@@ -45,7 +47,7 @@ export interface Turn {
   role: "interviewer" | "candidate";
   content: string;
   timestamp: number;
-  questionIndex: number;              // which question this turn belongs to
+  questionIndex: number; // which question this turn belongs to
   isFollowup: boolean;
 }
 /**
@@ -53,32 +55,73 @@ export interface Turn {
  * @param {any} interviewStarting The interview starting data.
  * @returns {Promise<void>} A promise that resolves when the questions have been set.
  */
-interface GeneratedQuestion{
-  
-
+interface GeneratedQuestion {
+  icebreaker: {
+    question: string;
+  };
+  questions: [
+    {
+      question: string;
+      difficulty: "easy" | "medium" | "hard";
+      intent: string;
+      howmuchDepthRequired: number;
+    },
+  ];
 }
-const setInterviewQuestions = async (interviewStarting : any  , interviewId : string , userId : string) => {
-  
-    const key = keyGenerator(interviewId ,userId);
-  
-  await redis.set(key , JSON.stringify(interviewStarting) , {
-    ex : 12 * 60 * 60  // 12 hours of expiry time 
-  });
-}
+/**
+ * Sets the interview questions for a given interview session.
+ * @param {any} interviewStarting The interview starting data.
+ * @param {string} interviewId The ID of the interview.
+ * @param {string} userId The ID of the user.
+ * @param {string} repoLink The link to the user's repository.
+ * @param {string} repoId The ID of the repository.
+ * @returns {Promise<void>} A promise that resolves when the questions have been set.
+ */
+const setInterviewQuestions = async (
+  interviewStarting: any,
+  interviewId: string,
+  userId: string,
+  repoLink: string,
+  repoId: string,
+) => {
+  const key = keyGenerator(interviewId, userId);
 
-const getInterviewDetails  = async(interviewId : string , userId : string) =>{
-  const key = keyGenerator(interviewId , userId);
+  await redis.set<InterviewSession>(
+    key,
+    {
+      interviewId: interviewId,
+      userId: userId,
+      repoLink: repoLink,
+      repoId: repoId,
+      questions: interviewStarting,
+      currentQuestionIndex: -1,
+      followupCountForCurrent: 0,
+      transcript: [],
+      rollingTranscript: [],
+      previousSummary: "",
+      totalTurns: 0,
+      status: "IN_PROGRESS",
+    },
+    { ex: TTL_MENTOR },
+  );
+};
 
-  const data = await redis.get(key);
-  return data ? data : null; // no requirement for parsing as the upstash arleady return parsed data
+const getInterviewDetails = async (
+  interviewId: string,
+  userId: string,
+): Promise<InterviewSession | null> => {
+  const key = keyGenerator(interviewId, userId);
+  const data = await redis.get<InterviewSession>(key);
+  return data ?? null;
+};
 
-}
+const saveInterviewSession = async (
+  interviewDetails: InterviewSession,
+  interviewId: string,
+  userId: string,
+) => {
+  const key = keyGenerator(interviewId, userId);
+  await redis.set<InterviewSession>(key, interviewDetails, { ex: TTL_MENTOR });
+};
 
-
-export { setInterviewQuestions , getInterviewDetails };
-
-
-
-
-
-
+export { setInterviewQuestions, getInterviewDetails, saveInterviewSession };

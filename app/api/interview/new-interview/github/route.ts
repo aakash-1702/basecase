@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { INTERVIEW_CONFIGS, type InterviewType } from "@/lib/interviewTypes";
 import { fetchQuestions } from "@/agents/github.scraper.agent";
 import { setInterviewQuestions, getInterviewDetails } from "@/lib/session";
+import { InterviewSession } from "@/lib/session";
 
 import { Project, ScriptTarget } from "ts-morph";
 import { success } from "zod";
@@ -220,7 +221,7 @@ export async function POST(req: NextRequest) {
   }
 
   // here the processing and test if the last interview for the same repo by teh same user was withing last 7 days , so just fetch the questions for the user and start the interview , no noeed to process the vectors and all
-  const repoId = repoInfo.repo + repoInfo.owner;
+  const repoId = repoInfo.repo +  "_" + repoInfo.owner;
   const userId = session.user.id;
 
   // taking or extracting the useful files from  the entire tree
@@ -310,7 +311,23 @@ export async function POST(req: NextRequest) {
   }
 
   // need to add the questions to the redis database
-  await setInterviewQuestions(fetchedQuestions, newInterview.id, userId);
+  const interviewData = {
+    interviewId : newInterview.id,
+    userId : userId,
+    repoLink : repoLink,
+    repoId : repoId,
+    questions : fetchedQuestions,
+    currentQuestionIndex : -1, // starting with ice-breaker question
+    followupCountForCurrent : 0,
+    transcript : [],
+    rollingTranscript : [],
+    previousSummary : "",
+    totalTurns : 0,
+    status : "IN_PROGRESS",
+  }
+
+  
+  await setInterviewQuestions(interviewData, newInterview.id, userId,repoLink, repoId);
 
   return NextResponse.json(
     {
@@ -318,6 +335,7 @@ export async function POST(req: NextRequest) {
       data: {
         id: newInterview.id,
         interviewCredits: updateUserDetails.interviewCredits,
+        fetchedQuestions,
       },
       message: "Interview created successfully",
     },
