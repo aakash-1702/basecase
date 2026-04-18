@@ -59,15 +59,14 @@ interface GeneratedQuestion {
   icebreaker: {
     question: string;
   };
-  questions: [
-    {
-      question: string;
-      difficulty: "easy" | "medium" | "hard";
-      intent: string;
-      howmuchDepthRequired: number;
-    },
-  ];
+  questions: {
+    question: string;
+    difficulty: "easy" | "medium" | "hard";
+    intent: string;
+    howmuchDepthRequired: number;
+  }[];
 }
+
 /**
  * Sets the interview questions for a given interview session.
  * @param {any} interviewStarting The interview starting data.
@@ -78,13 +77,16 @@ interface GeneratedQuestion {
  * @returns {Promise<void>} A promise that resolves when the questions have been set.
  */
 const setInterviewQuestions = async (
-  interviewStarting: any,
+  interviewStarting: GeneratedQuestion | GeneratedQuestion[],
   interviewId: string,
   userId: string,
   repoLink: string,
   repoId: string,
 ) => {
   const key = keyGenerator(interviewId, userId);
+  const normalizedQuestions = Array.isArray(interviewStarting)
+    ? interviewStarting
+    : [interviewStarting];
 
   await redis.set<InterviewSession>(
     key,
@@ -93,8 +95,8 @@ const setInterviewQuestions = async (
       userId: userId,
       repoLink: repoLink,
       repoId: repoId,
-      questions: interviewStarting,
-      currentQuestionIndex: -1,
+      questions: normalizedQuestions,
+      currentQuestionIndex: -1, // represent no question has been asked yet 
       followupCountForCurrent: 0,
       transcript: [],
       rollingTranscript: [],

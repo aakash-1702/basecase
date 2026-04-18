@@ -2,20 +2,24 @@ const decideNextActionForInterview = (
   currentQuestionIndex: number,
   noOfFollowUps: number,
   totalQuestions: number,
+  
 ) => {
-  if (currentQuestionIndex === -1) {
-    return "ice-breaker";
+  if(currentQuestionIndex === -1) {
+    return "start-interview";
   }
 
-  if (currentQuestionIndex >= totalQuestions - 1) {
-    return "interview-completed";
-  }
-
-  if (noOfFollowUps < 2) {
+  if(noOfFollowUps < 2) {
     return "follow-up";
   }
 
+  if(currentQuestionIndex === totalQuestions ) {
+   return "end-interview";
+  }
+
+
   return "main-question";
+
+
 };
 
 export default decideNextActionForInterview;

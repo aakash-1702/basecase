@@ -1061,4 +1061,63 @@ button {
     0%, 100% { transform: scaleY(0.2); opacity: 0.3; }
     50%      { transform: scaleY(1);   opacity: 0.7; }
   }
+
+  /* ── GitHub Interview v2 Animations ── */
+  @keyframes ghv2ShimmerSweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  @keyframes ghv2PingRing {
+    0%   { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  @keyframes ghv2SpringIn {
+    0%   { transform: translateX(-16px); opacity: 0; }
+    100% { transform: translateX(0px); opacity: 1; }
+  }
+  @keyframes ghv2CheckDraw {
+    0%   { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+  }
+  @keyframes ghv2AmbientOrb {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  @keyframes ghv2RecordPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+    50%      { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
+  }
+  @keyframes ghv2WaveBar {
+    0%, 100% { transform: scaleY(0.3); }
+    50%      { transform: scaleY(1); }
+  }
+  @keyframes ghv2Breathing {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.04); }
+  }
+  @keyframes ghv2AiPulse {
+    0%   { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  @keyframes ghv2CursorBlink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+  @keyframes ghv2FakeProgress {
+    0%   { width: 0%; }
+    100% { width: 95%; }
+  }
+  @keyframes ghv2FadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes ghv2FadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  @keyframes ghv2SlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 }
