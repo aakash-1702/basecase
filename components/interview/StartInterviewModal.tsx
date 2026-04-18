@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { INTERVIEW_CONFIGS, type InterviewType } from "@/lib/interviewTypes";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type InterviewMode = "dsa" | "systemdesign" | "resume" | "github";
@@ -82,10 +83,8 @@ function getCreditPillStyle(credits: number) {
 
 /* ─── Shared constants ──────────────────────────────────────── */
 const SENIORITY = ["Junior", "Senior", "Staff", "Principal"];
-const MONO =
-  "var(--font-dm-mono), 'DM Mono', monospace";
-const SERIF =
-  "var(--font-dm-serif), 'DM Serif Display', serif";
+const MONO = "var(--font-dm-mono), 'DM Mono', monospace";
+const SERIF = "var(--font-dm-serif), 'DM Serif Display', serif";
 
 /* ═══════════════════════════════════════════════════
    MAIN EXPORT
@@ -128,7 +127,9 @@ export function StartInterviewModal({
   const [repoUrl, setRepoUrl] = useState("");
   const [repoUrlError, setRepoUrlError] = useState<string | null>(null);
   const [repoRole, setRepoRole] = useState<string | null>(null);
-  const [repoTargetRole, setRepoTargetRole] = useState<string | null>(null);
+  const [repoTargetRole, setRepoTargetRole] = useState<InterviewType | null>(
+    null,
+  );
   const [repoSeniority, setRepoSeniority] = useState<string | null>(null);
 
   /* ── Submit state ── */
@@ -140,9 +141,7 @@ export function StartInterviewModal({
   /* ── Derived ── */
   const modeConfig = MODES.find((m) => m.id === selectedMode) ?? null;
   const creditCost = modeConfig?.credits ?? 0;
-  const hasEnoughCredits = selectedMode
-    ? initialCredits >= creditCost
-    : true;
+  const hasEnoughCredits = selectedMode ? initialCredits >= creditCost : true;
 
   /* ── GitHub URL validation (on blur only) ── */
   const validateRepoUrl = useCallback((url: string) => {
@@ -152,7 +151,9 @@ export function StartInterviewModal({
     }
     const githubPattern = /^https:\/\/github\.com\/[^/]+\/[^/]+/;
     if (!githubPattern.test(url)) {
-      setRepoUrlError("Enter a valid GitHub repository URL (https://github.com/user/repo)");
+      setRepoUrlError(
+        "Enter a valid GitHub repository URL (https://github.com/user/repo)",
+      );
     } else {
       setRepoUrlError(null);
     }
@@ -225,9 +226,7 @@ export function StartInterviewModal({
         Principal: "Staff",
       };
 
-    const difficulty = seniority
-      ? (difficultyMap[seniority] ?? "Mid")
-      : "Mid";
+    const difficulty = seniority ? (difficultyMap[seniority] ?? "Mid") : "Mid";
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -241,7 +240,7 @@ export function StartInterviewModal({
           body: JSON.stringify({
             repoLink: repoUrl,
             roleInProject: repoRole,
-            roleForInterview: repoTargetRole,
+            roleForInterview: repoTargetRole ?? "fullstack",
             userLevel: difficulty,
           }),
         });
@@ -259,10 +258,14 @@ export function StartInterviewModal({
           repo: repoUrl,
           questions: "8",
           difficulty,
-          role: repoTargetRole || "Full Stack",
+          role:
+            (repoTargetRole && INTERVIEW_CONFIGS[repoTargetRole]?.label) ||
+            INTERVIEW_CONFIGS.fullstack.label,
         });
         onClose();
-        router.push(`/interview/${interviewId}/ready?${readyParams.toString()}`);
+        router.push(
+          `/interview/${interviewId}/ready?${readyParams.toString()}`,
+        );
       } catch {
         setSubmitError("Something went wrong. Please try again.");
         setIsSubmitting(false);
@@ -511,9 +514,12 @@ export function StartInterviewModal({
                 onClick={() => {
                   if (!selectedMode || !hasEnoughCredits) return;
                   if (selectedMode !== "github") {
-                    toast.info("Coming soon — only GitHub Deep Dive is available right now", {
-                      duration: 3000,
-                    });
+                    toast.info(
+                      "Coming soon — only GitHub Deep Dive is available right now",
+                      {
+                        duration: 3000,
+                      },
+                    );
                     return;
                   }
                   setPage(2);
@@ -820,9 +826,7 @@ function OptionRow({
         padding: "1.1rem 1.25rem",
         borderRadius: 10,
         border: `1px solid ${isSelected ? "var(--amber)" : "var(--border-subtle)"}`,
-        background: isSelected
-          ? "var(--amber-dim)"
-          : "rgba(255,255,255,0.02)",
+        background: isSelected ? "var(--amber-dim)" : "rgba(255,255,255,0.02)",
         cursor: disabled ? "not-allowed" : "pointer",
         transition: "border-color 160ms, background 160ms",
         opacity: disabled ? 0.5 : 1,
@@ -1195,7 +1199,7 @@ function DSAFields({
 }) {
   const toggleTopic = (t: string) => {
     setTopics(
-      topics.includes(t) ? topics.filter((x) => x !== t) : [...topics, t]
+      topics.includes(t) ? topics.filter((x) => x !== t) : [...topics, t],
     );
   };
 
@@ -1610,14 +1614,39 @@ const REPO_ROLES = [
   "Contributor",
 ];
 const GITHUB_TARGET_ROLES = [
-  "Frontend Engineer",
-  "Backend Engineer",
-  "Full Stack",
-  "Data Engineer",
-  "ML Engineer",
-  "DevOps",
-  "AI Engineer",
-];
+  {
+    value: "system_design",
+    label: INTERVIEW_CONFIGS.system_design.label,
+  },
+  {
+    value: "frontend",
+    label: INTERVIEW_CONFIGS.frontend.label,
+  },
+  {
+    value: "backend",
+    label: INTERVIEW_CONFIGS.backend.label,
+  },
+  {
+    value: "fullstack",
+    label: INTERVIEW_CONFIGS.fullstack.label,
+  },
+  {
+    value: "ai_engineer",
+    label: INTERVIEW_CONFIGS.ai_engineer.label,
+  },
+  {
+    value: "devops_engineer",
+    label: INTERVIEW_CONFIGS.devops_engineer.label,
+  },
+  {
+    value: "ml_engineer",
+    label: INTERVIEW_CONFIGS.ml_engineer.label,
+  },
+  {
+    value: "data_engineer",
+    label: INTERVIEW_CONFIGS.data_engineer.label,
+  },
+] as const;
 
 function GitHubFields({
   repoUrl,
@@ -1637,8 +1666,8 @@ function GitHubFields({
   validateRepoUrl: (v: string) => void;
   repoRole: string | null;
   setRepoRole: (v: string) => void;
-  targetRole: string | null;
-  setTargetRole: (v: string) => void;
+  targetRole: InterviewType | null;
+  setTargetRole: React.Dispatch<React.SetStateAction<InterviewType | null>>;
   seniority: string | null;
   setSeniority: (v: string) => void;
 }) {
@@ -1712,11 +1741,33 @@ function GitHubFields({
 
       <div style={fieldGap}>
         <FieldLabel>Interviewing For</FieldLabel>
-        <PillRow
-          options={GITHUB_TARGET_ROLES}
-          selected={targetRole}
-          onSelect={setTargetRole}
-        />
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
+        >
+          {GITHUB_TARGET_ROLES.map((option) => {
+            const active = targetRole === option.value;
+            return (
+              <button
+                key={option.value}
+                onClick={() => setTargetRole(option.value)}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: 20,
+                  border: `1px solid ${active ? "var(--amber)" : "var(--border-subtle)"}`,
+                  background: active ? "var(--amber-dim)" : "transparent",
+                  color: active ? "var(--amber)" : "var(--text-muted)",
+                  fontFamily: MONO,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 160ms ease",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={fieldGap}>

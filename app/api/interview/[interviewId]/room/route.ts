@@ -12,26 +12,16 @@ import {
   followUpQuestion,
   mainQuestion,
 } from "@/lib/interview-questions-aiagent";
-import { Transform } from "stream";
+import { Readable, Transform } from "stream";
 import { SarvamAIClient } from "sarvamai";
+import convertTextToAudio from "@/lib/text-to-audio";
+import next from "next";
 
 const ROLLING_WINDOW = 6;
 
 const client = new SarvamAIClient({
   apiSubscriptionKey: process.env.SARVAMAI_API_KEY!,
 });
-
-const textToSpeech = async (text: string) => {
-  return await client.textToSpeech.convert({
-    text,
-    target_language_code: "en-IN",
-    speaker: "shubh",
-    pace: 1.2,
-    speech_sample_rate: 16000,
-    enable_preprocessing: true,
-    model: "bulbul:v2",
-  });
-};
 
 function sentenceSplitter(): Transform {
   let buffer = "";
@@ -65,21 +55,45 @@ export async function PATCH(req: NextRequest) {
 
   const { interviewId, userResponse } = await req.json();
 
-  if (!interviewId || !userResponse) {
+  if (userResponse.trim().length === 0) {
+    const askingForClarityResponse =
+      "We couldn’t hear your response clearly. Please try speaking again, or click the red 'End Interview' button to end the session and generate your report.";
+
+    const audioResult = await convertTextToAudio(askingForClarityResponse);
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          audioResponse: audioResult.audios[0],
+          textResponse: askingForClarityResponse,
+        },
+        message: "Asking candidate for clarity on inaudible response",
+      },
+      {
+        status: 200,
+      },
+    );
+  }
+
+  if (!interviewId) {
     return NextResponse.json(
       {
         success: false,
         data: null,
-        message:
-          "Invalid request body, interviewId and userResponse are required",
+        message: "Invalid request body, interviewId is required",
       },
       { status: 400 },
     );
   }
 
   const interviewIdExists = await prisma.interview2.findFirst({
-    where: { id: interviewId, userId: session.user.id, status: "IN_PROGRESS" },
-    select: { id: true, repoLink: true, repoId: true },
+    where: {
+      id: interviewId,
+      userId: session.user.id,
+      status: { in: ["NOT_STARTED", "IN_PROGRESS"] },
+    },
+    select: { id: true, repoLink: true, repoId: true, status: true },
   });
 
   if (!interviewIdExists) {
@@ -91,6 +105,13 @@ export async function PATCH(req: NextRequest) {
       },
       { status: 404 },
     );
+  }
+
+  if (interviewIdExists.status === "NOT_STARTED") {
+    await prisma.interview2.update({
+      where: { id: interviewId },
+      data: { status: "IN_PROGRESS" },
+    });
   }
 
   const interviewDetails: InterviewSession | null = await getInterviewDetails(
@@ -112,70 +133,85 @@ export async function PATCH(req: NextRequest) {
   const curIndex = interviewDetails.currentQuestionIndex;
   const followupCount = interviewDetails.followupCountForCurrent;
 
-  // Push candidate response to both transcripts
-  const candidateTurn = {
-    role: "candidate" as const,
-    content: userResponse,
-    timestamp: Date.now(),
-    questionIndex: curIndex,
-    isFollowup: false,
-  };
-  interviewDetails.transcript.push(candidateTurn);
-  interviewDetails.rollingTranscript.push(candidateTurn);
-  interviewDetails.totalTurns += 1;
-
-  // Trim rolling transcript to window
-  if (interviewDetails.rollingTranscript.length > ROLLING_WINDOW) {
-    interviewDetails.rollingTranscript =
-      interviewDetails.rollingTranscript.slice(-ROLLING_WINDOW);
+  // Only record candidate turn when user has actually submitted spoken text.
+  if (userResponse.length > 0) {
+    const candidateTurn = {
+      role: "candidate" as const,
+      content: userResponse,
+      timestamp: Date.now(),
+      questionIndex: curIndex,
+      isFollowup: false,
+    };
+    interviewDetails.transcript.push(candidateTurn);
+    interviewDetails.rollingTranscript.push(candidateTurn);
+    interviewDetails.totalTurns += 1;
   }
 
   // Decide next step
   const nextStep = decideNextActionForInterview(
     curIndex,
     followupCount,
-    interviewDetails.questions.length,
+    interviewDetails.questions[0]?.questions.length ?? 0,
   );
 
-  let currentQuestion: import("stream").Readable | string | null = null;
+  let currentQuestion: string | Readable | null = null;
 
-  if (nextStep === "follow-up") {
-    interviewDetails.followupCountForCurrent += 1;
+  if (nextStep === "start-interview") {
+    interviewDetails.currentQuestionIndex = 0;
+    currentQuestion =
+      interviewDetails.questions[0]?.questions[0]?.question ?? null;
+
+    if (!currentQuestion) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "No interview question found after icebreaker",
+        },
+        { status: 400 },
+      );
+    }
+  } else if (nextStep === "follow-up") {
+    const previousSummary = interviewDetails.previousSummary ?? "";
+    const questionReference =
+      interviewDetails.questions[0]?.questions[curIndex]?.question ?? "";
+
     currentQuestion = await followUpQuestion(
       interviewDetails.rollingTranscript,
-      interviewDetails.previousSummary,
-      interviewDetails.questions[curIndex]?.questions?.[0]?.question ??
-        "Can you walk me through your approach in more detail?",
+      previousSummary,
+      questionReference,
     );
-  } else if (nextStep === "main-question") {
-    interviewDetails.currentQuestionIndex += 1;
-    interviewDetails.followupCountForCurrent = 0;
-    currentQuestion = await mainQuestion(
-      interviewDetails.rollingTranscript,
-      interviewDetails.previousSummary,
-      interviewDetails.questions[interviewDetails.currentQuestionIndex]
-        ?.questions?.[0]?.question ?? "No more questions available",
-    );
-  } else if (nextStep === "interview-completed") {
-    // marking interview as completed
-    const completedInterview = await prisma.interview2.update({
-      where: {
-        id: interviewId,
-      },
-      data: {
-        status: "COMPLETED",
-      },
-    });
 
+    // Increment follow-up count for current question
+    interviewDetails.followupCountForCurrent += 1;
+  } else if (nextStep === "main-question") {
+    // Advance to next question, reset follow-up counter
+    interviewDetails.currentQuestionIndex = curIndex + 1;
+    interviewDetails.followupCountForCurrent = 0;
+
+    const nextMainQuestion =
+      interviewDetails.questions[0]?.questions[
+        interviewDetails.currentQuestionIndex
+      ]?.question ?? null;
+
+    if (!nextMainQuestion) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "No question found at next index",
+        },
+        { status: 500 },
+      );
+    }
+
+    currentQuestion = nextMainQuestion;
+  } else if (nextStep === "end-interview") {
     currentQuestion =
-      "That was the last question. Thank you for your time. The interview has been completed. You can expect to receive feedback and a review of your performance within the next hour.";
-    interviewDetails.status = "COMPLETED";
-  } else if (nextStep === "ice-breaker") {
-    interviewDetails.currentQuestionIndex = 0; // advance so next turn doesn't re-trigger ice-breaker
-    currentQuestion = interviewDetails.questions[0].icebreaker.question;
-  } else {
-    currentQuestion =
-      "Great , Can u please share more details about your approach?";
+      "That's all the questions for today! You've completed the interview. " +
+      "Please click the 'End Interview' button whenever you're ready, and your report will be generated — " +
+      "usually within a few minutes. During peak hours it can occasionally take up to 2 hours, " +
+      "so don't worry if it's not instant. Good luck!";
   }
 
   // SSE stream
@@ -193,7 +229,7 @@ export async function PATCH(req: NextRequest) {
       try {
         if (typeof currentQuestion === "string") {
           accumulatedText = currentQuestion;
-          const result = await textToSpeech(currentQuestion);
+          const result = await convertTextToAudio(currentQuestion);
           sendEvent({
             type: "audio",
             audio: result.audios[0],
@@ -206,7 +242,7 @@ export async function PATCH(req: NextRequest) {
           for await (const sentence of splitter) {
             const s = sentence as string;
             accumulatedText += s + " ";
-            const result = await textToSpeech(s);
+            const result = await convertTextToAudio(s);
             sendEvent({ type: "audio", audio: result.audios[0], text: s });
           }
 
@@ -224,11 +260,6 @@ export async function PATCH(req: NextRequest) {
         interviewDetails.transcript.push(interviewerTurn);
         interviewDetails.rollingTranscript.push(interviewerTurn);
         interviewDetails.totalTurns += 1;
-
-        if (interviewDetails.rollingTranscript.length > ROLLING_WINDOW) {
-          interviewDetails.rollingTranscript =
-            interviewDetails.rollingTranscript.slice(-ROLLING_WINDOW);
-        }
 
         await saveInterviewSession(
           interviewDetails,

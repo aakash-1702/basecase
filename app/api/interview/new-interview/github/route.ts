@@ -14,6 +14,8 @@ import { InterviewSession } from "@/lib/session";
 
 import { Project, ScriptTarget } from "ts-morph";
 import { success } from "zod";
+import { IceCream } from "lucide-react";
+import convertTextToAudio from "@/lib/text-to-audio";
 
 const ALLOWED_EXTENSIONS = new Set([
   ".js",
@@ -221,7 +223,7 @@ export async function POST(req: NextRequest) {
   }
 
   // here the processing and test if the last interview for the same repo by teh same user was withing last 7 days , so just fetch the questions for the user and start the interview , no noeed to process the vectors and all
-  const repoId = repoInfo.repo +  "_" + repoInfo.owner;
+  const repoId = repoInfo.repo + "_" + repoInfo.owner;
   const userId = session.user.id;
 
   // taking or extracting the useful files from  the entire tree
@@ -310,24 +312,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // need to add the questions to the redis database
-  const interviewData = {
-    interviewId : newInterview.id,
-    userId : userId,
-    repoLink : repoLink,
-    repoId : repoId,
-    questions : fetchedQuestions,
-    currentQuestionIndex : -1, // starting with ice-breaker question
-    followupCountForCurrent : 0,
-    transcript : [],
-    rollingTranscript : [],
-    previousSummary : "",
-    totalTurns : 0,
-    status : "IN_PROGRESS",
-  }
+  // Store interview questions in session cache for room flow.
+  await setInterviewQuestions(
+    fetchedQuestions,
+    newInterview.id,
+    userId,
+    repoLink,
+    repoId,
+  );
 
-  
-  await setInterviewQuestions(interviewData, newInterview.id, userId,repoLink, repoId);
+  const iceBreaker = fetchedQuestions.icebreaker.question;
+
+  // sending the ice breaker's voice and audio so wait becomes less
+
+  const audioResponse = await convertTextToAudio(iceBreaker);
 
   return NextResponse.json(
     {
@@ -335,7 +333,8 @@ export async function POST(req: NextRequest) {
       data: {
         id: newInterview.id,
         interviewCredits: updateUserDetails.interviewCredits,
-        fetchedQuestions,
+        audio: audioResponse,
+        textQuestion: iceBreaker,
       },
       message: "Interview created successfully",
     },
