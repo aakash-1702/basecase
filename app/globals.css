@@ -1061,4 +1061,63 @@ button {
     0%, 100% { transform: scaleY(0.2); opacity: 0.3; }
     50%      { transform: scaleY(1);   opacity: 0.7; }
   }
+
+  /* ── Interview Room v2 Animations ── */
+
+  @keyframes ghv2FadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes ghv2SlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes ghv2SpringIn {
+    0%   { opacity: 0; transform: scale(0.92) translateY(6px); }
+    60%  { opacity: 1; transform: scale(1.02) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes ghv2RecordPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0.4); }
+    50%      { box-shadow: 0 0 0 10px rgba(34,211,238,0); }
+  }
+
+  @keyframes ghv2PingRing {
+    0%   { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+
+  @keyframes ghv2AmbientOrb {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50%      { transform: scale(1.06); opacity: 1; }
+  }
+
+  @keyframes ghv2CursorBlink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  @keyframes ghv2Breathing {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%      { transform: scale(1.04); opacity: 0.9; }
+  }
+
+  @keyframes ghv2ShimmerSweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  @keyframes ghv2CheckDraw {
+    0%   { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+  }
+}
+
+/* Spin utility for Loader2 icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

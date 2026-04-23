@@ -1,5 +1,5 @@
 import { Agent, run } from "@openai/agents";
-import { X } from "lucide-react";
+
 import * as z from "zod";
 
 const role = "JUNIOR";

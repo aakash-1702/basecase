@@ -2,15 +2,15 @@
 
 import { useRouter } from "next/navigation";
 
-interface GitHubCompletionOverlayProps {
+interface CompletionOverlayProps {
   isVisible: boolean;
   interviewId: string;
 }
 
-export function GitHubCompletionOverlay({
+export function CompletionOverlay({
   isVisible,
   interviewId,
-}: GitHubCompletionOverlayProps) {
+}: CompletionOverlayProps) {
   const router = useRouter();
 
   if (!isVisible) return null;

@@ -1,4 +1,4 @@
-﻿import { Redis } from "@upstash/redis";
+import { Redis } from "@upstash/redis";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -33,8 +33,8 @@ export interface InterviewSession {
   userId: string;
   repoLink: string;
   repoId: string;
-  questions: GeneratedQuestion[]; // all questions from RAG pipeline
-  currentQuestionIndex: number; // which main question we're on (0-based) , -1 represent that we are at ice-breaker
+  questions: QuestionItem[]; // the questions array from RAG pipeline (excludes icebreaker)
+  currentQuestionIndex: number; // which main question we're on (0-based), -1 = ice-breaker phase
   followupCountForCurrent: number; // followups asked for current question (max 3)
   transcript: Turn[]; // last N turns (rolling window)
   rollingTranscript: Turn[]; // last 5 turns raw
@@ -55,18 +55,11 @@ export interface Turn {
  * @param {any} interviewStarting The interview starting data.
  * @returns {Promise<void>} A promise that resolves when the questions have been set.
  */
-interface GeneratedQuestion {
-  icebreaker: {
-    question: string;
-  };
-  questions: [
-    {
-      question: string;
-      difficulty: "easy" | "medium" | "hard";
-      intent: string;
-      howmuchDepthRequired: number;
-    },
-  ];
+export interface QuestionItem {
+  question: string;
+  difficulty: "easy" | "medium" | "hard";
+  intent: string;
+  howmuchDepthRequired: number;
 }
 /**
  * Sets the interview questions for a given interview session.
@@ -93,8 +86,8 @@ const setInterviewQuestions = async (
       userId: userId,
       repoLink: repoLink,
       repoId: repoId,
-      questions: interviewStarting,
-      currentQuestionIndex: -1,
+      questions: interviewStarting.questions, // store only the questions array, not the full object
+      currentQuestionIndex: -1, // -1 = ice-breaker phase; advances to 0 on first PATCH
       followupCountForCurrent: 0,
       transcript: [],
       rollingTranscript: [],

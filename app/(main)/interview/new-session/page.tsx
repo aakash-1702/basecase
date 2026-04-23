@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { LobbyScreen } from "@/components/interview/room/LobbyScreen";
-import { PreparingScreen } from "@/components/interview/room/PreparingScreen";
-import { ActiveRoom } from "@/components/interview/room/ActiveRoom";
 import { BrowserGateScreen } from "@/components/interview/room/BrowserGateScreen";
-import { EndSessionModal } from "@/components/interview/room/EndSessionModal";
-import { toast } from "sonner";
-import type { InterviewConfig, PreparingStatus } from "@/types/interview-room";
+import { InterviewCreationLoader } from "@/components/interview/shared/InterviewCreationLoader";
+import { ReadyScreen } from "@/components/interview/shared/ReadyScreen";
+import { toast as _toast } from "sonner";
+import type { InterviewConfig } from "@/types/interview-room";
 
-type View = "lobby" | "browser-gate" | "preparing" | "room";
+type View = "lobby" | "browser-gate" | "preparing" | "ready";
+type ApiStatus = "pending" | "success" | "error";
 
 /**
  * Check if browser supports Web Speech API using feature detection.
@@ -36,41 +36,17 @@ export default function InterviewSessionPage() {
   const lobbyConfig = { ...config, questions };
 
   const [view, setView] = useState<View>("lobby");
-  const [preparingStatus, setPreparingStatus] =
-    useState<PreparingStatus>("loading");
-  const [greetingMessage, setGreetingMessage] = useState("");
-  const [greetingAudio, setGreetingAudio] = useState<string | null>(null);
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("pending");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showExitModal, setShowExitModal] = useState(false);
 
-  // ── Navigation guards (active only when in "room" view) ──
-  useEffect(() => {
-    if (view !== "room") return;
 
-    // Prevent tab close / refresh with native browser dialog
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = ""; // Required for Chrome
-    };
 
-    // Capture browser back button
-    window.history.pushState(null, "", window.location.href);
-    const handlePopState = () => {
-      window.history.pushState(null, "", window.location.href);
-      setShowExitModal(true);
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [view]);
+  // Derive a human-readable context label from available config
+  // Declared here so fireJoinRequest captures the correct value in its closure
+  const interviewContextLabel = `${config.mode} Interview — ${config.company} · ${config.difficulty}`;
 
   const fireJoinRequest = useCallback(async () => {
-    setPreparingStatus("loading");
+    setApiStatus("pending");
     setErrorMessage("");
     try {
       const res = await fetch(`/api/interview/${interviewId}/join-interview`, {
@@ -79,18 +55,27 @@ export default function InterviewSessionPage() {
       const json = await res.json();
       if (!json.success) {
         setErrorMessage(json.message || "Failed to join interview");
-        setPreparingStatus("error");
+        setApiStatus("error");
         return;
       }
-      const { greetingMessage: message, audio } = json.data;
-      setGreetingMessage(message);
-      setGreetingAudio(audio || null);
-      setPreparingStatus("ready");
+      // Write session data so /interview/[id]/room can read it
+      try {
+        sessionStorage.setItem(
+          `interview_session_${interviewId}`,
+          JSON.stringify({
+            repoName: interviewContextLabel,
+            credits: 0,
+          }),
+        );
+      } catch {
+        // sessionStorage unavailable — room will use defaults
+      }
+      setApiStatus("success");
     } catch {
       setErrorMessage("Something went wrong. Please try again.");
-      setPreparingStatus("error");
+      setApiStatus("error");
     }
-  }, [interviewId]);
+  }, [interviewId, interviewContextLabel]);
 
   const handleJoin = () => {
     // Browser gate check FIRST — before anything else
@@ -103,57 +88,25 @@ export default function InterviewSessionPage() {
     fireJoinRequest();
   };
 
-  const handleReady = () => {
-    setView("room");
-  };
-
   const handleRetry = () => {
+    setApiStatus("pending");
     fireJoinRequest();
   };
 
-  const handleExitClick = () => {
-    setShowExitModal(true);
+  const handleLoaderComplete = () => {
+    setView("ready");
   };
 
-  const handleExitConfirm = async () => {
+  const handleJoinRoom = () => {
     try {
-      toast.loading("Ending interview...", { id: "exit-interview" });
-
-      // Call end session API
-      const res = await fetch(`/api/interview/${interviewId}/exit-interview`, {
-        method: "PATCH",
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        toast.error(
-          json.message || "Failed to end interview. Please try again.",
-          {
-            id: "exit-interview",
-          },
-        );
-        setShowExitModal(false);
-        return;
-      }
-
-      toast.success("Interview ended. Your report is being generated.", {
-        id: "exit-interview",
-      });
-
-      // Navigate back to interview landing — processing card will show there
-      router.push(`/interview`);
-    } catch (error) {
-      toast.error("Failed to end interview. Please try again.", {
-        id: "exit-interview",
-      });
-      setShowExitModal(false);
+      // Unlock AudioContext with this user gesture — critical for audio autoplay
+      new AudioContext().resume().catch(() => {});
+    } catch {
+      // AudioContext not available — proceed anyway
     }
+    router.push(`/interview/${interviewId}/room`);
   };
 
-  const handleExitClose = () => {
-    setShowExitModal(false);
-  };
 
   if (view === "lobby") {
     return (
@@ -174,30 +127,36 @@ export default function InterviewSessionPage() {
   if (view === "preparing") {
     return (
       <div data-interview-room="active">
-        <PreparingScreen
-          status={preparingStatus}
-          onReady={handleReady}
-          onRetry={handleRetry}
+        <InterviewCreationLoader
+          title="Preparing your interview"
+          subtitle="Please wait while we set up your personalised session"
+          steps={[
+            "Validating your information",
+            "Preparing interview questions",
+            "Personalising your experience",
+            "Creating interview room",
+          ]}
+          apiStatus={apiStatus}
           errorMessage={errorMessage}
+          onComplete={handleLoaderComplete}
+          onRetry={handleRetry}
+          securityNote="Your session is encrypted and private."
         />
       </div>
     );
   }
 
-  return (
-    <div data-interview-room="active">
-      <ActiveRoom
-        greetingMessage={greetingMessage}
-        greetingAudio={greetingAudio}
-        interviewId={interviewId}
-        config={config}
-        onExitClick={handleExitClick}
-      />
-      <EndSessionModal
-        isOpen={showExitModal}
-        onClose={handleExitClose}
-        onConfirm={handleExitConfirm}
-      />
-    </div>
-  );
+  if (view === "ready") {
+    return (
+      <div data-interview-room="active">
+        <ReadyScreen
+          interviewContextLabel={interviewContextLabel}
+          onJoin={handleJoinRoom}
+        />
+      </div>
+    );
+  }
+
+  // Fallback (should not reach)
+  return null;
 }

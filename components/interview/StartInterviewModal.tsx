@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { INTERVIEW_CONFIGS, type InterviewType } from "@/lib/interviewTypes";
+import { InterviewCreationLoader } from "@/components/interview/shared/InterviewCreationLoader";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type InterviewMode = "dsa" | "systemdesign" | "resume" | "github";
@@ -102,7 +104,7 @@ export function StartInterviewModal({
   const router = useRouter();
 
   /* ── Page state ── */
-  const [page, setPage] = useState<1 | 2>(1);
+  const [page, setPage] = useState<1 | 2 | "loading">(1);
   const [selectedMode, setSelectedMode] = useState<InterviewMode | null>(null);
 
   /* ── Page 2 config state ── */
@@ -136,6 +138,14 @@ export function StartInterviewModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── GitHub loader flow state ── */
+  const [githubApiStatus, setGithubApiStatus] = useState<"pending" | "success" | "error">("pending");
+  const [githubErrorMessage, setGithubErrorMessage] = useState("");
+  const [githubInterviewId, setGithubInterviewId] = useState("");
+  const [githubCredits, setGithubCredits] = useState(0);
+  const [githubContextLabel, setGithubContextLabel] = useState("");
+  const [githubRetryKey, setGithubRetryKey] = useState(0);
 
   /* ── Derived ── */
   const modeConfig = MODES.find((m) => m.id === selectedMode) ?? null;
@@ -212,6 +222,68 @@ export function StartInterviewModal({
     repoSeniority,
   ]);
 
+  /* ── GitHub interview API call (also used by retry) ── */
+  const fireGitHubApiCall = useCallback(async () => {
+    const diffMap: Record<string, "Entry" | "Mid" | "Senior" | "Staff"> = {
+      Junior: "Entry",
+      Senior: "Senior",
+      Staff: "Staff",
+      Principal: "Staff",
+    };
+    const difficulty = repoSeniority ? (diffMap[repoSeniority] ?? "Mid") : "Mid";
+
+    setGithubApiStatus("pending");
+    setGithubErrorMessage("");
+
+    try {
+      const res = await fetch("/api/interview/new-interview/github", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repoLink: repoUrl,
+          roleInProject: repoRole,
+          roleForInterview: repoTargetRole,
+          userLevel: difficulty,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setGithubErrorMessage(json.message || "Failed to create interview");
+        setGithubApiStatus("error");
+        return;
+      }
+      setGithubInterviewId(json.data?.id ?? json.data);
+      setGithubCredits(json.data?.interviewCredits ?? 0);
+      setGithubApiStatus("success");
+    } catch {
+      setGithubErrorMessage("Something went wrong. Please try again.");
+      setGithubApiStatus("error");
+    }
+  }, [repoUrl, repoRole, repoTargetRole, repoSeniority]);
+
+  /* loader complete → write sessionStorage → close modal → navigate to ready page */
+  const handleGithubLoaderComplete = useCallback(() => {
+    try {
+      sessionStorage.setItem(
+        `interview_session_${githubInterviewId}`,
+        JSON.stringify({
+          repoName: githubContextLabel,
+          credits: githubCredits,
+        }),
+      );
+    } catch {
+      /* sessionStorage unavailable — room will use defaults */
+    }
+    onClose();
+    router.push(`/interview/${githubInterviewId}/ready`);
+  }, [githubInterviewId, githubContextLabel, githubCredits, onClose, router]);
+
+  /* Retry: remount loader (fresh key) then re-fire API */
+  const handleGithubRetry = useCallback(() => {
+    setGithubRetryKey((k) => k + 1);
+    fireGitHubApiCall();
+  }, [fireGitHubApiCall]);
+
   /* ── Submit handler ── */
   const handleStart = async () => {
     if (!modeConfig || isSubmitting || !isPage2Valid()) return;
@@ -232,41 +304,17 @@ export function StartInterviewModal({
     setIsSubmitting(true);
     setSubmitError(null);
 
-    // ── GitHub mode: POST to github endpoint → redirect to ready page ──
+    // ── GitHub mode: loader → ready screen → room (no immediate navigation) ──
     if (selectedMode === "github") {
-      try {
-        const res = await fetch("/api/interview/new-interview/github", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            repoLink: repoUrl,
-            roleInProject: repoRole,
-            roleForInterview: repoTargetRole,
-            userLevel: difficulty,
-          }),
-        });
-
-        const json = await res.json();
-
-        if (!json.success) {
-          setSubmitError(json.message || "Failed to create interview");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const interviewId = json.data?.id || json.data;
-        const readyParams = new URLSearchParams({
-          repo: repoUrl,
-          questions: "8",
-          difficulty,
-          role: repoTargetRole || "Full Stack",
-        });
-        onClose();
-        router.push(`/interview/${interviewId}/ready?${readyParams.toString()}`);
-      } catch {
-        setSubmitError("Something went wrong. Please try again.");
-        setIsSubmitting(false);
-      }
+      const repoPath = repoUrl.replace("https://github.com/", "");
+      const label = `${INTERVIEW_CONFIGS[repoTargetRole as InterviewType]?.label ?? "GitHub"} Interview — ${repoPath}`;
+      setGithubContextLabel(label);
+      setGithubApiStatus("pending");
+      setGithubErrorMessage("");
+      setGithubRetryKey((k) => k + 1);
+      setIsSubmitting(false); // loader takes over — spinner in button no longer needed
+      setPage("loading");
+      fireGitHubApiCall();
       return;
     }
 
@@ -316,6 +364,30 @@ export function StartInterviewModal({
 
   /* ── Check if a row should be disabled (insufficient credits) ── */
   const isRowDisabled = (mode: ModeConfig) => initialCredits < mode.credits;
+
+  /* ── Full-screen GitHub loader (escapes modal card) ── */
+  if (page === "loading") {
+    return (
+      <InterviewCreationLoader
+        key={githubRetryKey}
+        title="Preparing your GitHub interview"
+        subtitle="Analysing your repository and generating tailored questions"
+        steps={[
+          "Fetching files from GitHub",
+          "Analysing repository structure",
+          "Building knowledge vectors",
+          "Generating interview questions",
+          "Creating your room",
+        ]}
+        apiStatus={githubApiStatus}
+        errorMessage={githubErrorMessage || undefined}
+        onComplete={handleGithubLoaderComplete}
+        onRetry={handleGithubRetry}
+        securityNote="Your repository is read-only. We never fork, star, or write."
+        successMessage="Interview ready. Let's go."
+      />
+    );
+  }
 
   return (
     <div
@@ -1609,15 +1681,10 @@ const REPO_ROLES = [
   "Full stack",
   "Contributor",
 ];
-const GITHUB_TARGET_ROLES = [
-  "Frontend Engineer",
-  "Backend Engineer",
-  "Full Stack",
-  "Data Engineer",
-  "ML Engineer",
-  "DevOps",
-  "AI Engineer",
-];
+const INTERVIEW_TYPE_ENTRIES = Object.entries(INTERVIEW_CONFIGS) as [
+  InterviewType,
+  (typeof INTERVIEW_CONFIGS)[InterviewType],
+][];
 
 function GitHubFields({
   repoUrl,
@@ -1712,11 +1779,35 @@ function GitHubFields({
 
       <div style={fieldGap}>
         <FieldLabel>Interviewing For</FieldLabel>
-        <PillRow
-          options={GITHUB_TARGET_ROLES}
-          selected={targetRole}
-          onSelect={setTargetRole}
-        />
+        {/* Interview type pills — values are InterviewType keys; labels are human-readable */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {INTERVIEW_TYPE_ENTRIES.map(([key, cfg]) => {
+            const active = targetRole === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTargetRole(key)}
+                style={{
+                  padding: "7px 18px",
+                  borderRadius: 20,
+                  border: `1px solid ${
+                    active ? "var(--amber)" : "var(--border-subtle)"
+                  }`,
+                  background: active ? "var(--amber-dim)" : "transparent",
+                  color: active ? "var(--amber)" : "var(--text-muted)",
+                  fontFamily: MONO,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 160ms ease",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {cfg.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={fieldGap}>

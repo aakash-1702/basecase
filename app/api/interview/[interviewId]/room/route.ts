@@ -14,24 +14,10 @@ import {
 } from "@/lib/interview-questions-aiagent";
 import { Transform } from "stream";
 import { SarvamAIClient } from "sarvamai";
+import textToAudio from "@/lib/text_to_audio";
 
 const ROLLING_WINDOW = 6;
 
-const client = new SarvamAIClient({
-  apiSubscriptionKey: process.env.SARVAMAI_API_KEY!,
-});
-
-const textToSpeech = async (text: string) => {
-  return await client.textToSpeech.convert({
-    text,
-    target_language_code: "en-IN",
-    speaker: "shubh",
-    pace: 1.2,
-    speech_sample_rate: 16000,
-    enable_preprocessing: true,
-    model: "bulbul:v2",
-  });
-};
 
 function sentenceSplitter(): Transform {
   let buffer = "";
@@ -139,43 +125,23 @@ export async function PATCH(req: NextRequest) {
 
   let currentQuestion: import("stream").Readable | string | null = null;
 
-  if (nextStep === "follow-up") {
-    interviewDetails.followupCountForCurrent += 1;
+  if (nextStep === "next-question") {
+    // Advance the index first, then read the question at the NEW index
+    interviewDetails.currentQuestionIndex += 1;
+    const newIndex = interviewDetails.currentQuestionIndex;
+    currentQuestion = interviewDetails.questions[newIndex].question;
+    interviewDetails.followupCountForCurrent = 0;
+  } else if (nextStep === "follow-up") {
     currentQuestion = await followUpQuestion(
       interviewDetails.rollingTranscript,
-      interviewDetails.previousSummary,
-      interviewDetails.questions[curIndex]?.questions?.[0]?.question ??
-        "Can you walk me through your approach in more detail?",
+      interviewDetails.previousSummary,         // was incorrectly passed as ""
+      interviewDetails.questions[curIndex].question, // fixed: was .questions[0].question
     );
-  } else if (nextStep === "main-question") {
-    interviewDetails.currentQuestionIndex += 1;
-    interviewDetails.followupCountForCurrent = 0;
-    currentQuestion = await mainQuestion(
-      interviewDetails.rollingTranscript,
-      interviewDetails.previousSummary,
-      interviewDetails.questions[interviewDetails.currentQuestionIndex]
-        ?.questions?.[0]?.question ?? "No more questions available",
-    );
-  } else if (nextStep === "interview-completed") {
-    // marking interview as completed
-    const completedInterview = await prisma.interview2.update({
-      where: {
-        id: interviewId,
-      },
-      data: {
-        status: "COMPLETED",
-      },
-    });
-
-    currentQuestion =
-      "That was the last question. Thank you for your time. The interview has been completed. You can expect to receive feedback and a review of your performance within the next hour.";
-    interviewDetails.status = "COMPLETED";
-  } else if (nextStep === "ice-breaker") {
-    interviewDetails.currentQuestionIndex = 0; // advance so next turn doesn't re-trigger ice-breaker
-    currentQuestion = interviewDetails.questions[0].icebreaker.question;
+    interviewDetails.followupCountForCurrent += 1;
+    // Note: index advancement is handled by decideNextActionForInterview
+    // returning "next-question" once followupCount reaches 2
   } else {
-    currentQuestion =
-      "Great , Can u please share more details about your approach?";
+    currentQuestion = `That is it , these were all the questions i had for you . Now you may click the end interview button once ready and detailed interview feedback report will be shown in the interview page itself within 5-10 minutes , in case of high traffic can take upto 2 hours as well`;
   }
 
   // SSE stream
@@ -193,10 +159,10 @@ export async function PATCH(req: NextRequest) {
       try {
         if (typeof currentQuestion === "string") {
           accumulatedText = currentQuestion;
-          const result = await textToSpeech(currentQuestion);
+          const result = await textToAudio(currentQuestion);
           sendEvent({
             type: "audio",
-            audio: result.audios[0],
+            audio: result, // send full result object, consistent with new-interview route
             text: currentQuestion,
           });
         } else if (currentQuestion) {
@@ -206,8 +172,8 @@ export async function PATCH(req: NextRequest) {
           for await (const sentence of splitter) {
             const s = sentence as string;
             accumulatedText += s + " ";
-            const result = await textToSpeech(s);
-            sendEvent({ type: "audio", audio: result.audios[0], text: s });
+            const result = await textToAudio(s);
+            sendEvent({ type: "audio", audio: result, text: s });
           }
 
           accumulatedText = accumulatedText.trim();
