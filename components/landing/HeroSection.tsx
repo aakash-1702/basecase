@@ -1,93 +1,321 @@
-import useScrollReveal from "@/hooks/useScrollReveal";
+"use client";
+
 import Link from "next/link";
+import { motion } from "framer-motion";
+import SpatialHeroVisual from "@/components/landing/SpatialHeroVisual";
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  visible: (delay = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, ease: "easeOut" as const, delay },
+  }),
+};
 
 export default function HeroSection() {
-  const ref = useScrollReveal();
-
   return (
     <section
-      ref={ref}
-      className="relative w-full px-5 sm:px-6 lg:px-8 pt-24 pb-20"
+      id="home"
+      style={{
+        minHeight: "100vh",
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        /* Single unified background — no separation between left & right */
+        background: "#0a0a0a",
+        paddingTop: 80,
+      }}
     >
-      {/* Ambient glow */}
+      {/* Subtle uniform mesh grid — covers the FULL section */}
       <div
-        className="fixed inset-0 pointer-events-none"
+        aria-hidden
         style={{
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(249,115,22,0.08), transparent 60%)",
-        }}
-      />
-      {/* Grid background */}
-      <div
-        className="fixed inset-0 pointer-events-none opacity-[0.03]"
-        style={{
+          position: "absolute",
+          inset: 0,
           backgroundImage:
-            "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
+            "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+          pointerEvents: "none",
+          zIndex: 0,
         }}
       />
 
-      <div className="mx-auto max-w-7xl flex flex-col items-center justify-center text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-500 text-amber-500 text-sm font-medium">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-          The DSA platform built different
-        </div>
+      {/* Soft center glow that bleeds across both columns */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: "40%",
+          left: "55%",
+          transform: "translate(-50%, -50%)",
+          width: "70%",
+          height: "60%",
+          background:
+            "radial-gradient(ellipse at center, rgba(249,115,22,0.07) 0%, transparent 70%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
-        {/* Heading */}
-        <h1 className="font-[Syne] font-extrabold tracking-tight leading-[0.95] text-[clamp(3rem,8vw,6.5rem)] mt-6">
-          <span className="text-white">Master the Patterns.</span>
-          <br />
-          <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-            Crack Any Interview.
-          </span>
-        </h1>
+      {/* Cross-column blend layer so both sides read as one continuous canvas */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at 68% 45%, rgba(249,115,22,0.09) 0%, transparent 46%), radial-gradient(circle at 32% 58%, rgba(249,115,22,0.05) 0%, transparent 50%)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
-        {/* Subtext */}
-        <p className="text-zinc-400 max-w-lg text-[1.1rem] mt-6">
-          Basecase is a structured DSA practice platform with curated sheets,
-          pattern-based problem sets, streaks, and leaderboards — built for
-          engineers who are serious about landing their dream role.
-        </p>
-
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 mt-8">
-          <Link
-            href="/sheets"
-            className="group bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold rounded-lg px-8 py-3.5 text-sm hover:from-amber-400 hover:to-orange-400 transition-all duration-300 hover:scale-[1.03] active:scale-95 shadow-lg shadow-amber-900/30 cursor-pointer flex items-center gap-2"
+      {/* Grid: left (text) + right (visual) */}
+      <div
+        className="bc-hero-layout"
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "0 48px",
+          width: "100%",
+          position: "relative",
+          zIndex: 1,
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          alignItems: "center",
+          minHeight: "100vh",
+          gap: 0,
+        }}
+      >
+        {/* ── LEFT: Copy ─────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            paddingRight: 32,
+            paddingTop: 80, /* compensate for nav */
+            paddingBottom: 40,
+          }}
+        >
+          {/* Learner badge */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            custom={0}
+            variants={fadeUp}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(124,45,18,0.7)",
+              border: "1px solid rgba(249,115,22,0.3)",
+              borderRadius: 999,
+              padding: "5px 14px",
+              marginBottom: 28,
+              width: "fit-content",
+            }}
           >
-            Start Practicing Free
-            <span className="transition-transform group-hover:translate-x-1">
-              →
+            <span style={{ fontSize: 14 }}>🔖</span>
+            <span style={{ color: "#fb923c", fontSize: 13, fontWeight: 700 }}>
+              15,000+ Learners
             </span>
-          </Link>
-          <Link
-            href="/problems"
-            className="border border-white/10 text-white rounded-lg px-8 py-3.5 text-sm hover:bg-white/5 hover:border-white/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+          </motion.div>
+
+          {/* Headline */}
+          <motion.h1
+            initial="hidden"
+            animate="visible"
+            custom={0.08}
+            variants={fadeUp}
+            style={{
+              fontSize: "clamp(40px, 5vw, 60px)",
+              fontWeight: 900,
+              lineHeight: 1.06,
+              color: "#ffffff",
+              margin: "0 0 22px",
+              fontFamily: "var(--font-nunito), sans-serif",
+              letterSpacing: "-1px",
+            }}
           >
-            Explore Problem Sheets
-          </Link>
+            ONE STOP{" "}
+            <span
+              style={{
+                background: "linear-gradient(135deg, #f97316, #fb923c)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Learning
+            </span>
+            <br />
+            Platform For{" "}
+            <span style={{ color: "#ffffff" }}>TECH</span>
+            <br />
+            Interviews
+          </motion.h1>
+
+          {/* Subtext */}
+          <motion.p
+            initial="hidden"
+            animate="visible"
+            custom={0.18}
+            variants={fadeUp}
+            style={{
+              color: "#9ca3af",
+              fontSize: 15,
+              lineHeight: 1.75,
+              marginBottom: 36,
+              maxWidth: 460,
+            }}
+          >
+            Master Data Structures, Algorithms, System Design, and Core CS
+            Subjects. Get personalized roadmaps, expert videos, and AI-driven
+            practice to ace your interviews.
+          </motion.p>
+
+          {/* CTAs */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            custom={0.28}
+            variants={fadeUp}
+            style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 40 }}
+          >
+            <Link
+              href="/auth/sign-up"
+              id="hero-cta-start-practicing"
+              style={{
+                background: "#f97316",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 15,
+                padding: "14px 32px",
+                borderRadius: 10,
+                textDecoration: "none",
+                transition: "all 0.2s ease",
+                display: "inline-flex",
+                alignItems: "center",
+                boxShadow: "0 0 0 0 rgba(249,115,22,0)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#ea6c0a";
+                e.currentTarget.style.boxShadow = "0 0 32px rgba(249,115,22,0.55)";
+                e.currentTarget.style.transform = "scale(1.02)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#f97316";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              Start Practicing
+            </Link>
+
+            <Link
+              href="/interview"
+              id="hero-cta-interview"
+              style={{
+                background: "transparent",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 15,
+                padding: "14px 32px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.18)",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(249,115,22,0.45)";
+                e.currentTarget.style.background = "rgba(249,115,22,0.06)";
+                e.currentTarget.style.color = "#fb923c";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#fff";
+              }}
+            >
+              Try Interview →
+            </Link>
+          </motion.div>
+
+          {/* Feature bullets */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            custom={0.38}
+            variants={fadeUp}
+            style={{ display: "flex", flexDirection: "column", gap: 9 }}
+          >
+            {[
+              { emoji: "📋", text: "Curated DSA Sheets with step-by-step guidance." },
+              { emoji: "🤖", text: "AI Voice Interviews with real-time feedback." },
+              { emoji: "🧠", text: "AI Mentor for instant doubt resolution." },
+              { emoji: "🔥", text: "Streaks, leaderboards & SM-2 spaced repetition." },
+            ].map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  color: "#9ca3af",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                }}
+              >
+                <span style={{ flexShrink: 0 }}>{item.emoji}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </motion.div>
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center mt-12 divide-x divide-white/[0.06]">
-          {[
-            { number: "500+", label: "Handpicked Problems" },
-            { number: "40+", label: "Curated Sheets" },
-            { number: "20+", label: "Topic Patterns" },
-            { number: "100%", label: "Free to Start" },
-          ].map((stat, index) => (
-            <div key={index} className="flex flex-col items-center px-6">
-              <span className="font-[Syne] text-2xl text-white font-bold">
-                {stat.number}
-              </span>
-              <span className="text-zinc-500 uppercase tracking-widest text-xs">
-                {stat.label}
-              </span>
-            </div>
-          ))}
-        </div>
+        {/* ── RIGHT: Visual (no background — same as section) ─── */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+          style={{
+            position: "relative",
+            /* No background here — fully inherits #0a0a0a */
+            overflow: "visible",
+            minHeight: 780,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 80,
+            paddingBottom: 40,
+          }}
+        >
+          <SpatialHeroVisual />
+        </motion.div>
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .bc-hero-layout {
+            grid-template-columns: 1fr !important;
+            padding: 60px 32px !important;
+          }
+          .bc-hero-layout > div:last-child {
+            min-height: 620px !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .bc-hero-layout {
+            padding: 40px 20px !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

@@ -172,6 +172,27 @@
   animation: fade-in-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
 @keyframes fadeIn {
   to {
     opacity: 1;
@@ -197,6 +218,204 @@
   50% {
     opacity: 0.65;
   }
+}
+
+/* BaseCase landing v2 animation system */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(0.3deg);
+  }
+  66% {
+    transform: translateY(-6px) rotate(-0.2deg);
+  }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.shimmer-line {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(249, 115, 22, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes wave-1 {
+  0%,
+  100% {
+    height: 6px;
+  }
+  50% {
+    height: 22px;
+  }
+}
+
+@keyframes wave-2 {
+  0%,
+  100% {
+    height: 12px;
+  }
+  50% {
+    height: 32px;
+  }
+}
+
+@keyframes wave-3 {
+  0%,
+  100% {
+    height: 18px;
+  }
+  50% {
+    height: 14px;
+  }
+}
+
+@keyframes wave-4 {
+  0%,
+  100% {
+    height: 8px;
+  }
+  50% {
+    height: 28px;
+  }
+}
+
+@keyframes wave-5 {
+  0%,
+  100% {
+    height: 22px;
+  }
+  50% {
+    height: 8px;
+  }
+}
+
+.wave-1 {
+  animation: wave-1 0.9s ease-in-out infinite;
+}
+
+.wave-2 {
+  animation: wave-2 0.9s ease-in-out infinite 0.15s;
+}
+
+.wave-3 {
+  animation: wave-3 0.9s ease-in-out infinite 0.3s;
+}
+
+.wave-4 {
+  animation: wave-4 0.9s ease-in-out infinite 0.45s;
+}
+
+.wave-5 {
+  animation: wave-5 0.9s ease-in-out infinite 0.6s;
+}
+
+@keyframes scroll-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scroll-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.scroll-left {
+  animation: scroll-left 25s linear infinite;
+}
+
+.scroll-right {
+  animation: scroll-right 25s linear infinite;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.text-gradient-orange {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fdba74 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glow-hover {
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.glow-hover:hover {
+  box-shadow:
+    0 0 0 1px rgba(249, 115, 22, 0.3),
+    0 0 20px rgba(249, 115, 22, 0.08);
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink::after {
+  content: "|";
+  color: #f97316;
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+[data-slot="progress-indicator"] {
+  background: #f97316 !important;
 }
 
 /* ============================================
@@ -470,4 +689,435 @@
 
 .delay-1000 {
   animation-delay: 1000ms;
+}
+
+/* ============================================
+   BASECASE LANDING PAGE v5 DESIGN SYSTEM
+   TakeUForward-inspired: Nunito + Fira Code
+   ============================================ */
+
+:root {
+  --bc-bg: #0f1117;
+  --bc-bg2: #161b22;
+  --bc-bg3: #1c2333;
+  --bc-card: #1e2736;
+  --bc-border: #2d3748;
+  --bc-orange: #f97316;
+  --bc-orange-light: #fb923c;
+  --bc-orange-dark: #ea580c;
+  --bc-orange-glow: rgba(249, 115, 22, 0.15);
+  --bc-text: #e2e8f0;
+  --bc-text-muted: #94a3b8;
+  --bc-text-dim: #64748b;
+  --bc-green: #22c55e;
+  --bc-yellow: #eab308;
+  --bc-red: #ef4444;
+  --bc-blue: #3b82f6;
+}
+
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Shimmer banner animation */
+@keyframes bcShimmerBanner {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.bc-shimmer-banner {
+  background-size: 200% auto !important;
+  animation: bcShimmerBanner 3s linear infinite;
+}
+
+/* Pulsing dot (hero badge, recording) */
+@keyframes bcPulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.bc-pulse-dot {
+  animation: bcPulseDot 2s ease-in-out infinite;
+}
+
+/* Topic ticker */
+@keyframes bcTicker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.bc-ticker-container {
+  animation: bcTicker 40s linear infinite;
+}
+
+/* Nav link hover text */
+.bc-nav-link-hover:hover {
+  color: var(--bc-text) !important;
+}
+
+/* Footer link hover */
+.bc-footer-link:hover {
+  color: var(--bc-text) !important;
+}
+
+/* ============================================
+   RESPONSIVE – LANDING v5
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .bc-hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-hero-card {
+    display: none !important;
+  }
+  .bc-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+  }
+  .bc-features-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bc-features-grid > div:nth-child(n+5) {
+    border-bottom: none !important;
+  }
+  .bc-features-grid > div:nth-child(even) {
+    border-right: none !important;
+  }
+  .bc-steps-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-testimonials-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bc-footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .bc-nav-center {
+    display: none !important;
+  }
+  .bc-nav-right {
+    display: none !important;
+  }
+  .bc-navbar-hamburger {
+    display: block !important;
+  }
+  .bc-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bc-features-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-features-grid > div {
+    border-right: none !important;
+  }
+  .bc-testimonials-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-pricing-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bc-footer-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bc-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Counter tabular numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   BASECASE LANDING - MASTER PROMPT OVERRIDES
+   ============================================ */
+
+:root {
+  --bg: #0f1117;
+  --bg2: #161b22;
+  --bg3: #1c2333;
+  --card: #1e2736;
+  --border: #2d3748;
+  --orange: #f97316;
+  --orange-light: #fb923c;
+  --orange-dark: #ea580c;
+  --orange-glow: rgba(249, 115, 22, 0.15);
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --blue: #3b82f6;
+
+  --font-nunito: "Nunito";
+  --font-fira: "Fira Code";
+
+  --bc-bg: var(--bg);
+  --bc-bg2: var(--bg2);
+  --bc-bg3: var(--bg3);
+  --bc-card: var(--card);
+  --bc-border: var(--border);
+  --bc-orange: var(--orange);
+  --bc-orange-light: var(--orange-light);
+  --bc-orange-dark: var(--orange-dark);
+  --bc-orange-glow: var(--orange-glow);
+  --bc-text: var(--text);
+  --bc-text-muted: var(--text-muted);
+  --bc-text-dim: var(--text-dim);
+  --bc-green: var(--green);
+  --bc-yellow: var(--yellow);
+  --bc-red: var(--red);
+  --bc-blue: var(--blue);
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: "Nunito", sans-serif;
+}
+
+body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: "Nunito", sans-serif;
+}
+
+body,
+#__next,
+main {
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Force shadcn primitives to match dark theme for landing */
+[data-slot="card"] {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+[data-state="open"] .accordion-trigger {
+  color: var(--orange) !important;
+}
+
+.accordion-trigger {
+  text-decoration: none !important;
+}
+
+.bc-interactive,
+a,
+button {
+  transition: all 0.2s ease;
+}
+
+.bc-ticker-wrap:hover .bc-ticker-container {
+  animation-play-state: paused !important;
+}
+
+.bc-interview-tab[data-state="active"] {
+  background: var(--orange) !important;
+  color: #fff !important;
+  border-color: var(--orange) !important;
+}
+
+/* ============================================
+   BASECASE LANDING PAGE v6 ADDITIONS
+   ============================================ */
+
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-card-dark: #161616;
+  --accent-orange: #f97316;
+  --accent-orange-glow: rgba(249, 115, 22, 0.3);
+  --accent-orange-dim: #c2531a;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted-lp: #6b7280;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(255, 255, 255, 0.04);
+}
+
+/* Custom scrollbar — thin dark track, orange thumb */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111111;
+}
+::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #fb923c;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 #111111;
+}
+
+/* Orange text selection */
+::selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: #ffffff;
+}
+::-moz-selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: #ffffff;
+}
+
+/* ============================================
+   GITHUB INTERVIEW ROOM ANIMATIONS
+   ============================================ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ghOrbBreathe {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50%      { transform: scale(1.08); opacity: 1; }
+  }
+
+  @keyframes ghRingExpand {
+    0%   { transform: scale(0.6); opacity: 0.6; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  @keyframes ghTextCycle {
+    0%   { opacity: 0; transform: translateY(8px); }
+    15%  { opacity: 1; transform: translateY(0); }
+    85%  { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-8px); }
+  }
+
+  @keyframes ghButtonPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+    50%      { box-shadow: 0 0 0 12px rgba(249, 115, 22, 0); }
+  }
+
+  @keyframes ghRecordPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+    50%      { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  }
+
+  @keyframes ghSpeakingRing {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50%      { transform: scale(1.15); opacity: 0.8; }
+  }
+
+  @keyframes ghUserBreathe {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%      { transform: scale(1.06); opacity: 1; }
+  }
+
+  @keyframes ghCheckDraw {
+    0%   { stroke-dashoffset: 36; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  @keyframes ghCheckCircle {
+    0%   { stroke-dashoffset: 166; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  @keyframes ghFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes ghFadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+  @keyframes ghSlideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes ghMessageFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes ghDotBounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40%           { transform: translateY(-4px); }
+  }
+
+  @keyframes ghWavePulse {
+    0%, 100% { transform: scaleY(0.2); opacity: 0.3; }
+    50%      { transform: scaleY(1);   opacity: 0.7; }
+  }
+
+  /* ── GitHub Interview v2 Animations ── */
+  @keyframes ghv2ShimmerSweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  @keyframes ghv2PingRing {
+    0%   { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  @keyframes ghv2SpringIn {
+    0%   { transform: translateX(-16px); opacity: 0; }
+    100% { transform: translateX(0px); opacity: 1; }
+  }
+  @keyframes ghv2CheckDraw {
+    0%   { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+  }
+  @keyframes ghv2AmbientOrb {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  @keyframes ghv2RecordPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+    50%      { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
+  }
+  @keyframes ghv2WaveBar {
+    0%, 100% { transform: scaleY(0.3); }
+    50%      { transform: scaleY(1); }
+  }
+  @keyframes ghv2Breathing {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.04); }
+  }
+  @keyframes ghv2AiPulse {
+    0%   { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  @keyframes ghv2CursorBlink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+  @keyframes ghv2FakeProgress {
+    0%   { width: 0%; }
+    100% { width: 95%; }
+  }
+  @keyframes ghv2FadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes ghv2FadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  @keyframes ghv2SlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 }

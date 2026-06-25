@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+﻿import { Redis } from "@upstash/redis";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -22,65 +22,108 @@ export async function saveHistory(
   await redis.set(key, history, { ex: TTL_MENTOR });
 }
 
-const TTL_INTERVIEW = 60 * 60 * 24; // 2hours , so that background jobs can be completed
-
-
-
-// ─── INTERVIEW SESSION ─────────────────────────────────────────
-
-type InterviewSession = {
-  plan: any;
-  transcript: string[]; // alternating: even = AI, odd = User
-  isGreetingDone: boolean;
-  turnCount: number; // number of user responses so far
-  mode: string;
-  company: string;
-  difficulty: string | null;
-  questionLimit: number | null;
+// this is for interview related data and session management , we can use it
+const keyGenerator = (interviewId: string, userId: string) => {
+  return `interview:${interviewId}:${userId}`;
 };
 
-const interviewKey = (interviewId: string) => `interviewSession:${interviewId}`;
+// lib/types/interview.ts
+export interface InterviewSession {
+  interviewId: string;
+  userId: string;
+  repoLink: string;
+  repoId: string;
+  questions: GeneratedQuestion[]; // all questions from RAG pipeline
+  currentQuestionIndex: number; // which main question we're on (0-based) , -1 represent that we are at ice-breaker
+  followupCountForCurrent: number; // followups asked for current question (max 3)
+  transcript: Turn[]; // last N turns (rolling window)
+  rollingTranscript: Turn[]; // last 5 turns raw
+  previousSummary: string; // compressed summary of earlier turns
+  totalTurns: number; // total turns across whole session
+  status: "IN_PROGRESS" | "COMPLETED";
+}
 
-// called ONCE at join room — creates the session
-export async function saveInterviewSession(
+export interface Turn {
+  role: "interviewer" | "candidate";
+  content: string;
+  timestamp: number;
+  questionIndex: number; // which question this turn belongs to
+  isFollowup: boolean;
+}
+/**
+ * Sets the interview questions for a given interview session.
+ * @param {any} interviewStarting The interview starting data.
+ * @returns {Promise<void>} A promise that resolves when the questions have been set.
+ */
+interface GeneratedQuestion {
+  icebreaker: {
+    question: string;
+  };
+  questions: {
+    question: string;
+    difficulty: "easy" | "medium" | "hard";
+    intent: string;
+    howmuchDepthRequired: number;
+  }[];
+}
+
+/**
+ * Sets the interview questions for a given interview session.
+ * @param {any} interviewStarting The interview starting data.
+ * @param {string} interviewId The ID of the interview.
+ * @param {string} userId The ID of the user.
+ * @param {string} repoLink The link to the user's repository.
+ * @param {string} repoId The ID of the repository.
+ * @returns {Promise<void>} A promise that resolves when the questions have been set.
+ */
+const setInterviewQuestions = async (
+  interviewStarting: GeneratedQuestion | GeneratedQuestion[],
   interviewId: string,
-  sessionData: InterviewSession,
-) {
-  await redis.set(interviewKey(interviewId), sessionData, {
-    ex: TTL_INTERVIEW,
-  });
-}
+  userId: string,
+  repoLink: string,
+  repoId: string,
+) => {
+  const key = keyGenerator(interviewId, userId);
+  const normalizedQuestions = Array.isArray(interviewStarting)
+    ? interviewStarting
+    : [interviewStarting];
 
-// called to read current state
-export async function getInterviewSession(
+  await redis.set<InterviewSession>(
+    key,
+    {
+      interviewId: interviewId,
+      userId: userId,
+      repoLink: repoLink,
+      repoId: repoId,
+      questions: normalizedQuestions,
+      currentQuestionIndex: -1, // represent no question has been asked yet 
+      followupCountForCurrent: 0,
+      transcript: [],
+      rollingTranscript: [],
+      previousSummary: "",
+      totalTurns: 0,
+      status: "IN_PROGRESS",
+    },
+    { ex: TTL_MENTOR },
+  );
+};
+
+const getInterviewDetails = async (
   interviewId: string,
-): Promise<InterviewSession | null> {
-  return await redis.get<InterviewSession>(interviewKey(interviewId));
-}
+  userId: string,
+): Promise<InterviewSession | null> => {
+  const key = keyGenerator(interviewId, userId);
+  const data = await redis.get<InterviewSession>(key);
+  return data ?? null;
+};
 
-// called on every turn — appends without overwriting
-export async function appendToTranscript(interviewId: string, message: string) {
-  const session = await getInterviewSession(interviewId);
-  if (!session) throw new Error(`Interview session not found: ${interviewId}`);
+const saveInterviewSession = async (
+  interviewDetails: InterviewSession,
+  interviewId: string,
+  userId: string,
+) => {
+  const key = keyGenerator(interviewId, userId);
+  await redis.set<InterviewSession>(key, interviewDetails, { ex: TTL_MENTOR });
+};
 
-  session.transcript.push(message);
-
-  // if message is from user (odd index after push) increment turnCount
-  if (session.transcript.length % 2 === 0) {
-    session.turnCount += 1;
-  }
-
-  // if this was user's first real answer, mark greeting as done
-  if (!session.isGreetingDone && session.turnCount === 1) {
-    session.isGreetingDone = true;
-  }
-
-  await redis.set(interviewKey(interviewId), session, { ex: TTL_INTERVIEW });
-
-  return session;
-}
-
-// called when interview completes — clean up Redis
-export async function deleteInterviewSession(interviewId: string) {
-  return await redis.del(interviewKey(interviewId));
-}
+export { setInterviewQuestions, getInterviewDetails, saveInterviewSession };
