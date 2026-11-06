@@ -1,21 +1,15 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import React from "react";
-import ProblemPage from "./Problem";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth-session";
+import ProblemPage from "./Problem";
 
-const page = async ({
+export default async function Page({
   params,
 }: {
   params: Promise<{ problemSlug: string }>;
-}) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session || !session.user) {
-    redirect("/auth/sign-in");
-  }
+}) {
+  const session = await getServerSession();
+  if (!session?.user) redirect("/auth/sign-in");
 
   const { problemSlug } = await params;
 
@@ -28,28 +22,21 @@ const page = async ({
         cookie: (await headers()).get("cookie") ?? "",
       },
       cache: "no-store",
-      credentials: "include",
     },
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    console.error("Error fetching problem details:", error);
+    console.error("Error fetching problem details:", response.status);
     redirect("/problems");
-    return;
   }
 
   const data = await response.json();
 
   return (
-    <div>
-      <ProblemPage
-        problem={data.data.problem}
-        userProblem={data.data.userProgress}
-        isPremium={session.user.premium ?? false}
-      />
-    </div>
+    <ProblemPage
+      problem={data.data.problem}
+      userProblem={data.data.userProgress}
+      isPremium={session.user.premium ?? false}
+    />
   );
-};
-
-export default page;
+}

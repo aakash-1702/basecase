@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, AlertCircle, Upload, Minus, Plus, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface StartInterviewModalProps {
   onClose: () => void;
@@ -24,10 +25,50 @@ const difficultyMap: Record<Difficulty, string> = {
   staff: "Staff",
 };
 
-const companies = [
-  "Google", "Amazon", "Microsoft", "Flipkart",
-  "Uber", "Swiggy", "Netflix", "Generic",
-];
+const MODES: InterviewMode[] = ["dsa", "technical", "hr"];
+const DIFFICULTIES: Difficulty[] = ["entry", "mid", "senior", "staff"];
+const companies = ["Google", "Amazon", "Microsoft", "Flipkart", "Uber", "Swiggy", "Netflix", "Generic"];
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.15em] text-fg-muted">
+      {children}
+    </span>
+  );
+}
+
+function Toggle({
+  active,
+  onClick,
+  variant = "solid",
+  className,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  variant?: "solid" | "subtle";
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "rounded-lg border px-3 py-2.5 font-mono text-xs transition-colors",
+        active
+          ? variant === "solid"
+            ? "border-accent bg-accent font-semibold text-accent-ink"
+            : "border-accent/40 bg-surface-3 text-fg"
+          : "border-line bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
   const router = useRouter();
@@ -62,7 +103,9 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
       const interviewId = json.data;
       const params = new URLSearchParams({
         interviewId,
-        mode, company, difficulty,
+        mode,
+        company,
+        difficulty,
         questions: questionCount.toString(),
       });
       router.push(`/interview/new-session?${params.toString()}`);
@@ -74,122 +117,75 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
     }
   };
 
-  const handleFileUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && file.type === "application/pdf") setResume(file);
-    }, []
-  );
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") setResume(file);
+  }, []);
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-scrim px-4"
       onClick={onClose}
+      role="presentation"
     >
       <div
-        className="relative w-full max-w-[540px] max-h-[85vh] overflow-y-auto interview-scrollbar"
-        style={{
-          background: "#0c0c0c",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: "10px",
-          animation: "fadeSlideUp 0.25s ease forwards",
-        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="start-interview-title"
+        className="card-base interview-scrollbar relative max-h-[85vh] w-full max-w-[540px] animate-fade-up overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          className="sticky top-0 z-10 px-7 py-5 flex items-center justify-between"
-          style={{
-            background: "#0c0c0c",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-7 py-5">
           <h2
-            className="text-sm tracking-[0.15em] uppercase"
-            style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-primary)", fontWeight: 500 }}
+            id="start-interview-title"
+            className="font-display text-base tracking-tight text-fg"
           >
-            Configure Session
+            Configure session
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded transition">
-            <X size={18} style={{ color: "var(--text-muted)" }} />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="btn btn-ghost btn-sm h-8 w-8 px-0"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="px-7 py-6 space-y-7">
+        <div className="space-y-7 px-7 py-6">
           {/* ① Interview Mode */}
           <div>
-            <label className="block text-[10px] mb-3 tracking-[0.15em] uppercase" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-              Interview Mode
-            </label>
+            <FieldLabel>Interview mode</FieldLabel>
             <div className="flex gap-2">
-              {(["dsa", "technical", "hr"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className="flex-1 py-3 px-4 text-xs capitalize transition-all duration-200"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    background: mode === m ? "var(--amber)" : "var(--bg-card)",
-                    color: mode === m ? "#000" : "var(--text-muted)",
-                    border: `1px solid ${mode === m ? "var(--amber)" : "var(--border-subtle)"}`,
-                    borderRadius: "6px",
-                    fontWeight: mode === m ? 600 : 400,
-                  }}
-                >
-                  {m.toUpperCase()}
-                </button>
+              {MODES.map((m) => (
+                <Toggle key={m} active={mode === m} onClick={() => setMode(m)} className="flex-1 py-3 uppercase">
+                  {m}
+                </Toggle>
               ))}
             </div>
           </div>
 
           {/* ② Company */}
           <div>
-            <label className="block text-[10px] mb-3 tracking-[0.15em] uppercase" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-              Company
-            </label>
+            <FieldLabel>Company</FieldLabel>
             <div className="grid grid-cols-4 gap-2">
               {companies.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCompany(c)}
-                  className="py-2.5 px-3 text-xs transition-all duration-200"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    background: company === c ? "var(--bg-card-hover)" : "var(--bg-card)",
-                    color: company === c ? "var(--text-primary)" : "var(--text-muted)",
-                    border: `1px solid ${company === c ? "rgba(245,158,11,0.3)" : "var(--border-subtle)"}`,
-                    borderRadius: "6px",
-                  }}
-                >
+                <Toggle key={c} variant="subtle" active={company === c} onClick={() => setCompany(c)}>
                   {c}
-                </button>
+                </Toggle>
               ))}
             </div>
           </div>
 
           {/* ③ Difficulty */}
           <div>
-            <label className="block text-[10px] mb-3 tracking-[0.15em] uppercase" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-              Difficulty
-            </label>
+            <FieldLabel>Difficulty</FieldLabel>
             <div className="flex gap-2">
-              {(["entry", "mid", "senior", "staff"] as const).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDifficulty(d)}
-                  className="flex-1 py-3 px-3 text-xs capitalize transition-all duration-200"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    background: difficulty === d ? "var(--amber)" : "var(--bg-card)",
-                    color: difficulty === d ? "#000" : "var(--text-muted)",
-                    border: `1px solid ${difficulty === d ? "var(--amber)" : "var(--border-subtle)"}`,
-                    borderRadius: "6px",
-                    fontWeight: difficulty === d ? 600 : 400,
-                  }}
-                >
-                  {d === "entry" ? "Entry" : d === "mid" ? "Mid" : d === "senior" ? "Senior" : "Staff"}
-                </button>
+              {DIFFICULTIES.map((d) => (
+                <Toggle key={d} active={difficulty === d} onClick={() => setDifficulty(d)} className="flex-1 py-3">
+                  {difficultyMap[d]}
+                </Toggle>
               ))}
             </div>
           </div>
@@ -197,18 +193,26 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
           {/* ④ Questions */}
           {mode !== "dsa" && (
             <div>
-              <label className="block text-[10px] mb-3 tracking-[0.15em] uppercase" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-                Questions
-              </label>
+              <FieldLabel>Questions</FieldLabel>
               <div className="flex items-center justify-center gap-5">
-                <button onClick={() => setQuestionCount(Math.max(1, questionCount - 1))} className="p-2 hover:bg-white/5 rounded transition" style={{ color: "var(--amber)" }}>
-                  <Minus size={20} />
+                <button
+                  type="button"
+                  aria-label="Fewer questions"
+                  onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
+                  className="btn btn-ghost btn-sm h-9 w-9 px-0 text-accent"
+                >
+                  <Minus className="h-5 w-5" />
                 </button>
-                <div className="text-3xl w-14 text-center tabular-nums" style={{ fontFamily: "var(--font-dm-serif)", color: "var(--text-primary)" }}>
+                <div className="w-14 text-center font-display text-3xl tabular-nums text-fg">
                   {questionCount.toString().padStart(2, "0")}
                 </div>
-                <button onClick={() => setQuestionCount(Math.min(10, questionCount + 1))} className="p-2 hover:bg-white/5 rounded transition" style={{ color: "var(--amber)" }}>
-                  <Plus size={20} />
+                <button
+                  type="button"
+                  aria-label="More questions"
+                  onClick={() => setQuestionCount(Math.min(10, questionCount + 1))}
+                  className="btn btn-ghost btn-sm h-9 w-9 px-0 text-accent"
+                >
+                  <Plus className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -217,59 +221,48 @@ export function StartInterviewModal({ onClose }: StartInterviewModalProps) {
           {/* ⑤ Resume Upload */}
           {mode === "technical" && (
             <div>
-              <label className="block text-[10px] mb-3 tracking-[0.15em] uppercase" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
-                Resume (optional)
-              </label>
-              <label
-                className="block border-2 border-dashed py-7 px-6 text-center cursor-pointer hover:border-white/[0.12] transition"
-                style={{ borderColor: "var(--border-subtle)", borderRadius: "6px", background: "var(--bg-card)" }}
-              >
+              <FieldLabel>Resume (optional)</FieldLabel>
+              <label className="block cursor-pointer rounded-lg border-2 border-dashed border-line bg-surface-2 px-6 py-7 text-center transition-colors hover:border-line-strong">
                 <input type="file" accept="application/pdf" onChange={handleFileUpload} className="hidden" />
-                <Upload size={22} className="mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
-                <div className="text-xs" style={{ fontFamily: "var(--font-dm-mono)", color: resume ? "var(--amber)" : "var(--text-muted)" }}>
+                <Upload className="mx-auto mb-2 h-5 w-5 text-fg-muted" />
+                <span className={cn("font-mono text-xs", resume ? "text-accent" : "text-fg-muted")}>
                   {resume ? resume.name : "Drop resume PDF here"}
-                </div>
+                </span>
               </label>
             </div>
           )}
 
           {/* DSA Warning */}
           {mode === "dsa" && (
-            <div className="flex gap-3 p-4" style={{ background: "var(--amber-dim)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: "6px" }}>
-              <AlertCircle size={20} style={{ color: "var(--amber)", flexShrink: 0 }} />
-              <div className="text-sm leading-relaxed" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--text-muted)" }}>
+            <div className="flex gap-3 rounded-lg border border-accent/20 bg-accent-soft p-4">
+              <AlertCircle className="h-5 w-5 shrink-0 text-accent" />
+              <p className="text-sm leading-relaxed text-fg-secondary">
                 This mode requires a scratchpad or IDE. Keep one open before entering the room.
-              </div>
+              </p>
             </div>
           )}
         </div>
 
         {/* Footer CTA */}
-        <div
-          className="sticky bottom-0 px-7 py-5"
-          style={{ background: "#0c0c0c", borderTop: "1px solid rgba(255,255,255,0.06)" }}
-        >
+        <div className="sticky bottom-0 border-t border-line bg-surface px-7 py-5">
           {error && (
-            <div className="flex items-center gap-2 mb-3 px-3 py-2 text-xs" style={{ fontFamily: "var(--font-dm-mono)", color: "var(--rose, #f43f5e)", background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.15)", borderRadius: "6px" }}>
-              <AlertCircle size={14} />
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-xs text-danger">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
               {error}
             </div>
           )}
           <button
+            type="button"
             onClick={handleStart}
             disabled={isLoading}
-            className="w-full py-4 text-sm font-medium tracking-wide transition-all duration-200 hover:brightness-110 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{
-              background: "var(--amber)",
-              color: "#000",
-              borderRadius: "6px",
-              fontFamily: "var(--font-dm-mono)",
-            }}
+            className="btn btn-primary btn-lg w-full"
           >
             {isLoading ? (
-              <><Loader2 size={16} className="animate-spin" /> Creating Session...</>
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Creating session...
+              </>
             ) : (
-              <>→ Start {mode === "dsa" ? "DSA" : mode === "technical" ? "Technical" : "HR"} Interview</>
+              <>→ Start {modeMap[mode]} interview</>
             )}
           </button>
         </div>

@@ -1,288 +1,217 @@
-// app/sheets/page.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Search,
-  Filter,
-  ChevronDown,
-  BookOpen,
-  Clock,
-  ChevronRight,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, SearchX } from "lucide-react";
+import Container from "@/components/shared/Container";
+import EmptyState from "@/components/shared/EmptyState";
+import PageHero from "@/components/shared/PageHero";
+import Reveal from "@/components/shared/Reveal";
+import SearchFilterBar, { type FilterConfig } from "@/components/shared/SearchFilterBar";
+import SectionHeader from "@/components/shared/SectionHeader";
+import SheetCard, { SheetCardSkeleton } from "@/components/sheets/SheetCard";
+import type { SheetListItem } from "@/components/sheets/types";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+const PAGE_SIZE = 12;
 
-// Add these keyframes to your globals.css (or tailwind config)
-const keyframes = `
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in-up {
-  animation: fade-in-up 0.6s ease-out forwards;
-}
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2); }
-  50%      { box-shadow: 0 0 20px 8px rgba(245, 158, 11, 0.1); }
-}
-.animate-pulse-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-`;
+const DIFFICULTY_OPTIONS = [
+  { value: "all", label: "All levels" },
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
 
 export default function SheetsPage() {
+  const [sheets, setSheets] = useState<SheetListItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
+
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState("all");
-  const [sheets, setSheets] = useState<any[]>([]);
-  const [displayedSheets, setDisplayedSheets] = useState<any[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
 
-  const observerRef = useRef<HTMLDivElement>(null);
-
-  // Fetch all sheets once
+  // Fetch all sheets once (aborted if the page unmounts mid-flight).
   useEffect(() => {
-    const fetchSheets = async () => {
-      setLoading(true);
+    const controller = new AbortController();
+
+    (async () => {
       try {
         const res = await fetch("/api/sheets", {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
           credentials: "include",
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error("Failed to load sheets");
-        const json = await res.json();
-        const data = json.data || [];
-        setSheets(data);
-        // Initial display: first 12
-        setDisplayedSheets(data.slice(0, 12));
-        setHasMore(data.length > 12);
+        const json = (await res.json()) as { data?: SheetListItem[] | null };
+        if (controller.signal.aborted) return;
+        setSheets(json.data ?? []);
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error(err);
-      } finally {
-        setLoading(false);
+        setError(err instanceof Error ? err.message : "Failed to load sheets");
       }
-    };
-    fetchSheets();
+    })();
+
+    return () => controller.abort();
+  }, [retryTick]);
+
+  const retry = useCallback(() => {
+    setSheets(null);
+    setError(null);
+    setRetryTick((t) => t + 1);
   }, []);
 
-  // Infinite scroll observer
+  // ── Client-side filtering over the *full* list ───────────────────────────
+  const query = search.trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    const list = sheets ?? [];
+    return list.filter((sheet) => {
+      const matchesSearch =
+        !query ||
+        sheet.title.toLowerCase().includes(query) ||
+        (sheet.description ?? "").toLowerCase().includes(query);
+      const matchesDifficulty =
+        difficulty === "all" ||
+        (sheet.difficulty ?? "").toLowerCase() === difficulty;
+      return matchesSearch && matchesDifficulty;
+    });
+  }, [sheets, query, difficulty]);
+
+  // Only offer the difficulty filter when the API actually provides difficulties.
+  const hasDifficulty = useMemo(
+    () => (sheets ?? []).some((s) => Boolean(s.difficulty)),
+    [sheets],
+  );
+
+  const filters = useMemo<FilterConfig[]>(
+    () =>
+      hasDifficulty
+        ? [
+            {
+              key: "difficulty",
+              placeholder: "Difficulty",
+              value: difficulty,
+              options: DIFFICULTY_OPTIONS,
+              onChange: setDifficulty,
+              width: "w-40",
+            },
+          ]
+        : [],
+    [hasDifficulty, difficulty],
+  );
+
+  // ── Synchronous "load more" (no fake network delay) ──────────────────────
+  const filterKey = `${query}|${difficulty}`;
+  const [visible, setVisible] = useState({ key: "", count: PAGE_SIZE });
+  const visibleCount = visible.key === filterKey ? visible.count : PAGE_SIZE;
+  const shown = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
+
+  const loadMore = useCallback(() => {
+    setVisible((v) => ({
+      key: filterKey,
+      count: (v.key === filterKey ? v.count : PAGE_SIZE) + PAGE_SIZE,
+    }));
+  }, [filterKey]);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!observerRef.current || !hasMore || loadingMore) return;
-
-    const observer = new IntersectionObserver(
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          loadMore();
-        }
+        if (entries.some((e) => e.isIntersecting)) loadMore();
       },
-      { threshold: 0.1 },
+      { rootMargin: "240px 0px" },
     );
+    io.observe(el);
+    return () => io.disconnect();
+    // `visibleCount` re-arms the observer after each batch so a still-visible
+    // sentinel keeps loading until the viewport is filled.
+  }, [hasMore, loadMore, visibleCount]);
 
-    observer.observe(observerRef.current);
-
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, sheets]);
-
-  const loadMore = () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-
-    // Simulate network delay
-    setTimeout(() => {
-      const start = page * 12;
-      const end = start + 12;
-      const newSheets = sheets.slice(start, end);
-
-      if (newSheets.length > 0) {
-        setDisplayedSheets((prev) => [...prev, ...newSheets]);
-        setPage((p) => p + 1);
-        setHasMore(end < sheets.length);
-      } else {
-        setHasMore(false);
-      }
-      setLoadingMore(false);
-    }, 800);
-  };
-
-  // Client-side filtering
-  const filteredSheets = displayedSheets.filter((sheet) => {
-    const matchesSearch =
-      sheet.title.toLowerCase().includes(search.toLowerCase()) ||
-      sheet.description.toLowerCase().includes(search.toLowerCase());
-    const matchesDifficulty =
-      difficulty === "all" || sheet.difficulty?.toLowerCase() === difficulty;
-    return matchesSearch && matchesDifficulty;
-  });
+  const loading = sheets === null && !error;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      {/* Hero */}
-      <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 border-b border-neutral-800/50 overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-b from-amber-950/10 to-transparent pointer-events-none" />
-        <div className="absolute left-1/2 top-20 -translate-x-1/2 w-[600px] md:w-[900px] h-[400px] bg-amber-500/5 rounded-full blur-3xl animate-pulse-glow" />
+    <div className="pb-8">
+      <PageHero
+        eyebrow="Sheets"
+        title="Curated"
+        highlight="sheets"
+        description="Structured topic-wise lists of handpicked problems, built to accelerate your progress."
+        chips={[
+          sheets ? `${sheets.length} sheets` : "Topic-wise lists",
+          "Handpicked problems",
+          "Updated regularly",
+        ]}
+      />
 
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 relative">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight animate-fade-in-up">
-              Curated{" "}
-              <span className="bg-linear-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-                Sheets
-              </span>
-            </h1>
-            <p className="mt-5 text-lg md:text-xl text-neutral-400 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
-              Structured topic-wise lists • Handpicked problems • Built to
-              accelerate your progress
-            </p>
+      <SearchFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search sheets (Heap, Graph, Blind 75…)"
+        filters={filters}
+      />
 
-            <div className="mt-8 flex flex-wrap justify-center gap-4 animate-fade-in-up animation-delay-400">
-              <Badge className="bg-amber-950/60 border-amber-700/50 text-amber-300 px-5 py-2 text-base">
-                {sheets.length} Sheets
-              </Badge>
-              <Badge className="bg-amber-950/60 border-amber-700/50 text-amber-300 px-5 py-2 text-base">
-                Updated Regularly
-              </Badge>
+      <Container className="py-12 md:py-16">
+        <SectionHeader
+          eyebrow="Library"
+          title="Explore all sheets"
+          description={
+            sheets && !loading
+              ? `${filtered.length} of ${sheets.length} sheets`
+              : undefined
+          }
+        />
+
+        <div className="mt-10">
+          {loading ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }, (_, i) => (
+                <SheetCardSkeleton key={i} />
+              ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Filters */}
-      <section className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-800/50 py-6">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full sm:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
-              <Input
-                placeholder="Search sheets (Heap, Graph, Blind 75...)"
-                className="pl-10 bg-neutral-900 border-neutral-700 focus:border-amber-500/50 focus:ring-amber-500/30 transition-all"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Select value={difficulty} onValueChange={setDifficulty}>
-                <SelectTrigger className="w-44 bg-neutral-900 border-neutral-700">
-                  <SelectValue placeholder="Difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Levels</SelectItem>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                className="border-amber-600/50 text-amber-300 hover:bg-amber-950/40 transition-all"
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                More Filters
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Grid – 4 per row on xl */}
-      <section className="py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 animate-fade-in-up">
-            Explore All <span className="text-amber-400">Sheets</span>
-          </h2>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredSheets.map((sheet, idx) => (
-              <div
-                key={sheet.id}
-                className={cn(
-                  "group relative overflow-hidden rounded-xl border border-neutral-800/60",
-                  "bg-neutral-900/60 backdrop-blur-sm transition-all duration-300",
-                  "hover:border-amber-700/50 hover:shadow-xl hover:shadow-amber-900/20 hover:-translate-y-1",
-                  "animate-fade-in-up",
-                  `animation-delay-${(idx % 8) * 100}`,
-                )}
-              >
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-amber-300 transition-colors line-clamp-2">
-                    {sheet.title}
-                  </h3>
-
-                  <p className="text-neutral-400 text-sm mb-4 line-clamp-2">
-                    {sheet.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-5">
-                    <Badge
-                      variant="secondary"
-                      className="bg-neutral-800 text-neutral-300 text-xs"
-                    >
-                      {sheet.difficulty || "Mixed"}
-                    </Badge>
-                    {/* You can add more badges when backend provides tags */}
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-neutral-500">
-                    <div className="flex items-center gap-1.5">
-                      <BookOpen className="h-4 w-4" />
-                      {Math.floor(Math.random() * 80 + 40)} problems
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="h-4 w-4" />~
-                      {Math.floor(Math.random() * 40 + 20)} hrs
-                    </div>
-                  </div>
-                </div>
-
-                <div className="px-6 pb-6">
-                  <Button
-                    variant="outline"
-                    asChild
-                    className="w-full border-amber-600/50 text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 transition-all"
-                  >
-                    <Link href={`/sheets/${sheet.slug}`}>View Sheet →</Link>
-                  </Button>
-                </div>
+          ) : error ? (
+            <EmptyState
+              icon={<AlertTriangle className="h-5 w-5" />}
+              title="Couldn't load sheets"
+              description={error}
+              action={
+                <button type="button" onClick={retry} className="btn btn-secondary btn-sm">
+                  Try again
+                </button>
+              }
+            />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={<SearchX className="h-5 w-5" />}
+              title="No sheets match"
+              description="Try a different search term or clear the filters."
+            />
+          ) : (
+            <>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {shown.map((sheet, idx) => (
+                  <Reveal key={sheet.id} delay={(idx % 4) * 70}>
+                    <SheetCard sheet={sheet} />
+                  </Reveal>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Infinite scroll trigger */}
-          {hasMore && (
-            <div ref={observerRef} className="py-16 flex justify-center">
-              <div className="inline-flex items-center gap-3 text-neutral-400">
-                <div className="h-5 w-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                Loading more sheets...
-              </div>
-            </div>
-          )}
-
-          {!hasMore && displayedSheets.length > 0 && (
-            <div className="py-16 text-center text-neutral-500 animate-fade-in-up">
-              You've reached the end — keep grinding! 🔥
-            </div>
+              {hasMore ? (
+                <div ref={sentinelRef} className="flex justify-center py-12">
+                  <button type="button" onClick={loadMore} className="btn btn-secondary">
+                    Load more sheets
+                  </button>
+                </div>
+              ) : (
+                <p className="py-12 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-fg-muted">
+                  You&apos;ve reached the end — keep grinding
+                </p>
+              )}
+            </>
           )}
         </div>
-      </section>
-
+      </Container>
     </div>
   );
 }

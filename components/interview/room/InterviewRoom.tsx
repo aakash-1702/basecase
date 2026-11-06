@@ -42,7 +42,6 @@ export function InterviewRoom({
   // Hooks
   const {
     transcript,
-    isListening,
     isSupported: isSTTSupported,
     startListening,
     stopListening,
@@ -50,8 +49,7 @@ export function InterviewRoom({
     error: sttError,
   } = useSpeechRecognition();
 
-  const { playAudio, isPlaying, needsManualPlay, triggerManualPlay } =
-    useAudioPlayer();
+  const { playAudio, needsManualPlay, triggerManualPlay } = useAudioPlayer();
 
   // Fetch greeting on mount
   useEffect(() => {
@@ -96,14 +94,95 @@ export function InterviewRoom({
     fetchGreeting();
   }, [interviewId, playAudio]);
 
-  // Handle STT errors
-  useEffect(() => {
-    if (sttError && phase === "recording") {
-      setPhase("error");
-      setErrorMessage(sttError);
-      setCanRetry(true);
-    }
-  }, [sttError, phase]);
+  // STT errors while recording surface as a retryable error state (derived, no extra render pass)
+  const sttFailedWhileRecording = Boolean(sttError) && phase === "recording";
+  const effectivePhase: Phase = sttFailedWhileRecording ? "error" : phase;
+  const effectiveErrorMessage = sttFailedWhileRecording ? (sttError ?? "") : errorMessage;
+  const effectiveCanRetry = sttFailedWhileRecording ? true : canRetry;
+
+  // Submit answer to backend
+  const submitAnswer = useCallback(
+    async (answer: string) => {
+      try {
+        const res = await fetch(
+          `/api/interview/${interviewId}/join-interview/room`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userResponse: answer }),
+          },
+        );
+
+        if (res.status === 401) {
+          router.push("/auth");
+          return;
+        }
+
+        if (res.status === 404) {
+          setPhase("error");
+          setErrorMessage(
+            "Your session has expired. Please end this interview and start a new one.",
+          );
+          setCanRetry(false);
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Server error");
+        }
+
+        const json = await res.json();
+
+        if (!json.success) {
+          throw new Error(json.message || "Failed to get response");
+        }
+
+        const { nextQuestion, audioData, isComplete } = json.data;
+
+        if (isComplete) {
+          // Push final turn to history
+          setHistory((prev) => [
+            ...prev,
+            { aiMessage: currentMessage, userAnswer: answer },
+          ]);
+          setCurrentMessage(nextQuestion);
+          setPhase("complete");
+
+          // Play closing message if audio available
+          if (audioData) {
+            await playAudio(audioData);
+          }
+
+          return;
+        }
+
+        // Normal turn - push to history
+        setHistory((prev) => [
+          ...prev,
+          { aiMessage: currentMessage, userAnswer: answer },
+        ]);
+        setCurrentMessage(nextQuestion);
+        resetTranscript();
+        setFinalTranscript("");
+        setPhase("speaking");
+
+        // Play audio response
+        if (audioData) {
+          await playAudio(audioData);
+        }
+
+        setPhase("answering");
+      } catch {
+        setPhase("error");
+        setErrorMessage(
+          "Something went wrong on our end. Your answer was heard — tap retry to continue.",
+        );
+        setLastAnswer(answer);
+        setCanRetry(true);
+      }
+    },
+    [interviewId, router, currentMessage, playAudio, resetTranscript],
+  );
 
   // Start recording handler
   const handleStartRecording = useCallback(() => {
@@ -132,95 +211,14 @@ export function InterviewRoom({
 
     // Submit the answer
     await submitAnswer(capturedText);
-  }, [stopListening, transcript]);
-
-  // Submit answer to backend
-  const submitAnswer = async (answer: string) => {
-    try {
-      const res = await fetch(
-        `/api/interview/${interviewId}/join-interview/room`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userResponse: answer }),
-        },
-      );
-
-      if (res.status === 401) {
-        router.push("/auth");
-        return;
-      }
-
-      if (res.status === 404) {
-        setPhase("error");
-        setErrorMessage(
-          "Your session has expired. Please end this interview and start a new one.",
-        );
-        setCanRetry(false);
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error("Server error");
-      }
-
-      const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.message || "Failed to get response");
-      }
-
-      const { nextQuestion, audioData, isComplete } = json.data;
-
-      if (isComplete) {
-        // Push final turn to history
-        setHistory((prev) => [
-          ...prev,
-          { aiMessage: currentMessage, userAnswer: answer },
-        ]);
-        setCurrentMessage(nextQuestion);
-        setPhase("complete");
-
-        // Play closing message if audio available
-        if (audioData) {
-          await playAudio(audioData);
-        }
-
-        return;
-      }
-
-      // Normal turn - push to history
-      setHistory((prev) => [
-        ...prev,
-        { aiMessage: currentMessage, userAnswer: answer },
-      ]);
-      setCurrentMessage(nextQuestion);
-      resetTranscript();
-      setFinalTranscript("");
-      setPhase("speaking");
-
-      // Play audio response
-      if (audioData) {
-        await playAudio(audioData);
-      }
-
-      setPhase("answering");
-    } catch {
-      setPhase("error");
-      setErrorMessage(
-        "Something went wrong on our end. Your answer was heard — tap retry to continue.",
-      );
-      setLastAnswer(answer);
-      setCanRetry(true);
-    }
-  };
+  }, [stopListening, transcript, submitAnswer]);
 
   // Retry handler
   const handleRetry = useCallback(() => {
     setErrorMessage("");
     setPhase("submitting");
     submitAnswer(lastAnswer);
-  }, [lastAnswer]);
+  }, [lastAnswer, submitAnswer]);
 
   // End session handler
   const handleEndSession = useCallback(() => {
@@ -228,174 +226,108 @@ export function InterviewRoom({
     router.push("/interview");
   }, [router]);
 
+  const micVisible =
+    (effectivePhase === "answering" || effectivePhase === "recording") && isSTTSupported;
+
   return (
-    <>
-      {/* Global styles for animations */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes orbBreath {
-              0%, 100% { opacity: 0.6; transform: scale(1); }
-              50%       { opacity: 0.9; transform: scale(1.05); }
-            }
-            @keyframes recordPulse {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.3); }
-              50%       { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
-            }
-            @keyframes wavePulse {
-              0%, 100% { transform: scaleY(0.15); opacity: 0.2; }
-              50%       { transform: scaleY(1); opacity: 0.6; }
-            }
-            @keyframes fadeSlideUp {
-              from { opacity: 0; transform: translateY(8px); }
-              to   { opacity: 1; transform: translateY(0); }
-            }
-            @keyframes shimmer {
-              0%   { background-position: -400px 0; }
-              100% { background-position: 400px 0; }
-            }
-          `,
-        }}
-      />
+    <div
+      data-interview-room="active"
+      className="flex h-screen w-full flex-col overflow-hidden"
+    >
+      {/* Loading state */}
+      {effectivePhase === "loading" && (
+        <div className="flex flex-1 flex-col items-center justify-center" role="status" aria-live="polite">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent" />
+          <p className="mt-4 font-mono text-[13px] text-fg-muted">
+            Connecting to your interview room...
+          </p>
+        </div>
+      )}
 
-      <div
-        data-interview-room="active"
-        className="h-screen w-full flex flex-col bg-[#0a0a0a] overflow-hidden"
-      >
-        {/* Loading state */}
-        {phase === "loading" && (
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div
-              style={{
-                width: "24px",
-                height: "24px",
-                border: "2px solid rgba(255,255,255,0.1)",
-                borderTopColor: "rgba(245,158,11,0.5)",
-                borderRadius: "50%",
-                animation: "spinnerRotate 1s linear infinite",
-              }}
-            />
-            <p
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                fontSize: "13px",
-                color: "#3a3a3a",
-                marginTop: "16px",
-              }}
-            >
-              Connecting to your interview room...
-            </p>
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `
-                  @keyframes spinnerRotate {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                  }
-                `,
-              }}
-            />
-          </div>
-        )}
+      {/* Main room layout */}
+      {effectivePhase !== "loading" && (
+        <>
+          {/* Top Bar */}
+          <RoomTopBar
+            config={config}
+            phase={effectivePhase}
+            onEndSessionClick={() => setShowEndModal(true)}
+          />
 
-        {/* Main room layout */}
-        {phase !== "loading" && (
-          <>
-            {/* Top Bar */}
-            <RoomTopBar
-              config={config}
-              phase={phase}
-              onEndSessionClick={() => setShowEndModal(true)}
-            />
-
-            {/* Main content */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Left Panel - 280px fixed */}
-              <div
-                className="hidden md:flex flex-col shrink-0"
-                style={{ width: "280px" }}
-              >
-                {/* AI Section - top 50% */}
-                <div className="flex-1">
-                  <AIPanel phase={phase} />
-                </div>
-
-                {/* User Section - bottom 50% */}
-                <div className="flex-1">
-                  <UserPanel
-                    userName={userName}
-                    phase={phase}
-                    isSTTSupported={isSTTSupported}
-                    onStartRecording={handleStartRecording}
-                    onStopRecording={handleStopRecording}
-                  />
-                </div>
+          {/* Main content */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* Left Panel - 280px fixed */}
+            <div className="hidden w-[280px] shrink-0 flex-col border-r border-line bg-surface md:flex">
+              {/* AI Section - top 50% */}
+              <div className="flex-1">
+                <AIPanel phase={effectivePhase} />
               </div>
 
-              {/* Right Panel - flex-1 */}
-              <div className="flex-1 overflow-hidden">
-                <TranscriptArea
-                  phase={phase}
-                  currentMessage={currentMessage}
-                  liveTranscript={
-                    phase === "recording" ? transcript : finalTranscript
-                  }
-                  history={history}
-                  errorMessage={errorMessage}
-                  canRetry={canRetry}
-                  onRetry={handleRetry}
-                  needsManualPlay={needsManualPlay}
-                  onManualPlay={triggerManualPlay}
+              {/* User Section - bottom 50% */}
+              <div className="flex-1">
+                <UserPanel
+                  userName={userName}
+                  phase={effectivePhase}
+                  isSTTSupported={isSTTSupported}
+                  onStartRecording={handleStartRecording}
+                  onStopRecording={handleStopRecording}
                 />
               </div>
             </div>
 
-            {/* Mobile mic button (visible only on mobile) */}
-            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2">
-              {(phase === "answering" || phase === "recording") &&
-                isSTTSupported && (
-                  <button
-                    onClick={
-                      phase === "answering"
-                        ? handleStartRecording
-                        : handleStopRecording
-                    }
-                    style={{
-                      fontFamily: "var(--font-dm-mono)",
-                      fontSize: "14px",
-                      color: phase === "answering" ? "#0a0a0a" : "#f59e0b",
-                      background:
-                        phase === "answering" ? "#f59e0b" : "transparent",
-                      border:
-                        phase === "answering"
-                          ? "none"
-                          : "1px solid rgba(245,158,11,0.5)",
-                      borderRadius: "8px",
-                      padding: "14px 32px",
-                      cursor: "pointer",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {phase === "answering" ? "🎙 Speak" : "■ Done"}
-                  </button>
-                )}
+            {/* Right Panel - flex-1 */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <TranscriptArea
+                phase={effectivePhase}
+                currentMessage={currentMessage}
+                liveTranscript={
+                  effectivePhase === "recording" ? transcript : finalTranscript
+                }
+                history={history}
+                errorMessage={effectiveErrorMessage}
+                canRetry={effectiveCanRetry}
+                onRetry={handleRetry}
+                needsManualPlay={needsManualPlay}
+                onManualPlay={triggerManualPlay}
+              />
             </div>
-          </>
-        )}
+          </div>
 
-        {/* End Session Modal */}
-        <EndSessionModal
-          isOpen={showEndModal}
-          onClose={() => setShowEndModal(false)}
-          onConfirm={handleEndSession}
-        />
+          {/* Mobile mic button (visible only on mobile) */}
+          {micVisible && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 md:hidden">
+              <button
+                type="button"
+                onClick={
+                  effectivePhase === "answering"
+                    ? handleStartRecording
+                    : handleStopRecording
+                }
+                className={
+                  effectivePhase === "answering"
+                    ? "btn btn-primary px-8 font-mono"
+                    : "btn btn-outline-accent px-8 font-mono"
+                }
+              >
+                {effectivePhase === "answering" ? "🎙 Speak" : "■ Done"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
-        {/* Completion Overlay */}
-        <CompletionOverlay
-          isVisible={phase === "complete"}
-          interviewId={interviewId}
-        />
-      </div>
-    </>
+      {/* End Session Modal */}
+      <EndSessionModal
+        isOpen={showEndModal}
+        onClose={() => setShowEndModal(false)}
+        onConfirm={handleEndSession}
+      />
+
+      {/* Completion Overlay */}
+      <CompletionOverlay
+        isVisible={effectivePhase === "complete"}
+        interviewId={interviewId}
+      />
+    </div>
   );
 }

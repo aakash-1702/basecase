@@ -6,7 +6,9 @@ import { headers } from "next/headers";
 import { getHistory, saveHistory } from "@/lib/session";
 import prisma from "@/lib/prisma";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let genai: GoogleGenAI | null = null;
+// created on first use so importing the route never requires the key
+const getAI = () => (genai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" }));
 const SYSTEM_INSTRUCTION = `
 You are a focused coding assistant embedded in a problem-solving platform. Your sole purpose is to help the user understand and solve the specific coding problem they are currently working on.
 
@@ -30,7 +32,7 @@ Your tone should be: helpful, patient, and focused.
 `;
 
 async function generateResponse(prompt: string): Promise<string> {
-  const response = await ai.models.generateContent({
+  const response = await getAI().models.generateContent({
     model: process.env.GEMINI_MODEL_NAME!,
     contents: prompt,
     config: {

@@ -1,25 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Check,
-  X,
-  Sparkles,
-  Zap,
-  MessageSquare,
-  Brain,
-  TrendingUp,
-  Target,
-  Crown,
-} from "lucide-react";
+import { Check, X, Sparkles, Zap, MessageSquare, Brain, TrendingUp, Target, Crown } from "lucide-react";
+import Container from "@/components/shared/Container";
+import Reveal from "@/components/shared/Reveal";
+import { cn } from "@/lib/utils";
 
 interface SubscriptionPageProps {
   isPremium: boolean;
   userName: string;
 }
 
-const plans = [
+type PlanId = "free" | "pro";
+
+const plans: {
+  id: PlanId;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: { text: string; included: boolean }[];
+  cta: string;
+  disabled: boolean;
+  highlight: boolean;
+}[] = [
   {
+    id: "free",
     name: "Free",
     price: "₹0",
     period: "forever",
@@ -38,6 +44,7 @@ const plans = [
     highlight: false,
   },
   {
+    id: "pro",
     name: "Pro",
     price: "₹499",
     period: "/month",
@@ -58,11 +65,17 @@ const plans = [
   },
 ];
 
-export function SubscriptionPage({
-  isPremium,
-  userName,
-}: SubscriptionPageProps) {
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "pro">("pro");
+const FEATURES = [
+  { icon: MessageSquare, title: "Voice-First Interviews", desc: "Natural conversation with AI that mirrors real FAANG interviewers" },
+  { icon: Brain, title: "AI Mentor", desc: "Get hints, explanations, and guidance on every coding problem" },
+  { icon: TrendingUp, title: "Detailed Feedback", desc: "Scores across confidence, depth, clarity, and technical accuracy" },
+  { icon: Target, title: "Company Patterns", desc: "Interview questions tailored to Google, Amazon, Meta, and more" },
+  { icon: Zap, title: "All Interview Modes", desc: "DSA, Technical, HR, and Behavioural interview simulations" },
+  { icon: Sparkles, title: "Unlimited Sessions", desc: "Practice as much as you need with no daily limits" },
+];
+
+export function SubscriptionPage({ isPremium, userName }: SubscriptionPageProps) {
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>("pro");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUpgrade = async () => {
@@ -75,214 +88,87 @@ export function SubscriptionPage({
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a0a" }}>
-      {/* Ambient background */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute -top-60 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, rgba(249,115,22,0.06) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute top-1/2 -right-60 w-[500px] h-[500px] rounded-full"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, rgba(249,115,22,0.04) 0%, transparent 70%)",
-          }}
-        />
+    <Container size="lg" className="pb-24 pt-16 md:pt-20">
+      {/* Header */}
+      <div className="mb-16 animate-fade-up text-center">
+        <span className="eyebrow justify-center">
+          <Crown className="h-3.5 w-3.5" />
+          BaseCase Pro
+        </span>
+        <h1 className="mt-5 font-display text-4xl leading-[1.05] tracking-tight text-fg md:text-5xl">
+          Unlock your full
+          <br />
+          <span className="text-gradient">interview potential.</span>
+        </h1>
+        <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-fg-secondary">
+          {isPremium
+            ? `You're already on Pro, ${userName} — thanks for supporting BaseCase.`
+            : "Join hundreds of engineers who use BaseCase to prepare for FAANG interviews with AI-powered mock sessions and personalised feedback."}
+        </p>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 pt-20 pb-24">
-        {/* Header */}
-        <div
-          className="text-center mb-16"
-          style={{ animation: "fadeSlideUp 0.5s ease backwards" }}
-        >
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
-            style={{
-              background: "rgba(249,115,22,0.08)",
-              border: "1px solid rgba(249,115,22,0.15)",
-            }}
-          >
-            <Crown className="w-3.5 h-3.5" style={{ color: "var(--amber)" }} />
-            <span
-              className="text-[10px] tracking-[0.2em] uppercase"
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                color: "var(--amber)",
-              }}
-            >
-              BaseCase Pro
-            </span>
-          </div>
-
-          <h1
-            className="text-4xl md:text-5xl mb-5 leading-tight"
-            style={{
-              fontFamily: "var(--font-dm-serif)",
-              color: "var(--text-primary)",
-            }}
-          >
-            Unlock your full
-            <br />
-            interview potential.
-          </h1>
-
-          <p
-            className="text-sm max-w-lg mx-auto leading-relaxed"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "var(--text-muted)",
-            }}
-          >
-            Join hundreds of engineers who use BaseCase to prepare for FAANG
-            interviews with AI-powered mock sessions and personalized feedback.
-          </p>
-        </div>
-
-        {/* Pricing Cards */}
-        <div
-          className="grid md:grid-cols-2 gap-6 mb-16"
-          style={{ animation: "fadeSlideUp 0.5s ease 0.1s backwards" }}
-        >
-          {plans.map((plan, idx) => (
+      {/* Pricing Cards */}
+      <div className="mb-16 grid animate-fade-up gap-6 md:grid-cols-2" style={{ animationDelay: "100ms" }}>
+        {plans.map((plan) => {
+          const selected = selectedPlan === plan.id && !plan.disabled;
+          const isCta = plan.highlight && !isPremium;
+          return (
             <div
-              key={plan.name}
-              className="relative p-8 border transition-all duration-300"
-              style={{
-                background: plan.highlight
-                  ? "rgba(249,115,22,0.03)"
-                  : "var(--bg-card)",
-                borderColor: plan.highlight
-                  ? "rgba(249,115,22,0.2)"
-                  : "var(--border-subtle)",
-                borderRadius: "12px",
-                transform:
-                  selectedPlan === plan.name.toLowerCase()
-                    ? "scale(1.02)"
-                    : "scale(1)",
-              }}
-              onClick={() =>
-                !plan.disabled &&
-                setSelectedPlan(plan.name.toLowerCase() as "free" | "pro")
-              }
+              key={plan.id}
+              onClick={() => !plan.disabled && setSelectedPlan(plan.id)}
+              className={cn(
+                "card-base relative p-8 transition-colors",
+                plan.highlight && "border-beam",
+                selected && "border-accent/40",
+                !plan.disabled && "cursor-pointer",
+              )}
             >
               {plan.highlight && (
-                <div
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full"
-                  style={{
-                    background: "var(--amber)",
-                    fontFamily: "var(--font-dm-mono)",
-                    fontSize: "10px",
-                    color: "#000",
-                    fontWeight: 600,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  RECOMMENDED
-                </div>
+                <span className="chip absolute -top-3 left-1/2 -translate-x-1/2 border-accent bg-accent text-accent-ink">
+                  Recommended
+                </span>
               )}
 
               <div className="mb-6">
-                <h3
-                  className="text-lg mb-1"
-                  style={{
-                    fontFamily: "var(--font-dm-serif)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {plan.name}
-                </h3>
-                <p
-                  className="text-xs"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {plan.description}
-                </p>
+                <h3 className="font-display text-lg text-fg">{plan.name}</h3>
+                <p className="mt-1 text-xs text-fg-muted">{plan.description}</p>
               </div>
 
-              <div className="flex items-baseline gap-1 mb-6">
+              <div className="mb-6 flex items-baseline gap-1">
                 <span
-                  className="text-4xl"
-                  style={{
-                    fontFamily: "var(--font-dm-serif)",
-                    color: plan.highlight
-                      ? "var(--amber)"
-                      : "var(--text-primary)",
-                  }}
+                  className={cn(
+                    "font-display text-4xl tracking-tight",
+                    plan.highlight ? "text-accent" : "text-fg",
+                  )}
                 >
                   {plan.price}
                 </span>
-                <span
-                  className="text-sm"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {plan.period}
-                </span>
+                <span className="font-mono text-sm text-fg-muted">{plan.period}</span>
               </div>
 
-              <div className="space-y-3 mb-8">
-                {plan.features.map((feature, i) => (
-                  <div key={i} className="flex items-center gap-3">
+              <ul className="mb-8 space-y-3">
+                {plan.features.map((feature) => (
+                  <li key={feature.text} className="flex items-center gap-3">
                     {feature.included ? (
-                      <Check
-                        className="w-4 h-4 shrink-0"
-                        style={{ color: "#10b981" }}
-                      />
+                      <Check className="h-4 w-4 shrink-0 text-success" />
                     ) : (
-                      <X
-                        className="w-4 h-4 shrink-0"
-                        style={{ color: "#525252" }}
-                      />
+                      <X className="h-4 w-4 shrink-0 text-fg-dim" />
                     )}
-                    <span
-                      className="text-xs"
-                      style={{
-                        fontFamily: "var(--font-dm-mono)",
-                        color: feature.included
-                          ? "var(--text-primary)"
-                          : "#525252",
-                      }}
-                    >
+                    <span className={cn("text-sm", feature.included ? "text-fg" : "text-fg-muted")}>
                       {feature.text}
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
 
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!plan.disabled && plan.highlight) handleUpgrade();
                 }}
                 disabled={plan.disabled || isLoading || isPremium}
-                className="w-full py-3.5 text-sm font-medium tracking-wide transition-all duration-200"
-                style={{
-                  background:
-                    plan.highlight && !isPremium
-                      ? "var(--amber)"
-                      : "transparent",
-                  color:
-                    plan.highlight && !isPremium ? "#000" : "var(--text-muted)",
-                  border: plan.highlight
-                    ? "none"
-                    : "1px solid var(--border-subtle)",
-                  borderRadius: "6px",
-                  fontFamily: "var(--font-dm-mono)",
-                  cursor:
-                    plan.disabled || isPremium ? "not-allowed" : "pointer",
-                  opacity:
-                    plan.disabled || (isPremium && !plan.highlight) ? 0.5 : 1,
-                }}
+                className={cn("btn btn-lg w-full", isCta ? "btn-primary" : "btn-secondary")}
               >
                 {isPremium && plan.highlight
                   ? "Current Plan"
@@ -291,119 +177,34 @@ export function SubscriptionPage({
                     : plan.cta}
               </button>
             </div>
-          ))}
-        </div>
-
-        {/* Features Grid */}
-        <div style={{ animation: "fadeSlideUp 0.5s ease 0.2s backwards" }}>
-          <h2
-            className="text-center text-xl mb-8"
-            style={{
-              fontFamily: "var(--font-dm-serif)",
-              color: "var(--text-primary)",
-            }}
-          >
-            Everything in Pro
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-4">
-            {[
-              {
-                icon: MessageSquare,
-                title: "Voice-First Interviews",
-                desc: "Natural conversation with AI that mirrors real FAANG interviewers",
-              },
-              {
-                icon: Brain,
-                title: "AI Mentor",
-                desc: "Get hints, explanations, and guidance on every coding problem",
-              },
-              {
-                icon: TrendingUp,
-                title: "Detailed Feedback",
-                desc: "Scores across confidence, depth, clarity, and technical accuracy",
-              },
-              {
-                icon: Target,
-                title: "Company Patterns",
-                desc: "Interview questions tailored to Google, Amazon, Meta, and more",
-              },
-              {
-                icon: Zap,
-                title: "All Interview Modes",
-                desc: "DSA, Technical, HR, and Behavioural interview simulations",
-              },
-              {
-                icon: Sparkles,
-                title: "Unlimited Sessions",
-                desc: "Practice as much as you need with no daily limits",
-              },
-            ].map((feature, i) => (
-              <div
-                key={i}
-                className="p-5 border transition-colors duration-200 hover:border-white/[0.1]"
-                style={{
-                  background: "var(--bg-card)",
-                  borderColor: "var(--border-subtle)",
-                  borderRadius: "8px",
-                }}
-              >
-                <feature.icon
-                  className="w-5 h-5 mb-3"
-                  style={{ color: "var(--amber)" }}
-                />
-                <h3
-                  className="text-sm mb-1"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {feature.title}
-                </h3>
-                <p
-                  className="text-xs leading-relaxed"
-                  style={{
-                    fontFamily: "var(--font-dm-mono)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {feature.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Social Proof */}
-        <div
-          className="mt-16 text-center"
-          style={{ animation: "fadeSlideUp 0.5s ease 0.3s backwards" }}
-        >
-          <p
-            className="text-xs"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "#3a3a3a",
-            }}
-          >
-            Hundreds of engineers use BaseCase to prep for FAANG interviews
-          </p>
-        </div>
+          );
+        })}
       </div>
 
-      <style jsx>{`
-        @keyframes fadeSlideUp {
-          from {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </div>
+      {/* Features Grid */}
+      <Reveal>
+        <h2 className="mb-8 text-center font-display text-2xl tracking-tight text-fg">
+          Everything in Pro
+        </h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <div key={feature.title} className="card-base card-hover p-5">
+              <span className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-accent-soft text-accent">
+                <feature.icon className="h-4.5 w-4.5" />
+              </span>
+              <h3 className="text-sm font-semibold text-fg">{feature.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-fg-muted">{feature.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Reveal>
+
+      {/* Social Proof */}
+      <Reveal className="mt-16 text-center" delay={80}>
+        <p className="font-mono text-xs text-fg-muted">
+          Hundreds of engineers use BaseCase to prep for FAANG interviews
+        </p>
+      </Reveal>
+    </Container>
   );
 }

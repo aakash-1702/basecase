@@ -92,6 +92,16 @@ export default function InterviewSessionPage() {
     }
   }, [interviewId]);
 
+  // Dev-only shortcut: /interview/new-session?...&autojoin=1 skips the lobby
+  // so the preparing screen can be reviewed without clicking through.
+  const autojoin = process.env.NODE_ENV !== "production" && searchParams.get("autojoin") === "1";
+  useEffect(() => {
+    if (!autojoin || view !== "lobby") return;
+    setView("preparing");
+    fireJoinRequest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autojoin]);
+
   const handleJoin = () => {
     // Browser gate check FIRST — before anything else
     if (!checkSpeechRecognitionSupport()) {
@@ -143,7 +153,7 @@ export default function InterviewSessionPage() {
 
       // Navigate back to interview landing — processing card will show there
       router.push(`/interview`);
-    } catch (error) {
+    } catch {
       toast.error("Failed to end interview. Please try again.", {
         id: "exit-interview",
       });
@@ -179,6 +189,7 @@ export default function InterviewSessionPage() {
           onReady={handleReady}
           onRetry={handleRetry}
           errorMessage={errorMessage}
+          config={lobbyConfig}
         />
       </div>
     );

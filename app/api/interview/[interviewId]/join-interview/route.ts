@@ -7,12 +7,13 @@ import { getInterviewSession, saveInterviewSession } from "@/lib/session";
 
 import { SarvamAIClient } from "sarvamai";
 
-const client = new SarvamAIClient({
-  apiSubscriptionKey: `${process.env.SARVAMAI_API_KEY!}`,
-});
+// created on first use so importing the route never needs the key
+let sarvam: SarvamAIClient | null = null;
+const getClient = () =>
+  (sarvam ??= new SarvamAIClient({ apiSubscriptionKey: `${process.env.SARVAMAI_API_KEY ?? ""}` }));
 
 const TTS = async (text: string) => {
-  const audioResponse = await client.textToSpeech.convert({
+  const audioResponse = await getClient().textToSpeech.convert({
     text: text,
     target_language_code: "en-IN",
     model: "bulbul:v3",

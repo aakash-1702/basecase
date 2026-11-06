@@ -1,26 +1,19 @@
-export const dynamic = "force-dynamic"
-import React from "react";
-import { auth } from "@/lib/auth";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { getServerSession } from "@/lib/auth-session";
+import { MOCK_MODE } from "@/lib/mock/mode";
 import SignInForm from "@/components/SignIn";
 
-const page = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export const dynamic = "force-dynamic";
 
-  
-
-
-
-
-  if (session) {
-    redirect("/dashboard");
-  }
-  return <div>
-    <SignInForm />
-  </div>;
+export const metadata: Metadata = {
+  title: "Sign in",
 };
 
-export default page;
+export default async function SignInPage() {
+  const session = await getServerSession();
+  // In mock mode everyone is "signed in"; keep the page reachable for UI review.
+  if (session && !MOCK_MODE) redirect("/dashboard");
+
+  return <SignInForm />;
+}

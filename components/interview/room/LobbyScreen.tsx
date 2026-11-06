@@ -20,164 +20,76 @@ interface LobbyScreenProps {
   onJoin: () => void;
 }
 
+const FEATURES = [
+  { icon: Target, text: "Company prep" },
+  { icon: Brain, text: "Follow-ups" },
+  { icon: TrendingUp, text: "Scoring" },
+];
+
+const TIPS = [
+  { icon: Mic, text: "Test mic" },
+  { icon: Shield, text: "Quiet space" },
+  { icon: Sparkles, text: "Speak clearly" },
+  { icon: ChevronRight, text: "End anytime" },
+];
+
 export function LobbyScreen({ config, onJoin }: LobbyScreenProps) {
+  const stats = [
+    { label: "Mode", value: config.mode },
+    { label: "Qs", value: config.questions.toString() },
+    { label: "Company", value: config.company },
+    { label: "Level", value: config.difficulty },
+  ];
+
   return (
-    <div className="min-h-screen interview-ambient-bg interview-grid-overlay flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center px-4">
       <div className="relative z-10 w-full max-w-md">
         {/* Value Proposition */}
-        <div
-          className="text-center mb-6"
-          style={{ animation: "fadeSlideUp 0.4s ease backwards" }}
-        >
-          <div
-            className="text-[10px] tracking-[0.2em] uppercase mb-3"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "var(--text-muted)",
-            }}
-          >
-            AI-POWERED MOCK INTERVIEW
-          </div>
-          <h1
-            className="text-2xl mb-2"
-            style={{
-              fontFamily: "var(--font-dm-serif)",
-              color: "var(--text-primary)",
-            }}
-          >
-            Practice Like It's Real
+        <div className="mb-6 animate-fade-up text-center">
+          <span className="eyebrow justify-center">AI-powered mock interview</span>
+          <h1 className="mb-2 mt-3 font-display text-2xl tracking-tight text-fg">
+            Practice like it&apos;s real
           </h1>
-          <p
-            className="text-[11px] leading-relaxed max-w-xs mx-auto"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "var(--text-muted)",
-            }}
-          >
-            AI interviewer calibrated to{" "}
-            <span style={{ color: "var(--amber)" }}>{config.company}</span>'s
+          <p className="mx-auto max-w-xs text-[11px] leading-relaxed text-fg-muted">
+            AI interviewer calibrated to <span className="text-accent">{config.company}</span>&apos;s
             hiring bar — real questions, real-time feedback, real confidence.
           </p>
         </div>
 
         {/* Features — single line */}
-        <div
-          className="flex justify-center gap-5 mb-6"
-          style={{ animation: "fadeSlideUp 0.4s ease 0.05s backwards" }}
-        >
-          {[
-            { icon: <Target className="w-3 h-3" />, text: "Company prep" },
-            { icon: <Brain className="w-3 h-3" />, text: "Follow-ups" },
-            { icon: <TrendingUp className="w-3 h-3" />, text: "Scoring" },
-          ].map((item) => (
-            <div
-              key={item.text}
-              className="flex items-center gap-1 text-[9px]"
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                color: "var(--text-muted)",
-              }}
-            >
-              <span style={{ color: "var(--amber)" }}>{item.icon}</span>
+        <div className="mb-6 flex animate-fade-up justify-center gap-5" style={{ animationDelay: "50ms" }}>
+          {FEATURES.map((item) => (
+            <div key={item.text} className="flex items-center gap-1 font-mono text-[9px] text-fg-muted">
+              <item.icon className="h-3 w-3 text-accent" />
               {item.text}
             </div>
           ))}
         </div>
 
         {/* Session Config — tiny pills */}
-        <div
-          className="flex justify-center gap-1.5 mb-6"
-          style={{ animation: "fadeSlideUp 0.4s ease 0.08s backwards" }}
-        >
-          {[
-            { label: "Mode", value: config.mode },
-            { label: "Qs", value: config.questions.toString() },
-            { label: "Company", value: config.company },
-            { label: "Level", value: config.difficulty },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="px-2.5 py-1.5 border text-center"
-              style={{
-                background: "var(--bg-card)",
-                borderColor: "var(--border-subtle)",
-                borderRadius: "4px",
-              }}
-            >
-              <div
-                className="text-[7px] tracking-[0.12em] uppercase"
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  color: "var(--text-muted)",
-                }}
-              >
-                {stat.label}
-              </div>
-              <div
-                className="text-[11px] capitalize"
-                style={{
-                  fontFamily: "var(--font-dm-serif)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {stat.value}
-              </div>
+        <div className="mb-6 flex animate-fade-up justify-center gap-1.5" style={{ animationDelay: "80ms" }}>
+          {stats.map((stat) => (
+            <div key={stat.label} className="card-base rounded-md px-2.5 py-1.5 text-center">
+              <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-fg-muted">{stat.label}</div>
+              <div className="font-display text-[11px] capitalize text-fg">{stat.value}</div>
             </div>
           ))}
         </div>
 
         {/* CTA */}
-        <div
-          className="text-center mb-6"
-          style={{ animation: "fadeSlideUp 0.4s ease 0.1s backwards" }}
-        >
-          <button
-            onClick={onJoin}
-            className="inline-flex items-center gap-2 px-7 py-3 text-sm font-medium tracking-wide transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
-            style={{
-              background: "var(--amber)",
-              color: "#000",
-              borderRadius: "6px",
-              fontFamily: "var(--font-dm-mono)",
-            }}
-          >
-            <Sparkles className="w-4 h-4" />
-            Join Interview Room
+        <div className="mb-6 animate-fade-up text-center" style={{ animationDelay: "100ms" }}>
+          <button type="button" onClick={onJoin} className="btn btn-primary">
+            <Sparkles className="h-4 w-4" />
+            Join interview room
           </button>
         </div>
 
         {/* Tips — ultra compact */}
-        <div
-          className="px-3 py-2.5 border"
-          style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border-subtle)",
-            borderRadius: "6px",
-            animation: "fadeSlideUp 0.4s ease 0.12s backwards",
-          }}
-        >
+        <div className="card-base animate-fade-up px-3 py-2.5" style={{ animationDelay: "120ms" }}>
           <div className="flex justify-between">
-            {[
-              { icon: <Mic className="w-2.5 h-2.5" />, text: "Test mic" },
-              { icon: <Shield className="w-2.5 h-2.5" />, text: "Quiet space" },
-              {
-                icon: <Sparkles className="w-2.5 h-2.5" />,
-                text: "Speak clearly",
-              },
-              {
-                icon: <ChevronRight className="w-2.5 h-2.5" />,
-                text: "End anytime",
-              },
-            ].map((tip) => (
-              <div
-                key={tip.text}
-                className="flex items-center gap-1 text-[9px]"
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <span style={{ color: "var(--emerald)" }}>{tip.icon}</span>
+            {TIPS.map((tip) => (
+              <div key={tip.text} className="flex items-center gap-1 font-mono text-[9px] text-fg-muted">
+                <tip.icon className="h-2.5 w-2.5 text-success" />
                 {tip.text}
               </div>
             ))}

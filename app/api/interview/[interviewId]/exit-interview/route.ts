@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextResponse, NextRequest } from "next/server";
 import { headers } from "next/headers";
-import { analysisQueue } from "@/lib/queue";
+import { getAnalysisQueue } from "@/lib/queue";
 import { getInterviewSession, deleteInterviewSession } from "@/lib/session";
 
 export async function PATCH(
@@ -57,6 +57,7 @@ export async function PATCH(
 
     await deleteInterviewSession(interviewId);
 
+    const analysisQueue = getAnalysisQueue();
     await analysisQueue.add(
       "interview-analysis",
       {

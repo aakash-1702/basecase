@@ -14,6 +14,23 @@ import type {
   TurnState,
 } from "@/types/interview-room";
 
+/* Minimal Web Speech API surface we rely on (the constructor isn't in lib.dom). */
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: { results: SpeechRecognitionResultList }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionCtor;
+  webkitSpeechRecognition?: SpeechRecognitionCtor;
+};
+
 interface ActiveRoomProps {
   greetingMessage: string;
   greetingAudio?: string | null;
@@ -35,7 +52,7 @@ export function ActiveRoom({
   const [isComplete, setIsComplete] = useState(false);
   const router = useRouter();
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const finalTranscriptRef = useRef("");
   const isListeningRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -116,9 +133,9 @@ export function ActiveRoom({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const speechWindow = window as SpeechWindow;
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) return;
 
@@ -127,7 +144,7 @@ export function ActiveRoom({
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event) => {
       let interimText = "";
       let finalText = "";
       for (let i = 0; i < event.results.length; i++) {
@@ -142,7 +159,7 @@ export function ActiveRoom({
       setLiveTranscript(finalText + interimText);
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event) => {
       // Only abort on fatal errors, not silence/no-speech
       if (event.error === "no-speech" || event.error === "aborted") return;
       isListeningRef.current = false;
@@ -187,7 +204,7 @@ export function ActiveRoom({
   const queueDoneRef = useRef(false);
   const onQueueDrainRef = useRef<(() => void) | null>(null);
 
-  const drainAudioQueue = useCallback(() => {
+  const drainAudioQueue = useCallback(function drain() {
     if (isPlayingQueueRef.current) return;
 
     const chunk = chunkQueueRef.current.get(nextSeqRef.current);
@@ -216,7 +233,7 @@ export function ActiveRoom({
 
     // If TTS failed for this chunk, skip audio and move on
     if (!chunk.audio) {
-      drainAudioQueue();
+      drain();
       return;
     }
 
@@ -232,19 +249,19 @@ export function ActiveRoom({
 
       el.onended = () => {
         isPlayingQueueRef.current = false;
-        drainAudioQueue();
+        drain();
       };
       el.onerror = () => {
         isPlayingQueueRef.current = false;
-        drainAudioQueue();
+        drain();
       };
       el.play().catch(() => {
         isPlayingQueueRef.current = false;
-        drainAudioQueue();
+        drain();
       });
     } catch {
       isPlayingQueueRef.current = false;
-      drainAudioQueue();
+      drain();
     }
   }, []);
 
@@ -300,8 +317,7 @@ export function ActiveRoom({
       let buffer = "";
 
       // Metadata collected from the `done` event
-      let streamIsComplete = false;
-      let streamIsEnding = false;
+      const streamMeta = { isComplete: false, isEnding: false };
 
       const processLine = (line: string) => {
         if (!line.startsWith("data: ")) return;
@@ -316,8 +332,8 @@ export function ActiveRoom({
             });
             drainAudioQueue();
           } else if (payload.type === "done") {
-            streamIsComplete = payload.isComplete ?? false;
-            streamIsEnding = payload.isEnding ?? false;
+            streamMeta.isComplete = payload.isComplete ?? false;
+            streamMeta.isEnding = payload.isEnding ?? false;
             queueDoneRef.current = true;
             // Try drain in case all audio already arrived
             drainAudioQueue();
@@ -368,7 +384,7 @@ export function ActiveRoom({
       });
 
       // ── Handle completion ──
-      if (streamIsEnding || streamIsComplete) {
+      if (streamMeta.isEnding || streamMeta.isComplete) {
         setIsComplete(true);
 
         if (!hasEndedRef.current) {
@@ -412,7 +428,7 @@ export function ActiveRoom({
       toast.error("Something went wrong. Please try again.");
       setTurnState("idle");
     }
-  }, [interviewId, liveTranscript, drainAudioQueue]);
+  }, [interviewId, liveTranscript, drainAudioQueue, router]);
 
   // ── Derive AI panel state ──
   const aiState =
@@ -423,109 +439,42 @@ export function ActiveRoom({
         : "asking";
 
   return (
-    <>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-        @keyframes orbBreath {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50%       { opacity: 0.9; transform: scale(1.04); }
-        }
+    <div className="flex h-screen w-full flex-col overflow-hidden">
+      {/* Top Bar */}
+      <RoomTopBar config={config} onExitClick={onExitClick} />
 
-        @keyframes recordPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.3); }
-          50%       { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
-        }
-
-        @keyframes wavePulse {
-          0%, 100% { transform: scaleY(0.2); opacity: 0.3; }
-          50%       { transform: scaleY(1);   opacity: 0.7; }
-        }
-
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes shimmer {
-          0%   { background-position: -400px 0; }
-          100% { background-position: 400px 0; }
-        }
-
-        .interview-scrollbar::-webkit-scrollbar {
-          width: 2px;
-        }
-        .interview-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .interview-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.08);
-        }
-      `,
-        }}
-      />
-
-      <div className="h-screen w-full flex flex-col bg-[#0a0a0a] overflow-hidden">
-        {/* Top Bar */}
-        <RoomTopBar config={config} onExitClick={onExitClick} />
-
-        {/* Main Split — 50/50 */}
-        <div className="flex-1 flex overflow-hidden max-w-[1700px] w-full mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-6 gap-4 md:gap-6 pb-24">
-          {/* Left 50%: AI + User stacked */}
-          <div className="hidden md:flex flex-col w-1/2 gap-4">
-            {/* AI Panel */}
-            <div
-              className="flex-1 rounded-[24px] overflow-hidden relative"
-              style={{
-                background: "#0c0c0c",
-                border: "1px solid rgba(255,255,255,0.04)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-              }}
-            >
-              <AIPanel state={aiState} />
-            </div>
-
-            {/* User Panel */}
-            <div
-              className="flex-1 rounded-[24px] overflow-hidden relative"
-              style={{
-                background: "#0c0c0c",
-                border: "1px solid rgba(255,255,255,0.04)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-              }}
-            >
-              <UserPanel
-                userName="You"
-                liveTranscript={liveTranscript}
-                turnState={turnState}
-              />
-            </div>
+      {/* Main Split — 50/50 */}
+      <div className="mx-auto flex w-full max-w-[1700px] flex-1 gap-4 overflow-hidden px-4 py-4 pb-24 md:gap-6 md:px-8 md:py-6 lg:px-12">
+        {/* Left 50%: AI + User stacked */}
+        <div className="hidden w-1/2 flex-col gap-4 md:flex">
+          <div className="card-base relative flex-1 overflow-hidden rounded-3xl">
+            <AIPanel state={aiState} />
           </div>
-
-          {/* Right 50%: Transcript */}
-          <div
-            className="flex flex-col w-full md:w-1/2 h-full overflow-hidden rounded-[24px] relative"
-            style={{
-              background: "#0c0c0c",
-              border: "1px solid rgba(255,255,255,0.04)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            }}
-          >
-            <TranscriptArea
-              messages={transcript}
-              isProcessing={turnState === "processing"}
+          <div className="card-base relative flex-1 overflow-hidden rounded-3xl">
+            <UserPanel
+              userName="You"
+              liveTranscript={liveTranscript}
+              turnState={turnState}
             />
           </div>
         </div>
 
-        {/* Bottom Control Bar */}
-        <BottomControlBar
-          turnState={turnState}
-          onStart={startListening}
-          onStop={stopListening}
-          isComplete={isComplete}
-        />
+        {/* Right 50%: Transcript */}
+        <div className="card-base relative flex h-full w-full flex-col overflow-hidden rounded-3xl md:w-1/2">
+          <TranscriptArea
+            messages={transcript}
+            isProcessing={turnState === "processing"}
+          />
+        </div>
       </div>
-    </>
+
+      {/* Bottom Control Bar */}
+      <BottomControlBar
+        turnState={turnState}
+        onStart={startListening}
+        onStop={stopListening}
+        isComplete={isComplete}
+      />
+    </div>
   );
 }

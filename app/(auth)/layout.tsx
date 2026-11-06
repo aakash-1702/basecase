@@ -1,4 +1,5 @@
-import { Toaster } from "sonner";
+import ThemedToaster from "@/components/shared/ThemedToaster";
+import AmbientBackground from "@/components/shared/AmbientBackground";
 
 export default function AuthLayout({
   children,
@@ -6,9 +7,10 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <Toaster position="top-right" theme="dark" richColors />
+    <div className="relative min-h-screen">
+      <AmbientBackground />
+      <ThemedToaster />
       {children}
-    </>
+    </div>
   );
 }
