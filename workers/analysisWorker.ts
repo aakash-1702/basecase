@@ -5,7 +5,7 @@ const app = express();
 
 
 
-import { connection } from "@/lib/queue";
+import { getConnection } from "@/lib/queue";
 import { Worker, Job } from "bullmq";
 import prisma from "@/lib/prisma";
 import { prismaVersion } from "@/generated/prisma/internal/prismaNamespace";
@@ -246,7 +246,7 @@ export const analyseInterview = async (job: Job) => {
 };
 
 const worker = new Worker("interview-analysis", analyseInterview, {
-  connection,
+  connection: getConnection(),
   concurrency: 2,
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 500 },

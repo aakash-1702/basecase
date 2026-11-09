@@ -5,6 +5,29 @@ BaseCase is a **Take U Forward–style DSA practice platform** designed to help 
 
 ---
 
+## 0) Run the UI without a backend (mock mode)
+
+```bash
+npm install
+cp .env.local.example .env.local   # or create .env.local with MOCK_MODE=true
+npm run dev                        # http://localhost:3000
+```
+
+With `MOCK_MODE=true` (or simply no `DATABASE_URL`) the app never touches
+Prisma, better-auth, Judge0, Redis or any LLM:
+
+- `proxy.ts` rewrites every `/api/*` call to `app/api/mock/[...path]/route.ts`,
+  which serves the same JSON shapes from in-memory fixtures (`lib/mock/`).
+- `lib/auth-session.ts#getServerSession()` returns a fixed demo user, so every
+  page renders as if you were signed in.
+- Problems/sheets come from the seed data; progress, interviews and AI-mentor
+  chats are kept in memory for the life of the dev server.
+
+Set `MOCK_MODE=false` and provide the real environment variables to use the
+actual backend.
+
+---
+
 ## 1) Project Overview
 
 BaseCase is a comprehensive platform for mastering DSA through:

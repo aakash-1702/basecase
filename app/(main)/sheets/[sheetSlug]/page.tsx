@@ -1,16 +1,27 @@
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth-session";
+import type { SheetData } from "@/components/sheets/types";
 import SheetDetailPage from "./SheetDetail";
 
-const Page = async ({ params }: { params: Promise<{ sheetSlug: string }> }) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+interface UserProblemLite {
+  problemId: string;
+  solved: boolean;
+  confidenceV2: string | null;
+}
 
-  if (!session?.user) {
-    redirect("/auth/sign-in");
-  }
+interface SheetResponse {
+  success: boolean;
+  data: (SheetData & { userProblems?: UserProblemLite[] }) | null;
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ sheetSlug: string }>;
+}) {
+  const session = await getServerSession();
+  if (!session?.user) redirect("/auth/sign-in");
 
   const { sheetSlug } = await params;
 
@@ -28,23 +39,25 @@ const Page = async ({ params }: { params: Promise<{ sheetSlug: string }> }) => {
 
   if (!res.ok) redirect("/sheets");
 
-  const json = await res.json();
+  const json = (await res.json()) as SheetResponse;
+  if (!json.data) redirect("/sheets");
 
-  // userProblems contains { problemId, solved, confidenceV2 } for all attempted problems
+  // userProblems contains { problemId, solved, confidenceV2 } for every attempted problem
   const { userProblems = [], ...sheet } = json.data;
 
-  const solvedProblemIds: string[] = userProblems
-    .filter((up: { solved: boolean }) => up.solved)
-    .map((up: { problemId: string }) => up.problemId);
+  const solvedProblemIds = userProblems
+    .filter((up) => up.solved)
+    .map((up) => up.problemId);
 
   const confidenceMap: Record<string, string | null> = Object.fromEntries(
-    userProblems.map((up: { problemId: string; confidenceV2: string | null }) => [
-      up.problemId,
-      up.confidenceV2,
-    ]),
+    userProblems.map((up) => [up.problemId, up.confidenceV2]),
   );
 
-  return <SheetDetailPage data={sheet} initialSolvedIds={solvedProblemIds} initialConfidenceMap={confidenceMap} />;
-};
-
-export default Page;
+  return (
+    <SheetDetailPage
+      data={sheet}
+      initialSolvedIds={solvedProblemIds}
+      initialConfidenceMap={confidenceMap}
+    />
+  );
+}

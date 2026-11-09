@@ -1,23 +1,17 @@
-import React from 'react'
-import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import Sheets from './Sheets'
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth-session";
+import Sheets from "./Sheets";
 
-const page = async () => {
-    const session = await auth.api.getSession({
-        headers : await headers(),
-    })
+export const metadata: Metadata = {
+  title: "Sheets",
+  description:
+    "Curated, topic-wise DSA sheets with handpicked problems and synced progress.",
+};
 
-    if(!session || !session?.user){
-        redirect("/auth/sign-in");        
-    }
-  return (
-    <div>
-        <Sheets />
-      
-    </div>
-  )
+export default async function Page() {
+  const session = await getServerSession();
+  if (!session?.user) redirect("/auth/sign-in");
+
+  return <Sheets />;
 }
-
-export default page

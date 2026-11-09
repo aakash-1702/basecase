@@ -31,6 +31,10 @@ export async function GET() {
             feedback : {
                 select : {
                     overallScore : true,
+                    // dimension scores drive the metric bars on the landing cards
+                    confidence : true,
+                    depthReview : true,
+                    englishQuality : true,
                 }
             },
             user : {

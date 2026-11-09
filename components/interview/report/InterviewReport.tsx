@@ -18,6 +18,8 @@ import {
   TrendingUp,
   XCircle,
 } from "lucide-react";
+import EmptyState from "@/components/shared/EmptyState";
+import { cn } from "@/lib/utils";
 
 /* ─── Types ────────────────────────────────────────────────── */
 
@@ -56,11 +58,23 @@ interface InterviewReportProps {
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 
-function scoreColor(score: number, max = 10): string {
+interface Tone {
+  text: string;
+  soft: string;
+  bar: string;
+}
+
+const TONES = {
+  success: { text: "text-success", soft: "bg-success/10", bar: "var(--success)" },
+  accent: { text: "text-accent", soft: "bg-accent-soft", bar: "var(--accent)" },
+  danger: { text: "text-danger", soft: "bg-danger/10", bar: "var(--danger)" },
+} satisfies Record<string, Tone>;
+
+function scoreTone(score: number, max = 10): Tone {
   const pct = (score / max) * 100;
-  if (pct >= 70) return "var(--emerald)";
-  if (pct >= 40) return "var(--amber)";
-  return "var(--rose)";
+  if (pct >= 70) return TONES.success;
+  if (pct >= 40) return TONES.accent;
+  return TONES.danger;
 }
 
 function scoreLabel(score: number): string {
@@ -114,25 +128,17 @@ export function InterviewReport({ interviewId }: InterviewReportProps) {
   if (loading) return <ReportSkeleton />;
   if (error || !report) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p
-            className="text-sm"
-            style={{ fontFamily: "var(--font-dm-mono)", color: "var(--rose)" }}
-          >
-            {error ?? "Report not found"}
-          </p>
-          <Link
-            href="/interview"
-            className="inline-flex items-center gap-2 text-xs transition-colors duration-300 ease-out hover:text-(--amber)"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "var(--text-muted)",
-            }}
-          >
-            <ArrowLeft size={14} /> Back to Interviews
-          </Link>
-        </div>
+      <div className="mx-auto max-w-xl px-6 py-24">
+        <EmptyState
+          icon={<XCircle className="h-5 w-5" />}
+          title={error ?? "Report not found"}
+          description="We couldn't load this interview report."
+          action={
+            <Link href="/interview" className="btn btn-secondary btn-sm">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to interviews
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -151,171 +157,72 @@ export function InterviewReport({ interviewId }: InterviewReportProps) {
   } = report;
 
   const dimensions = [
-    {
-      key: "confidence",
-      label: "Confidence",
-      icon: Mic,
-      data: confidence,
-    },
-    {
-      key: "depth",
-      label: "Depth of Knowledge",
-      icon: Brain,
-      data: depthReview,
-    },
-    {
-      key: "english",
-      label: "Communication Quality",
-      icon: MessageSquare,
-      data: englishQuality,
-    },
+    { key: "confidence", label: "Confidence", icon: Mic, data: confidence },
+    { key: "depth", label: "Depth of Knowledge", icon: Brain, data: depthReview },
+    { key: "english", label: "Communication Quality", icon: MessageSquare, data: englishQuality },
     ...(technicalAccuracy
-      ? [
-          {
-            key: "technical",
-            label: "Technical Accuracy",
-            icon: Shield,
-            data: technicalAccuracy,
-          },
-        ]
+      ? [{ key: "technical", label: "Technical Accuracy", icon: Shield, data: technicalAccuracy }]
       : []),
     ...(starStructure
-      ? [
-          {
-            key: "star",
-            label: "STAR Structure",
-            icon: Award,
-            data: starStructure,
-          },
-        ]
+      ? [{ key: "star", label: "STAR Structure", icon: Award, data: starStructure }]
       : []),
   ];
 
+  const overallTone = scoreTone(overallScore);
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-16">
       {/* ── Back link ── */}
       <Link
         href="/interview"
-        className="inline-flex items-center gap-2 text-xs mb-10 transition-colors duration-300 ease-out hover:text-(--amber)"
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          color: "var(--text-muted)",
-        }}
+        className="mb-10 inline-flex items-center gap-2 text-xs text-fg-muted transition-colors hover:text-accent"
       >
-        <ArrowLeft size={14} /> Back to Interviews
+        <ArrowLeft size={14} /> Back to interviews
       </Link>
 
       {/* ── Header ── */}
-      <header className="mb-12">
-        <div
-          className="text-[10px] tracking-[0.25em] uppercase mb-3"
-          style={{
-            fontFamily: "var(--font-dm-mono)",
-            color: "var(--amber)",
-          }}
-        >
-          Interview Report
-        </div>
-        <h1
-          className="text-2xl sm:text-3xl mb-3"
-          style={{
-            fontFamily: "var(--font-dm-serif)",
-            color: "var(--text-primary)",
-          }}
-        >
-          {interview.company}{" "}
-          <span style={{ color: "var(--text-muted)" }}>·</span> {interview.mode}{" "}
-          Interview
+      <header className="mb-12 animate-fade-up">
+        <span className="eyebrow">Interview report</span>
+        <h1 className="mb-3 mt-3 font-display text-2xl tracking-tight text-fg sm:text-3xl">
+          {interview.company} <span className="text-fg-muted">·</span> {interview.mode} Interview
         </h1>
-        <div
-          className="flex flex-wrap items-center gap-2.5 text-xs"
-          style={{
-            fontFamily: "var(--font-dm-mono)",
-            color: "var(--text-muted)",
-          }}
-        >
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/3"
-            style={{ borderColor: "var(--border-subtle)" }}
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="chip chip-neutral px-3 py-1.5 capitalize">
             <Target size={12} />
             {interview.difficulty}
           </span>
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/3"
-            style={{ borderColor: "var(--border-subtle)" }}
-          >
+          <span className="chip chip-neutral px-3 py-1.5">
             <Clock size={12} />
             {formatDuration(interview.startedAt, interview.completedAt)}
           </span>
-          <span
-            className="inline-flex items-center rounded-full border px-3 py-1.5 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/3"
-            style={{ borderColor: "var(--border-subtle)" }}
-          >
-            {formatDate(interview.startedAt)}
-          </span>
+          <span className="chip chip-neutral px-3 py-1.5">{formatDate(interview.startedAt)}</span>
         </div>
       </header>
 
       {/* ── Overall Score Card ── */}
       <section
-        className="group rounded-xl p-6 sm:p-8 mb-10 border transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-(--bg-card-hover) hover:shadow-[0_18px_50px_rgba(0,0,0,0.24)]"
-        style={{
-          background: "var(--bg-card)",
-          borderColor: "var(--border-subtle)",
-        }}
+        className="card-base card-hover mb-10 animate-fade-up p-6 sm:p-8"
+        style={{ animationDelay: "80ms" }}
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <div
-              className="text-[10px] tracking-[0.2em] uppercase mb-2"
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                color: "var(--text-muted)",
-              }}
-            >
-              Overall Score
-            </div>
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-fg-muted">
+              Overall score
+            </p>
             <div className="flex items-baseline gap-3">
-              <span
-                className="text-5xl sm:text-6xl"
-                style={{
-                  fontFamily: "var(--font-dm-serif)",
-                  color: scoreColor(overallScore),
-                }}
-              >
+              <span className={cn("font-display text-5xl tabular-nums sm:text-6xl", overallTone.text)}>
                 {overallScore}
               </span>
-              <span
-                className="text-lg"
-                style={{
-                  fontFamily: "var(--font-dm-serif)",
-                  color: "var(--text-dim)",
-                }}
-              >
-                / 10
-              </span>
+              <span className="font-display text-lg text-fg-dim">/ 10</span>
             </div>
-            <div
-              className="text-xs mt-1"
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                color: scoreColor(overallScore),
-              }}
-            >
-              {scoreLabel(overallScore)}
-            </div>
+            <p className={cn("mt-1 text-xs font-medium", overallTone.text)}>{scoreLabel(overallScore)}</p>
           </div>
 
-          {/* Mini score bar */}
           <div className="w-full sm:w-64">
-            <div className="h-2 rounded-full overflow-hidden bg-(--text-dim)">
+            <div className="h-2 overflow-hidden rounded-full bg-fg/[0.06]">
               <div
-                className="h-full rounded-full transition-all duration-300 ease-out group-hover:brightness-110"
-                style={{
-                  width: `${overallScore * 10}%`,
-                  background: scoreColor(overallScore),
-                }}
+                className="h-full rounded-full"
+                style={{ width: `${overallScore * 10}%`, background: overallTone.bar }}
               />
             </div>
           </div>
@@ -324,98 +231,44 @@ export function InterviewReport({ interviewId }: InterviewReportProps) {
 
       {/* ── Score Dimensions ── */}
       <section className="mb-10">
-        <SectionHeading>Performance Breakdown</SectionHeading>
+        <SectionHeading>Performance breakdown</SectionHeading>
         <div className="grid gap-4">
           {dimensions.map(({ key, label, icon: Icon, data }) => (
-            <DimensionCard
-              key={key}
-              label={label}
-              icon={Icon}
-              score={data.score}
-              summary={data.summary}
-            />
+            <DimensionCard key={key} label={label} icon={Icon} score={data.score} summary={data.summary} />
           ))}
         </div>
       </section>
 
       {/* ── Strong & Weak Areas ── */}
-      <section className="grid sm:grid-cols-2 gap-4 mb-10">
-        {/* Strengths */}
-        <div
-          className="group rounded-xl p-6 border transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-(--bg-card-hover) hover:shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
-          style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={14} style={{ color: "var(--emerald)" }} />
-            <span
-              className="text-[10px] tracking-[0.2em] uppercase"
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                color: "var(--emerald)",
-              }}
-            >
-              Strong Areas
+      <section className="mb-10 grid gap-4 sm:grid-cols-2">
+        <div className="card-base card-hover p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <TrendingUp size={14} className="text-success" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-success">
+              Strong areas
             </span>
           </div>
           <ul className="space-y-3">
             {strongAreas.map((area, i) => (
-              <li
-                key={i}
-                className="-mx-2 flex items-start gap-2.5 rounded-lg px-2 py-2 text-sm transition-all duration-300 ease-out hover:translate-x-0.5 hover:bg-white/3"
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <CheckCircle2
-                  size={14}
-                  className="mt-0.5 shrink-0"
-                  style={{ color: "var(--emerald)" }}
-                />
+              <li key={i} className="flex items-start gap-2.5 text-sm text-fg">
+                <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-success" />
                 {area}
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Weaknesses */}
-        <div
-          className="group rounded-xl p-6 border transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-(--bg-card-hover) hover:shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
-          style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Target size={14} style={{ color: "var(--rose)" }} />
-            <span
-              className="text-[10px] tracking-[0.2em] uppercase"
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                color: "var(--rose)",
-              }}
-            >
-              Areas to Improve
+        <div className="card-base card-hover p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Target size={14} className="text-danger" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-danger">
+              Areas to improve
             </span>
           </div>
           <ul className="space-y-3">
             {weakAreas.map((area, i) => (
-              <li
-                key={i}
-                className="-mx-2 flex items-start gap-2.5 rounded-lg px-2 py-2 text-sm transition-all duration-300 ease-out hover:translate-x-0.5 hover:bg-white/3"
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <XCircle
-                  size={14}
-                  className="mt-0.5 shrink-0"
-                  style={{ color: "var(--rose)" }}
-                />
+              <li key={i} className="flex items-start gap-2.5 text-sm text-fg">
+                <XCircle size={14} className="mt-0.5 shrink-0 text-danger" />
                 {area}
               </li>
             ))}
@@ -426,28 +279,11 @@ export function InterviewReport({ interviewId }: InterviewReportProps) {
       {/* ── Recommendations ── */}
       <section className="mb-14">
         <SectionHeading>Recommendations</SectionHeading>
-        <div
-          className="group rounded-xl p-6 border transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-(--bg-card-hover) hover:shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
-          style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
+        <div className="card-base card-hover p-6">
           <ul className="space-y-4">
             {recommendations.map((rec, i) => (
-              <li
-                key={i}
-                className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-2 text-sm transition-all duration-300 ease-out hover:translate-x-0.5 hover:bg-white/3"
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <Lightbulb
-                  size={14}
-                  className="mt-0.5 shrink-0"
-                  style={{ color: "var(--amber)" }}
-                />
+              <li key={i} className="flex items-start gap-3 text-sm text-fg">
+                <Lightbulb size={14} className="mt-0.5 shrink-0 text-accent" />
                 {rec}
               </li>
             ))}
@@ -456,34 +292,13 @@ export function InterviewReport({ interviewId }: InterviewReportProps) {
       </section>
 
       {/* ── Footer CTAs ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Link
-          href="/interview"
-          className="group flex-1 flex items-center justify-center gap-2 py-3.5 px-6 text-sm rounded-lg transition-all duration-300 ease-out hover:brightness-110 active:scale-[0.98]"
-          style={{
-            background: "var(--amber)",
-            color: "#000",
-            fontFamily: "var(--font-dm-mono)",
-          }}
-        >
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link href="/interview" className="group btn btn-primary flex-1">
           <BookOpen size={15} />
-          Practice Again
-          <ChevronRight
-            size={14}
-            className="transition-transform duration-300 ease-out group-hover:translate-x-0.5"
-          />
+          Practice again
+          <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
         </Link>
-
-        <Link
-          href="/interview"
-          className="flex items-center justify-center gap-2 py-3.5 px-6 text-sm rounded-lg border transition-all duration-300 ease-out hover:bg-white/3 hover:border-(--text-muted)"
-          style={{
-            background: "transparent",
-            color: "var(--text-muted)",
-            borderColor: "var(--border-subtle)",
-            fontFamily: "var(--font-dm-mono)",
-          }}
-        >
+        <Link href="/interview" className="btn btn-secondary">
           <ArrowLeft size={14} />
           Dashboard
         </Link>
@@ -496,15 +311,7 @@ export function InterviewReport({ interviewId }: InterviewReportProps) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2
-      className="text-[10px] tracking-[0.2em] uppercase mb-4"
-      style={{
-        fontFamily: "var(--font-dm-mono)",
-        color: "var(--text-muted)",
-      }}
-    >
-      {children}
-    </h2>
+    <h2 className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-fg-muted">{children}</h2>
   );
 }
 
@@ -519,72 +326,28 @@ function DimensionCard({
   score: number;
   summary: string;
 }) {
-  const color = scoreColor(score);
+  const tone = scoreTone(score);
 
   return (
-    <div
-      className="group rounded-xl p-5 border transition-all duration-300 ease-out hover:-translate-y-1 hover:border-[rgba(255,255,255,0.1)] hover:bg-(--bg-card-hover) hover:shadow-[0_18px_50px_rgba(0,0,0,0.2)]"
-      style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border-subtle)",
-      }}
-    >
-      <div className="flex items-start justify-between gap-4 mb-3">
+    <div className="card-base card-hover p-5">
+      <div className="mb-3 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ease-out group-hover:scale-105 group-hover:brightness-110"
-            style={{ background: `${color}15` }}
-          >
-            <Icon size={15} style={{ color }} />
+          <div className={cn("grid h-8 w-8 place-items-center rounded-lg", tone.soft, tone.text)}>
+            <Icon size={15} />
           </div>
-          <span
-            className="text-sm"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "var(--text-primary)",
-            }}
-          >
-            {label}
-          </span>
+          <span className="text-sm font-medium text-fg">{label}</span>
         </div>
 
-        {/* Score pill */}
         <div className="flex items-center gap-2.5">
-          <span
-            className="text-xl tabular-nums"
-            style={{ fontFamily: "var(--font-dm-serif)", color }}
-          >
-            {score}
-          </span>
-          <span
-            className="text-xs"
-            style={{
-              fontFamily: "var(--font-dm-mono)",
-              color: "var(--text-dim)",
-            }}
-          >
-            /10
-          </span>
-
-          {/* Bar */}
-          <div className="hidden sm:block w-20 h-1.5 rounded-full overflow-hidden bg-(--text-dim)">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${score * 10}%`, background: color }}
-            />
+          <span className={cn("font-display text-xl tabular-nums", tone.text)}>{score}</span>
+          <span className="text-xs text-fg-dim">/10</span>
+          <div className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-fg/[0.06] sm:block">
+            <div className="h-full rounded-full" style={{ width: `${score * 10}%`, background: tone.bar }} />
           </div>
         </div>
       </div>
 
-      <p
-        className="text-xs leading-relaxed"
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          color: "var(--text-muted)",
-        }}
-      >
-        {summary}
-      </p>
+      <p className="text-xs leading-relaxed text-fg-muted">{summary}</p>
     </div>
   );
 }
@@ -593,19 +356,16 @@ function DimensionCard({
 
 function ReportSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16 animate-pulse">
-      <div className="h-3 w-32 rounded bg-white/5 mb-10" />
-      <div className="space-y-3 mb-12">
-        <div className="h-3 w-24 rounded bg-white/5" />
-        <div className="h-8 w-72 rounded bg-white/5" />
-        <div className="h-3 w-48 rounded bg-white/5" />
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-16" aria-hidden>
+      <div className="skeleton mb-10 h-3 w-32" />
+      <div className="mb-12 space-y-3">
+        <div className="skeleton h-3 w-24" />
+        <div className="skeleton h-8 w-72" />
+        <div className="skeleton h-3 w-48" />
       </div>
-      <div className="rounded-xl h-32 bg-white/2 border border-white/5 mb-10" />
+      <div className="card-base mb-10 h-32" />
       {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="rounded-xl h-28 bg-white/2 border border-white/5 mb-4"
-        />
+        <div key={i} className="card-base mb-4 h-28" />
       ))}
     </div>
   );

@@ -1,13 +1,10 @@
-import React from 'react'
-import LandingPage from './(landing)/LandingPage'
+import LandingPage from "./(landing)/LandingPage";
+import { getServerSession } from "@/lib/auth-session";
+import { getLandingData } from "@/lib/landing";
 
-const page = () => {
-  return (
-    <div>
-      <LandingPage />
-      
-    </div>
-  )
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const [data, session] = await Promise.all([getLandingData(), getServerSession()]);
+  return <LandingPage data={data} session={session} />;
 }
-
-export default page

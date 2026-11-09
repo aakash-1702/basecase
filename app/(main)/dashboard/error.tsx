@@ -1,31 +1,21 @@
 "use client";
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+import EmptyState from "@/components/shared/EmptyState";
+import { AlertTriangle } from "lucide-react";
+
+export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4">
-      <p
-        className="text-sm"
-        style={{ fontFamily: "var(--font-dm-mono)", color: "rgba(255,255,255,0.4)" }}
-      >
-        Something went wrong loading the dashboard.
-      </p>
-      <button
-        onClick={reset}
-        className="text-xs border px-4 py-2 rounded transition-colors duration-200 hover:border-white/20"
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          color: "rgba(255,255,255,0.4)",
-          borderColor: "rgba(255,255,255,0.1)",
-        }}
-      >
-        try again
-      </button>
+    <div className="mx-auto max-w-xl px-6 py-24">
+      <EmptyState
+        icon={<AlertTriangle className="h-5 w-5" />}
+        title="Something went wrong"
+        description="We couldn't load your dashboard. Please try again."
+        action={
+          <button type="button" onClick={reset} className="btn btn-secondary btn-sm">
+            Try again
+          </button>
+        }
+      />
     </div>
   );
 }

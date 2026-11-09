@@ -1,227 +1,294 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Code2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import ProblemsTable from "@/components/problems/ProblemsTable";
-
 import PaginationControls from "@/components/PageChange";
+import Container from "@/components/shared/Container";
+import EmptyState from "@/components/shared/EmptyState";
+import PageHero from "@/components/shared/PageHero";
+import SearchFilterBar from "@/components/shared/SearchFilterBar";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+
+const PAGE_SIZE = 20;
+
+type ProblemRow = React.ComponentProps<typeof ProblemsTable>["problems"][number];
+
+interface ProblemsResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    problems?: ProblemRow[];
+    pagination?: { page: number; limit: number; total: number; totalPages: number };
+  };
+}
+
+interface Result {
+  key: string;
+  problems: ProblemRow[];
+  page: number;
+  totalPages: number;
+  total: number;
+}
+
+const DIFFICULTY_OPTIONS = [
+  { value: "all", label: "All levels" },
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "All status" },
+  { value: "solved", label: "Solved" },
+  { value: "unsolved", label: "Unsolved" },
+];
+
+function parsePage(raw: string | null) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : 1;
+}
+
+function ProblemsSkeleton() {
+  return (
+    <div className="card-base overflow-hidden" aria-busy aria-label="Loading problems">
+      <div className="flex items-center gap-4 border-b border-line px-4 py-3.5">
+        <div className="skeleton h-3 w-12" />
+        <div className="skeleton h-3 w-24" />
+        <div className="skeleton ml-auto h-3 w-16" />
+      </div>
+      {Array.from({ length: 8 }, (_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-4 border-b border-line px-4 py-4 last:border-b-0"
+        >
+          <div className="skeleton h-6 w-6 rounded-full" />
+          <div className="skeleton h-3.5 w-full max-w-xs" />
+          <div className="skeleton ml-auto h-5 w-16 rounded-full" />
+          <div className="skeleton hidden h-3 w-24 sm:block" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ProblemsPage() {
-  const [problems, setProblems] = useState<any[]>([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const page = parsePage(searchParams.get("page"));
+
   const [search, setSearch] = useState("");
-  const [difficultyFilter, setDifficultyFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const debouncedSearch = useDebouncedValue(search.trim(), 350);
+  const [difficulty, setDifficulty] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [retryTick, setRetryTick] = useState(0);
 
-  const fetchProblems = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Latest successful response / error, tagged with the request they belong to.
+  const [result, setResult] = useState<Result | null>(null);
+  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
 
-    try {
-      const params = new URLSearchParams({
-        page: String(pagination.page),
-        limit: "5",
-        difficulty: difficultyFilter,
-        status: statusFilter,
-        ...(search ? { search } : {}),
-      });
+  const requestKey = `${page}|${difficulty}|${status}|${debouncedSearch}|${retryTick}`;
+  const error = failure?.key === requestKey ? failure.message : null;
+  const loading = !error && result?.key !== requestKey;
 
-      const res = await fetch(`/api/problems?${params}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store", // ← prevent stale data
-      });
+  /** Page lives in the URL so a refresh / back-nav keeps the position. */
+  const setPage = useCallback(
+    (next: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next > 1) params.set("page", String(next));
+      else params.delete("page");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
-      if (res.status === 401) {
-        toast.error("Session expired. Please log in again.");
-        return;
-      }
-
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.message || "Failed to fetch problems");
-        setError(err.message || "Failed to fetch problems");
-        return;
-      }
-
-      const json = await res.json();
-      const fetchedProblems = json.data?.problems || [];
-
-      setProblems(fetchedProblems);
-
-      setPagination({
-        page: json.data?.pagination?.page || 1,
-        totalPages: json.data?.pagination?.totalPages || 1,
-      });
-    } catch (err: any) {
-      console.error(err);
-      const msg = err.message || "Unable to fetch problems";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [pagination.page, difficultyFilter, statusFilter, search]);
+  const lastSearchRef = useRef(debouncedSearch);
 
   useEffect(() => {
-    fetchProblems();
-  }, [fetchProblems]);
-
-  // Debounce search so it doesn't fire on every keystroke
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setPagination((prev) => ({ ...prev, page: 1 })); // reset to page 1 on search
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [search]);
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination((prev) => ({ ...prev, page: newPage }));
+    // A new (debounced) search term always restarts from page 1.
+    if (lastSearchRef.current !== debouncedSearch) {
+      lastSearchRef.current = debouncedSearch;
+      if (page !== 1) {
+        setPage(1);
+        return; // the URL change re-runs this effect with page = 1
+      }
     }
-  };
+
+    const controller = new AbortController();
+    const { signal } = controller;
+    const key = requestKey;
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(PAGE_SIZE),
+          difficulty,
+          status,
+        });
+        if (debouncedSearch) params.set("search", debouncedSearch);
+
+        const res = await fetch(`/api/problems?${params}`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+          signal,
+        });
+        if (signal.aborted) return;
+
+        if (res.status === 401) {
+          const msg = "Session expired. Please log in again.";
+          toast.error(msg);
+          setFailure({ key, message: msg });
+          return;
+        }
+
+        const json = (await res.json().catch(() => null)) as ProblemsResponse | null;
+        if (signal.aborted) return;
+
+        if (!res.ok || !json?.success) {
+          const msg = json?.message || "Failed to fetch problems";
+          toast.error(msg);
+          setFailure({ key, message: msg });
+          return;
+        }
+
+        const pagination = json.data?.pagination;
+        setResult({
+          key,
+          problems: json.data?.problems ?? [],
+          page: pagination?.page ?? page,
+          totalPages: Math.max(1, pagination?.totalPages ?? 1),
+          total: pagination?.total ?? json.data?.problems?.length ?? 0,
+        });
+      } catch (err) {
+        if (signal.aborted) return;
+        const msg = err instanceof Error ? err.message : "Unable to fetch problems";
+        console.error(err);
+        toast.error(msg);
+        setFailure({ key, message: msg });
+      }
+    })();
+
+    return () => controller.abort();
+  }, [page, difficulty, status, debouncedSearch, requestKey, setPage]);
+
+  const handlePageChange = useCallback(
+    (next: number) => {
+      const totalPages = result?.totalPages ?? 1;
+      if (next >= 1 && next <= totalPages && next !== page) setPage(next);
+    },
+    [result?.totalPages, page, setPage],
+  );
+
+  const filters = useMemo(
+    () => [
+      {
+        key: "difficulty",
+        placeholder: "Difficulty",
+        value: difficulty,
+        options: DIFFICULTY_OPTIONS,
+        onChange: (v: string) => {
+          setDifficulty(v);
+          setPage(1);
+        },
+      },
+      {
+        key: "status",
+        placeholder: "Status",
+        value: status,
+        options: STATUS_OPTIONS,
+        width: "w-36",
+        onChange: (v: string) => {
+          setStatus(v);
+          setPage(1);
+        },
+      },
+    ],
+    [difficulty, status, setPage],
+  );
+
+  const total = result?.total ?? 0;
+  const chips = useMemo(
+    () => [
+      total > 0 ? `${total.toLocaleString()} problems` : "Handpicked problems",
+      "Real interview patterns",
+      "Progress synced",
+    ],
+    [total],
+  );
+
+  const rangeStart = result && result.problems.length > 0 ? (result.page - 1) * PAGE_SIZE + 1 : 0;
+  const rangeEnd = result ? rangeStart + result.problems.length - 1 : 0;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      {/* Hero Section */}
-      <section className="relative pt-16 pb-12 md:pt-20 md:pb-16 border-b border-neutral-800/50 overflow-hidden">
-        <div className="absolute left-1/2 top-0 -z-10 h-96 w-[800px] -translate-x-1/2 rounded-full bg-amber-500/10 blur-3xl opacity-70 pointer-events-none animate-pulse" />
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
-              Master{" "}
-              <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-                DSA
-              </span>{" "}
-              Problems
-            </h1>
-            <p className="mt-5 text-lg md:text-xl text-neutral-400 max-w-3xl mx-auto">
-              Handpicked problems • Real interview patterns • Track your
-              progress • Crack top tech interviews with confidence
-            </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <Badge
-                variant="outline"
-                className="bg-amber-950/40 border-amber-700/40 text-amber-300 px-4 py-1.5 text-base"
-              >
-                1,200+ Problems
-              </Badge>
-              <Badge
-                variant="outline"
-                className="bg-amber-950/40 border-amber-700/40 text-amber-300 px-4 py-1.5 text-base"
-              >
-                85% Solved by Top 1%
-              </Badge>
-              <Badge
-                variant="outline"
-                className="bg-amber-950/40 border-amber-700/40 text-amber-300 px-4 py-1.5 text-base"
-              >
-                Updated Daily
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="pb-20">
+      <PageHero
+        eyebrow="Problem set"
+        title="Master"
+        highlight="DSA problems"
+        description="Handpicked problems, real interview patterns and progress that follows you from sheet to editor."
+        chips={chips}
+      />
 
-      {/* Filters */}
-      <section className="py-8 border-b border-neutral-800/40 bg-neutral-950/80 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full sm:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
-              <Input
-                placeholder="Search problems (e.g. two sum, sliding window...)"
-                className="pl-10 bg-neutral-900 border-neutral-700 focus:border-amber-500/50 focus:ring-amber-500/30"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+      <SearchFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search problems (e.g. two sum, sliding window…)"
+        filters={filters}
+      />
+
+      <Container className="min-h-[400px] py-8">
+        {loading ? (
+          <ProblemsSkeleton />
+        ) : error ? (
+          <EmptyState
+            icon={<AlertTriangle className="h-5 w-5" />}
+            title="Couldn't load problems"
+            description={error}
+            action={
+              <button
+                type="button"
+                onClick={() => setRetryTick((t) => t + 1)}
+                className="btn btn-secondary btn-sm"
+              >
+                Try again
+              </button>
+            }
+          />
+        ) : result ? (
+          <>
+            <div className="mb-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-fg-muted">
+              <span>
+                {result.problems.length > 0
+                  ? `Showing ${rangeStart}–${rangeEnd} of ${result.total}`
+                  : "No results"}
+              </span>
+              <span>
+                Page {result.page} / {result.totalPages}
+              </span>
+            </div>
+
+            <div className="card-base overflow-hidden">
+              <ProblemsTable problems={result.problems} />
+            </div>
+
+            {result.totalPages > 1 && (
+              <PaginationControls
+                currentPage={result.page}
+                totalPages={result.totalPages}
+                onPageChange={handlePageChange}
+                className="mt-8"
               />
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Select
-                value={difficultyFilter}
-                onValueChange={(v) => {
-                  setDifficultyFilter(v);
-                  setPagination((p) => ({ ...p, page: 1 }));
-                }}
-              >
-                <SelectTrigger className="w-36 bg-neutral-900 border-neutral-700">
-                  <SelectValue placeholder="Difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => {
-                  setStatusFilter(v);
-                  setPagination((p) => ({ ...p, page: 1 }));
-                }}
-              >
-                <SelectTrigger className="w-40 bg-neutral-900 border-neutral-700">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="solved">Solved</SelectItem>
-                  <SelectItem value="unsolved">Unsolved</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                className="border-amber-600/50 text-amber-300 hover:bg-amber-950/40"
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                More Filters
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Table + Pagination */}
-      <section className="py-10">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 min-h-[400px]">
-          {loading ? (
-            <div className="py-20 text-center text-neutral-400 animate-pulse">
-              Loading problems...
-            </div>
-          ) : error ? (
-            <div className="py-20 text-center text-rose-400">{error}</div>
-          ) : (
-            <>
-              <ProblemsTable problems={problems} />
-              {pagination.totalPages > 1 && (
-                <PaginationControls
-                  currentPage={pagination.page}
-                  totalPages={pagination.totalPages}
-                  onPageChange={handlePageChange}
-                  className="mt-10"
-                />
-              )}
-            </>
-          )}
-        </div>
-      </section>
+            )}
+          </>
+        ) : null}
+      </Container>
     </div>
   );
 }

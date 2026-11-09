@@ -31,65 +31,25 @@ export function RoomTopBar(props: RoomTopBarProps) {
   const isDisabled = phase === "submitting";
 
   return (
-    <div
-      className="shrink-0 flex items-center justify-between px-6 relative"
-      style={{
-        height: "48px",
-        background: "#111111",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
+    <div className="relative flex h-12 shrink-0 items-center justify-between border-b border-line bg-surface px-6">
       {/* Left: empty spacer for layout balance */}
       <div />
 
       {/* Center: Interview config */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2"
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          fontSize: "12px",
-          fontWeight: 500,
-          color: "#a0a0a0",
-          letterSpacing: "0.02em",
-        }}
-      >
+      <div className="absolute left-1/2 -translate-x-1/2 font-mono text-xs font-medium tracking-wide text-fg-secondary">
         {config.company}
-        <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
+        <span className="mx-2 text-fg-dim">·</span>
         {config.mode}
-        <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
+        <span className="mx-2 text-fg-dim">·</span>
         {config.difficulty}
       </div>
 
       {/* Right: End Session button — solid destructive */}
       <button
+        type="button"
         onClick={handleClick}
         disabled={isDisabled}
-        className="transition-all duration-200"
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          fontSize: "12px",
-          fontWeight: 500,
-          color: isDisabled ? "#555" : "#fff",
-          background: isDisabled
-            ? "rgba(239,68,68,0.1)"
-            : "rgba(239,68,68,0.8)",
-          border: "1px solid rgba(239,68,68,0.4)",
-          borderRadius: "6px",
-          padding: "7px 18px",
-          cursor: isDisabled ? "not-allowed" : "pointer",
-          opacity: isDisabled ? 0.5 : 1,
-          letterSpacing: "0.02em",
-        }}
-        onMouseEnter={(e) => {
-          if (!isDisabled) {
-            e.currentTarget.style.background = "rgba(239,68,68,1)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isDisabled) {
-            e.currentTarget.style.background = "rgba(239,68,68,0.8)";
-          }
-        }}
+        className="btn btn-sm border border-danger/40 bg-danger/80 font-mono tracking-wide text-white hover:bg-danger disabled:hover:bg-danger/80"
       >
         End Interview
       </button>

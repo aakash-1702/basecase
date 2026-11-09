@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import type { Phase, TurnState } from "@/types/interview-room";
 
 // New interface for InterviewRoom
@@ -21,19 +22,25 @@ interface LegacyUserPanelProps {
 type UserPanelProps = Partial<NewUserPanelProps> &
   Partial<LegacyUserPanelProps>;
 
-export function UserPanel(props: UserPanelProps) {
-  const { userName = "User" } = props;
+const WAVE_BARS = Array.from({ length: 8 }, (_, i) => i);
 
-  // Detect if using legacy mode
-  const isLegacyMode = "turnState" in props && props.turnState !== undefined;
-
-  const initials =
-    userName
+function getInitials(name: string): string {
+  return (
+    name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
-      .substring(0, 2) || "U";
+      .substring(0, 2) || "U"
+  );
+}
+
+export function UserPanel(props: UserPanelProps) {
+  const { userName = "User" } = props;
+
+  // Detect if using legacy mode
+  const isLegacyMode = props.turnState !== undefined;
+  const initials = getInitials(userName);
 
   // ==================== LEGACY MODE ====================
   if (isLegacyMode) {
@@ -41,121 +48,51 @@ export function UserPanel(props: UserPanelProps) {
     const isListening = turnState === "listening";
 
     return (
-      <>
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-          @keyframes micPulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50%      { opacity: 0.5; transform: scale(1.3); }
-          }
-        `,
-          }}
-        />
-
-        <div
-          className="flex flex-col items-center justify-center w-full h-full"
-          style={{ gap: "20px", padding: "24px" }}
-        >
-          {/* Label + Mic indicator */}
-          <div className="flex items-center gap-2">
-            {isListening && (
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{
-                  background: "#ef4444",
-                  animation: "micPulse 1.2s ease-in-out infinite",
-                }}
-              />
+      <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-6">
+        {/* Label + Mic indicator */}
+        <div className="flex items-center gap-2">
+          {isListening && <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />}
+          <span
+            className={cn(
+              "font-mono text-[11px] font-medium tracking-[0.2em]",
+              isListening ? "text-accent" : "text-fg-muted",
             )}
-            <div
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                fontSize: "11px",
-                letterSpacing: "0.2em",
-                color: isListening ? "#ef4444" : "#737373",
-                fontWeight: 500,
-              }}
-            >
-              {isListening ? "RECORDING" : "YOU"}
-            </div>
-          </div>
-
-          {/* User Avatar */}
-          <div
-            className="flex items-center justify-center transition-all duration-300 relative"
-            style={{
-              width: "72px",
-              height: "72px",
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.03)",
-              border: isListening
-                ? "1px solid rgba(239,68,68,0.6)"
-                : "1px solid rgba(255,255,255,0.12)",
-              boxShadow: isListening
-                ? "0 0 0 4px rgba(239,68,68,0.15)"
-                : "0 4px 12px rgba(0,0,0,0.5)",
-              animation: isListening
-                ? "recordPulse 2s ease-in-out infinite"
-                : "none",
-            }}
           >
-            <span
-              style={{
-                fontFamily: "var(--font-dm-serif)",
-                fontSize: "24px",
-                color: "#d4d4d4",
-              }}
-            >
-              {initials}
-            </span>
-          </div>
-
-          {/* Live transcript preview */}
-          {liveTranscript && (
-            <div
-              className="w-full overflow-y-auto interview-scrollbar text-center"
-              style={{
-                maxHeight: "80px",
-                padding: "0 12px",
-              }}
-            >
-              <p
-                className="text-xs leading-relaxed"
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  color: "rgba(255,255,255,0.4)",
-                  fontStyle: "italic",
-                }}
-              >
-                {liveTranscript}
-              </p>
-            </div>
-          )}
-
-          {/* Waveform while listening */}
-          {isListening && (
-            <div
-              className="flex items-end"
-              style={{ gap: "3px", height: "20px" }}
-            >
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: "2px",
-                    height: "100%",
-                    background: "rgba(239,68,68,0.5)",
-                    animation: "wavePulse 0.7s ease-in-out infinite",
-                    animationDelay: `${i * 0.07}s`,
-                    transformOrigin: "bottom",
-                  }}
-                />
-              ))}
-            </div>
-          )}
+            {isListening ? "RECORDING" : "YOU"}
+          </span>
         </div>
-      </>
+
+        {/* User Avatar */}
+        <div
+          className={cn(
+            "relative flex h-[72px] w-[72px] items-center justify-center rounded-full border bg-surface-2 transition-colors duration-300",
+            isListening ? "border-accent/60" : "border-line-strong",
+          )}
+          style={isListening ? { animation: "recordPulse 2s ease-in-out infinite" } : undefined}
+        >
+          <span className="font-display text-2xl text-fg-secondary">{initials}</span>
+        </div>
+
+        {/* Live transcript preview */}
+        {liveTranscript && (
+          <div className="interview-scrollbar max-h-20 w-full overflow-y-auto px-3 text-center">
+            <p className="text-xs italic leading-relaxed text-fg-muted">{liveTranscript}</p>
+          </div>
+        )}
+
+        {/* Waveform while listening */}
+        {isListening && (
+          <div className="flex h-5 items-end gap-[3px]" aria-hidden>
+            {WAVE_BARS.map((i) => (
+              <span
+                key={i}
+                className="h-full w-0.5 origin-bottom bg-accent/60"
+                style={{ animation: "wavePulse 0.7s ease-in-out infinite", animationDelay: `${i * 70}ms` }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -163,9 +100,9 @@ export function UserPanel(props: UserPanelProps) {
   const {
     phase = "answering",
     isSTTSupported = true,
-    onStartRecording = () => {},
-    onStopRecording = () => {},
-  } = props as NewUserPanelProps;
+    onStartRecording,
+    onStopRecording,
+  } = props;
 
   const isRecording = phase === "recording";
   const isMicVisible =
@@ -173,136 +110,49 @@ export function UserPanel(props: UserPanelProps) {
   const isDimmed =
     phase === "speaking" || phase === "submitting" || phase === "loading";
 
-  // Avatar border styles based on phase
-  const getAvatarBorder = () => {
-    if (isRecording) {
-      return "1px solid rgba(245,158,11,0.5)";
-    }
-    if (phase === "answering") {
-      return "1px solid rgba(255,255,255,0.06)";
-    }
-    return "1px solid rgba(255,255,255,0.04)";
-  };
-
   return (
     <div
-      className="flex flex-col items-center justify-center h-full"
-      style={{
-        padding: "24px",
-        borderTop: "1px solid rgba(255,255,255,0.04)",
-        opacity: isDimmed ? 0.5 : 1,
-        transition: "opacity 300ms",
-      }}
+      className={cn(
+        "flex h-full flex-col items-center justify-center border-t border-line p-6 transition-opacity duration-300",
+        isDimmed && "opacity-50",
+      )}
     >
       {/* Label */}
-      <div
-        style={{
-          fontFamily: "var(--font-dm-mono)",
-          fontSize: "9px",
-          letterSpacing: "0.25em",
-          color: "#2a2a2a",
-          marginBottom: "20px",
-        }}
-      >
-        YOU
-      </div>
+      <span className="mb-5 font-mono text-[9px] tracking-[0.25em] text-fg-dim">YOU</span>
 
       {/* User Avatar */}
       <div
-        style={{
-          width: "64px",
-          height: "64px",
-          borderRadius: "50%",
-          background: "#141414",
-          border: getAvatarBorder(),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          animation: isRecording
-            ? "recordPulse 2s ease-in-out infinite"
-            : "none",
-          transition: "border 300ms, box-shadow 300ms",
-        }}
+        className={cn(
+          "flex h-16 w-16 items-center justify-center rounded-full border bg-surface-2 transition-colors duration-300",
+          isRecording ? "border-accent/60" : phase === "answering" ? "border-line-strong" : "border-line",
+        )}
+        style={isRecording ? { animation: "recordPulse 2s ease-in-out infinite" } : undefined}
       >
-        <span
-          style={{
-            fontFamily: "var(--font-dm-serif)",
-            fontSize: "22px",
-            color: "#525252",
-          }}
-        >
-          {initials}
-        </span>
+        <span className="font-display text-[22px] text-fg-muted">{initials}</span>
       </div>
 
       {/* Mic Button */}
       {isMicVisible && (
-        <div style={{ marginTop: "20px" }}>
+        <div className="mt-5">
           {!isSTTSupported ? (
-            // STT not supported state
             <div className="flex flex-col items-center">
               <button
+                type="button"
                 disabled
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  fontSize: "12px",
-                  color: "#f87171",
-                  background: "transparent",
-                  border: "1px solid rgba(244,63,94,0.3)",
-                  borderRadius: "6px",
-                  padding: "10px 20px",
-                  cursor: "not-allowed",
-                  opacity: 0.7,
-                }}
+                className="btn btn-sm border border-danger/30 bg-transparent font-mono text-danger"
               >
                 ⚠ Not Supported
               </button>
-              <p
-                style={{
-                  fontFamily: "var(--font-dm-mono)",
-                  fontSize: "10px",
-                  color: "#3a3a3a",
-                  marginTop: "8px",
-                  textAlign: "center",
-                }}
-              >
+              <p className="mt-2 text-center font-mono text-[10px] text-fg-muted">
                 Use Chrome or Edge for voice input
               </p>
             </div>
           ) : phase === "answering" ? (
-            // Ready to speak
-            <button
-              onClick={onStartRecording}
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                fontSize: "13px",
-                color: "#0a0a0a",
-                background: "#f59e0b",
-                border: "none",
-                borderRadius: "6px",
-                padding: "10px 24px",
-                cursor: "pointer",
-                fontWeight: 500,
-              }}
-            >
+            <button type="button" onClick={onStartRecording} className="btn btn-primary btn-sm font-mono">
               🎙 Speak
             </button>
           ) : phase === "recording" ? (
-            // Recording
-            <button
-              onClick={onStopRecording}
-              style={{
-                fontFamily: "var(--font-dm-mono)",
-                fontSize: "13px",
-                color: "#f59e0b",
-                background: "transparent",
-                border: "1px solid rgba(245,158,11,0.5)",
-                borderRadius: "6px",
-                padding: "10px 24px",
-                cursor: "pointer",
-                fontWeight: 500,
-              }}
-            >
+            <button type="button" onClick={onStopRecording} className="btn btn-outline-accent btn-sm font-mono">
               ■ Done
             </button>
           ) : null}

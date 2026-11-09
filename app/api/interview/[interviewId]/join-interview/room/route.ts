@@ -6,11 +6,13 @@ import { appendToTranscript } from "@/lib/session";
 import { GoogleGenAI } from "@google/genai";
 import { SarvamAIClient } from "sarvamai";
 
-const client = new SarvamAIClient({
-  apiSubscriptionKey: process.env.SARVAMAI_API_KEY!,
-});
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+// SDK clients are created on first use so importing the route (which
+// `next build` does) never requires the API keys.
+let sarvam: SarvamAIClient | null = null;
+const getClient = () =>
+  (sarvam ??= new SarvamAIClient({ apiSubscriptionKey: process.env.SARVAMAI_API_KEY ?? "" }));
+let genai: GoogleGenAI | null = null;
+const getAI = () => (genai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" }));
 
 const SYSTEM_PROMPT = `You are a professional interviewer conducting a structured mock interview.
   Your job is to simulate a real interview experience while strictly following
@@ -196,7 +198,7 @@ async function* interviewMentor(data: {
   }));
 
   try {
-    const stream = await ai.models.generateContentStream({
+    const stream = await getAI().models.generateContentStream({
       model: process.env.GEMINI_MODEL_NAME!,
       config: {
         systemInstruction: SYSTEM_PROMPT.replace(
@@ -339,7 +341,7 @@ async function* interviewMentor(data: {
 }
 
 const TTS = async (text: string): Promise<string> => {
-  const audioResponse = await client.textToSpeech.convert({
+  const audioResponse = await getClient().textToSpeech.convert({
     text,
     target_language_code: "en-IN",
     model: "bulbul:v3",
